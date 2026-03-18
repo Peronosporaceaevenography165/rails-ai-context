@@ -2,7 +2,7 @@
 
 require "combustion"
 
-Combustion.initialize! :active_record do
+Combustion.initialize! :active_record, :action_controller do
   config.eager_load = false
 end
 

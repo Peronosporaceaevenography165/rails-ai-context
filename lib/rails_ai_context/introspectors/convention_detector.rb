@@ -38,8 +38,16 @@ module RailsAiContext
         arch << "query_objects" if dir_exists?("app/queries")
         arch << "presenters" if dir_exists?("app/presenters") || dir_exists?("app/decorators")
         arch << "view_components" if dir_exists?("app/components")
+        arch << "phlex" if gem_present?("phlex-rails")
         arch << "stimulus" if dir_exists?("app/javascript/controllers")
         arch << "importmaps" if file_exists?("config/importmap.rb")
+        arch << "concerns_models" if dir_exists?("app/models/concerns")
+        arch << "concerns_controllers" if dir_exists?("app/controllers/concerns")
+        arch << "validators" if dir_exists?("app/validators")
+        arch << "policies" if dir_exists?("app/policies")
+        arch << "serializers" if dir_exists?("app/serializers")
+        arch << "notifiers" if dir_exists?("app/notifiers")
+        arch << "pwa" if file_exists?("app/views/pwa")
         arch << "docker" if file_exists?("Dockerfile") || file_exists?("docker-compose.yml")
         arch << "kamal" if file_exists?("config/deploy.yml")
         arch << "ci_github_actions" if dir_exists?(".github/workflows")
@@ -65,7 +73,13 @@ module RailsAiContext
           patterns << "taggable" if content.match?(/acts_as_taggable/)
           patterns << "sluggable" if content.match?(/friendly_id|sluggable/)
           patterns << "nested_set" if content.match?(/acts_as_nested_set|ancestry|closure_tree/)
+          patterns << "current_attributes" if content.match?(/< ActiveSupport::CurrentAttributes/)
+          patterns << "encrypted_attributes" if content.match?(/\bencrypts\s+:/)
+          patterns << "normalizations" if content.match?(/\bnormalizes\s+:/)
         end
+
+        patterns << "view_components" if dir_exists?("app/components")
+        patterns << "phlex" if gem_present?("phlex-rails")
 
         patterns
       end
@@ -76,8 +90,10 @@ module RailsAiContext
           app/mailers app/channels app/services app/forms
           app/queries app/presenters app/decorators
           app/components app/graphql app/api
+          app/policies app/serializers app/validators
+          app/notifiers app/mailboxes
           app/javascript/controllers
-          config/initializers db/migrate
+          config/initializers db/migrate lib/tasks
           spec test
         ]
 
@@ -98,6 +114,9 @@ module RailsAiContext
           config/cable.yml config/storage.yml
           config/sidekiq.yml config/deploy.yml
           config/importmap.rb config/tailwind.config.js
+          config/puma.rb config/application.rb
+          config/locales/en.yml
+          package.json Gemfile
           Procfile Procfile.dev
           .rubocop.yml .rspec
           Dockerfile docker-compose.yml

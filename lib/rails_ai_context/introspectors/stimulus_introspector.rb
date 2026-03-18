@@ -36,7 +36,9 @@ module RailsAiContext
           file: relative,
           targets: extract_targets(content),
           values: extract_values(content),
-          actions: extract_actions(content)
+          actions: extract_actions(content),
+          outlets: extract_outlets(content),
+          classes: extract_classes(content)
         }
       rescue => e
         { name: File.basename(path), error: e.message }
@@ -57,8 +59,22 @@ module RailsAiContext
       end
 
       def extract_actions(content)
-        content.scan(/^\s*(\w+)\s*\(/).flatten
-               .reject { |m| %w[constructor connect disconnect initialize].include?(m) }
+        content.scan(/^\s+(?:async\s+)?(\w+)\s*\([^)]*\)\s*\{/).flatten
+               .reject { |m| %w[constructor connect disconnect initialize if else for while switch catch function].include?(m) }
+      end
+
+      def extract_outlets(content)
+        match = content.match(/static\s+outlets\s*=\s*\[([^\]]*)\]/)
+        return [] unless match
+
+        match[1].scan(/["']([^"']+)["']/).flatten
+      end
+
+      def extract_classes(content)
+        match = content.match(/static\s+classes\s*=\s*\[([^\]]*)\]/)
+        return [] unless match
+
+        match[1].scan(/["']([^"']+)["']/).flatten
       end
     end
   end

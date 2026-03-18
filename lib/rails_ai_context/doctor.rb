@@ -11,6 +11,10 @@ module RailsAiContext
       check_models
       check_routes
       check_gems
+      check_controllers
+      check_views
+      check_i18n
+      check_tests
       check_context_files
       check_mcp_buildable
       check_ripgrep
@@ -64,6 +68,45 @@ module RailsAiContext
         Check.new(name: "Gems", status: :pass, message: "Gemfile.lock found", fix: nil)
       else
         Check.new(name: "Gems", status: :warn, message: "Gemfile.lock not found", fix: "Run `bundle install` to generate it")
+      end
+    end
+
+    def check_controllers
+      dir = File.join(app.root, "app/controllers")
+      if Dir.exist?(dir) && Dir.glob(File.join(dir, "**/*.rb")).any?
+        count = Dir.glob(File.join(dir, "**/*.rb")).size
+        Check.new(name: "Controllers", status: :pass, message: "#{count} controller files found", fix: nil)
+      else
+        Check.new(name: "Controllers", status: :warn, message: "No controller files found in app/controllers/", fix: "Generate controllers with `rails generate controller`")
+      end
+    end
+
+    def check_views
+      dir = File.join(app.root, "app/views")
+      if Dir.exist?(dir) && Dir.glob(File.join(dir, "**/*")).reject { |f| File.directory?(f) }.any?
+        count = Dir.glob(File.join(dir, "**/*")).reject { |f| File.directory?(f) }.size
+        Check.new(name: "Views", status: :pass, message: "#{count} view files found", fix: nil)
+      else
+        Check.new(name: "Views", status: :warn, message: "No view files found in app/views/", fix: "Views are generated alongside controllers")
+      end
+    end
+
+    def check_i18n
+      dir = File.join(app.root, "config/locales")
+      if Dir.exist?(dir) && Dir.glob(File.join(dir, "**/*.{yml,yaml}")).any?
+        count = Dir.glob(File.join(dir, "**/*.{yml,yaml}")).size
+        Check.new(name: "I18n", status: :pass, message: "#{count} locale files found", fix: nil)
+      else
+        Check.new(name: "I18n", status: :warn, message: "No locale files found in config/locales/", fix: "Add locale files for internationalization support")
+      end
+    end
+
+    def check_tests
+      if Dir.exist?(File.join(app.root, "spec")) || Dir.exist?(File.join(app.root, "test"))
+        framework = Dir.exist?(File.join(app.root, "spec")) ? "RSpec" : "Minitest"
+        Check.new(name: "Tests", status: :pass, message: "#{framework} test directory found", fix: nil)
+      else
+        Check.new(name: "Tests", status: :warn, message: "No test directory found", fix: "Set up tests with `rails generate rspec:install` or use default Minitest")
       end
     end
 

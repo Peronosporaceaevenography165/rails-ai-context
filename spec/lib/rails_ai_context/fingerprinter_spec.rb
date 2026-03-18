@@ -14,6 +14,49 @@ RSpec.describe RailsAiContext::Fingerprinter do
       b = described_class.compute(Rails.application)
       expect(a).to eq(b)
     end
+
+    it "detects changes to .rake files" do
+      before = described_class.compute(Rails.application)
+      rake_file = File.join(Rails.root, "lib/tasks/example.rake")
+      original_mtime = File.mtime(rake_file)
+
+      # Touch the file to change mtime
+      FileUtils.touch(rake_file)
+      after = described_class.compute(Rails.application)
+
+      # Restore original mtime
+      File.utime(original_mtime, original_mtime, rake_file)
+
+      expect(before).not_to eq(after)
+    end
+
+    it "detects changes to .erb view files" do
+      before = described_class.compute(Rails.application)
+      erb_file = File.join(Rails.root, "app/views/posts/index.html.erb")
+      original_mtime = File.mtime(erb_file)
+
+      FileUtils.touch(erb_file)
+      after = described_class.compute(Rails.application)
+
+      File.utime(original_mtime, original_mtime, erb_file)
+
+      expect(before).not_to eq(after)
+    end
+
+    it "detects changes to .js stimulus controllers" do
+      controllers_dir = File.join(Rails.root, "app/javascript/controllers")
+      FileUtils.mkdir_p(controllers_dir)
+      js_file = File.join(controllers_dir, "test_controller.js")
+      File.write(js_file, "// test")
+
+      before = described_class.compute(Rails.application)
+      FileUtils.touch(js_file)
+      after = described_class.compute(Rails.application)
+
+      FileUtils.rm_rf(File.join(Rails.root, "app/javascript"))
+
+      expect(before).not_to eq(after)
+    end
   end
 
   describe ".changed?" do

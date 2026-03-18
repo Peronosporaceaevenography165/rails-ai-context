@@ -46,7 +46,7 @@ module RailsAiContext
       end
 
       def extract_model_details(model)
-        {
+        details = {
           table_name: model.table_name,
           associations: extract_associations(model),
           validations: extract_validations(model),
@@ -56,7 +56,13 @@ module RailsAiContext
           concerns: extract_concerns(model),
           class_methods: extract_public_class_methods(model),
           instance_methods: extract_public_instance_methods(model)
-        }.compact
+        }
+
+        # Source-based macro extractions
+        macros = extract_source_macros(model)
+        details.merge!(macros)
+
+        details.compact
       end
 
       def extract_associations(model)
@@ -153,6 +159,40 @@ module RailsAiContext
           .sort
           .first(30)
           .map(&:to_s)
+      end
+
+      def extract_source_macros(model)
+        path = model_source_path(model)
+        return {} unless path && File.exist?(path)
+
+        source = File.read(path)
+        macros = {}
+
+        macros[:has_secure_password] = true if source.match?(/\bhas_secure_password\b/)
+        macros[:encrypts] = source.scan(/\bencrypts\s+(.+)/).flat_map { |m| m[0].scan(/:(\w+)/).flatten } if source.match?(/\bencrypts\s+:/)
+        macros[:normalizes] = source.scan(/\bnormalizes\s+(.+)/).flat_map { |m| m[0].scan(/:(\w+)/).flatten } if source.match?(/\bnormalizes\s+:/)
+        macros[:has_one_attached] = source.scan(/\bhas_one_attached\s+:(\w+)/).flatten if source.match?(/\bhas_one_attached\s+:/)
+        macros[:has_many_attached] = source.scan(/\bhas_many_attached\s+:(\w+)/).flatten if source.match?(/\bhas_many_attached\s+:/)
+        macros[:has_rich_text] = source.scan(/\bhas_rich_text\s+:(\w+)/).flatten if source.match?(/\bhas_rich_text\s+:/)
+        macros[:broadcasts] = source.scan(/\b(broadcasts_to|broadcasts_refreshes_to|broadcasts)\b/).flatten.uniq if source.match?(/\bbroadcasts/)
+        macros[:generates_token_for] = source.scan(/\bgenerates_token_for\s+:(\w+)/).flatten if source.match?(/\bgenerates_token_for\s+:/)
+        macros[:serialize] = source.scan(/\bserialize\s+:(\w+)/).flatten if source.match?(/\bserialize\s+:/)
+        macros[:store] = source.scan(/\bstore(?:_accessor)?\s+:(\w+)/).flatten if source.match?(/\bstore(?:_accessor)?\s+:/)
+
+        # Delegations
+        delegations = source.scan(/\bdelegate\s+(.+?),\s*to:\s*:(\w+)/).map do |methods_str, target|
+          { methods: methods_str.scan(/:(\w+)/).flatten, to: target }
+        end
+        macros[:delegations] = delegations if delegations.any?
+
+        if (dmt = source.match(/\bdelegate_missing_to\s+:(\w+)/))
+          macros[:delegate_missing_to] = dmt[1]
+        end
+
+        # Remove empty arrays
+        macros.reject { |_, v| v.is_a?(Array) && v.empty? }
+      rescue
+        {}
       end
 
       def sanitize_options(options)

@@ -30,6 +30,24 @@ module RailsAiContext
         description: "Gem dependencies categorized by function with explanations",
         mime_type: "application/json",
         key: :gems
+      },
+      "rails://controllers" => {
+        name: "Controllers",
+        description: "All controllers with actions, filters, strong params, and concerns",
+        mime_type: "application/json",
+        key: :controllers
+      },
+      "rails://config" => {
+        name: "Application Config",
+        description: "Application configuration including cache, sessions, middleware, and initializers",
+        mime_type: "application/json",
+        key: :config
+      },
+      "rails://tests" => {
+        name: "Test Infrastructure",
+        description: "Test framework, factories, fixtures, CI, and coverage configuration",
+        mime_type: "application/json",
+        key: :tests
       }
     }.freeze
 

@@ -21,7 +21,7 @@ module RailsAiContext
         routes = cached_context[:routes]
         return text_response("Route introspection failed: #{routes[:error]}") if routes[:error]
 
-        by_controller = routes[:by_controller]
+        by_controller = routes[:by_controller] || {}
 
         if controller
           filtered = by_controller.select { |k, _| k.include?(controller) }

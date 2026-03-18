@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-18
+
+### Added
+
+- **14 new introspectors** — Controllers, Views, Turbo/Hotwire, I18n, Config, Active Storage, Action Text, Auth, API, Tests, Rake Tasks, Asset Pipeline, DevOps, Action Mailbox
+- **3 new MCP tools** — `rails_get_controllers`, `rails_get_config`, `rails_get_test_info`
+- **3 new MCP resources** — `rails://controllers`, `rails://config`, `rails://tests`
+- **Model introspector enhancements** — Extracts `has_secure_password`, `encrypts`, `normalizes`, `delegate`, `serialize`, `store`, `generates_token_for`, `has_one_attached`, `has_many_attached`, `has_rich_text`, `broadcasts_to` via source parsing
+- **Stimulus introspector enhancements** — Extracts `outlets` and `classes` from controllers
+- **Gem introspector enhancements** — 30+ new notable gems: monitoring (Sentry, Datadog, New Relic, Skylight), admin (ActiveAdmin, Administrate, Avo), pagination (Pagy, Kaminari), search (Ransack, pg_search, Searchkick), forms (SimpleForm), utilities (Faraday, Flipper, Bullet, Rack::Attack), and more
+- **Convention detector enhancements** — Detects concerns, validators, policies, serializers, notifiers, Phlex, PWA, encrypted attributes, normalizations
+- **Markdown serializer sections** — All 14 new introspector sections rendered in generated context files
+- **Doctor enhancements** — 4 new checks: controllers, views, i18n, tests (11 total)
+- **Fingerprinter expansion** — Watches `app/controllers`, `app/views`, `lib/tasks` for change detection
+
+### Changed
+
+- Default introspectors expanded from 7 to 21
+- MCP tools expanded from 6 to 9
+- Static MCP resources expanded from 4 to 7
+- Doctor checks expanded from 7 to 11
+
 ## [0.3.0] - 2026-03-18
 
 ### Added

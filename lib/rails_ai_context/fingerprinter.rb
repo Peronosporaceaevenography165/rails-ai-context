@@ -14,6 +14,14 @@ module RailsAiContext
 
     WATCHED_DIRS = %w[
       app/models
+      app/controllers
+      app/views
+      app/jobs
+      app/mailers
+      app/channels
+      app/javascript/controllers
+      config/initializers
+      lib/tasks
     ].freeze
 
     class << self
@@ -30,7 +38,7 @@ module RailsAiContext
           full_dir = File.join(root, dir)
           next unless Dir.exist?(full_dir)
 
-          Dir.glob(File.join(full_dir, "**/*.rb")).sort.each do |path|
+          Dir.glob(File.join(full_dir, "**/*.{rb,rake,js,ts,erb,haml,slim,yml}")).sort.each do |path|
             digest.update(File.mtime(path).to_f.to_s)
           end
         end

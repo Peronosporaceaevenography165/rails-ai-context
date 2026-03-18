@@ -31,9 +31,11 @@ module RailsAiContext
         schema = cached_context[:schema]
         return text_response("Schema introspection not available: #{schema[:error]}") if schema[:error]
 
+        tables = schema[:tables] || {}
+
         if table
-          table_data = schema.dig(:tables, table)
-          return text_response("Table '#{table}' not found. Available: #{schema[:tables].keys.join(', ')}") unless table_data
+          table_data = tables[table]
+          return text_response("Table '#{table}' not found. Available: #{tables.keys.join(', ')}") unless table_data
 
           output = format == "json" ? table_data.to_json : format_table_markdown(table, table_data)
         else
@@ -79,7 +81,7 @@ module RailsAiContext
           ""
         ]
 
-        schema[:tables].each do |name, data|
+        (schema[:tables] || {}).each do |name, data|
           cols = data[:columns].map { |c| "#{c[:name]}:#{c[:type]}" }.join(", ")
           lines << "### #{name}"
           lines << cols

@@ -14,7 +14,10 @@ module RailsAiContext
       Tools::GetModelDetails,
       Tools::GetGems,
       Tools::SearchCode,
-      Tools::GetConventions
+      Tools::GetConventions,
+      Tools::GetControllers,
+      Tools::GetConfig,
+      Tools::GetTestInfo
     ].freeze
 
     def initialize(app, transport: :stdio)

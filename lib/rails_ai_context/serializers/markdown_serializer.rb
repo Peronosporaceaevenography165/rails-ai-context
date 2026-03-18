@@ -4,7 +4,7 @@ module RailsAiContext
   module Serializers
     # Generates AI-friendly markdown context files from introspection data.
     # Outputs: CLAUDE.md (for Claude Code), .cursorrules, .windsurfrules, etc.
-    class MarkdownSerializer
+    class MarkdownSerializer # rubocop:disable Metrics/ClassLength
       attr_reader :context
 
       def initialize(context)
@@ -22,6 +22,20 @@ module RailsAiContext
         sections << jobs_section if context[:jobs]
         sections << gems_section if context[:gems]
         sections << conventions_section if context[:conventions]
+        sections << controllers_section if context[:controllers]
+        sections << views_section if context[:views]
+        sections << turbo_section if context[:turbo]
+        sections << active_storage_section if context[:active_storage]
+        sections << action_text_section if context[:action_text]
+        sections << i18n_section if context[:i18n]
+        sections << config_section if context[:config]
+        sections << assets_section if context[:assets]
+        sections << auth_section if context[:auth]
+        sections << api_section if context[:api]
+        sections << tests_section if context[:tests]
+        sections << rake_tasks_section if context[:rake_tasks]
+        sections << devops_section if context[:devops]
+        sections << action_mailbox_section if context[:action_mailbox]
         sections << footer
         sections.compact.join("\n\n")
       end
@@ -144,6 +158,232 @@ module RailsAiContext
         conv[:directory_structure].sort.each do |dir, count|
           lines << "- `#{dir}/` — #{count} files"
         end
+        lines.join("\n")
+      end
+
+      def controllers_section
+        data = context[:controllers]
+        return if data[:error]
+
+        controllers = data[:controllers] || {}
+        return if controllers.empty?
+
+        lines = [ "## Controllers (#{controllers.size})" ]
+        controllers.each do |name, info|
+          next if info[:error]
+          lines << "### #{name}"
+          lines << "- Parent: `#{info[:parent_class]}`" if info[:parent_class]
+          lines << "- API controller: yes" if info[:api_controller]
+          lines << "- Actions: #{info[:actions]&.join(', ')}" if info[:actions]&.any?
+          if info[:filters]&.any?
+            lines << "- Filters: #{info[:filters].map { |f| "#{f[:kind]} #{f[:name]}" }.join(', ')}"
+          end
+          lines << "- Strong params: #{info[:strong_params].join(', ')}" if info[:strong_params]&.any?
+        end
+        lines.join("\n")
+      end
+
+      def views_section
+        data = context[:views]
+        return if data[:error]
+
+        lines = [ "## Views" ]
+        lines << "- Layouts: #{data[:layouts].join(', ')}" if data[:layouts]&.any?
+        lines << "- Template engines: #{data[:template_engines].join(', ')}" if data[:template_engines]&.any?
+
+        if data[:templates]&.any?
+          lines << "### Templates by controller"
+          data[:templates].each do |ctrl, templates|
+            lines << "- `#{ctrl}/`: #{templates.join(', ')}"
+          end
+        end
+
+        if data[:helpers]&.any?
+          lines << "### Helpers"
+          data[:helpers].each { |h| lines << "- `#{h[:file]}`: #{h[:methods].join(', ')}" }
+        end
+
+        lines << "- View components: #{data[:view_components].size}" if data[:view_components]&.any?
+        lines.join("\n")
+      end
+
+      def turbo_section
+        data = context[:turbo]
+        return if data[:error]
+        return if data[:turbo_frames]&.empty? && data[:turbo_streams]&.empty? && data[:model_broadcasts]&.empty?
+
+        lines = [ "## Hotwire / Turbo" ]
+        if data[:turbo_frames]&.any?
+          lines << "### Turbo Frames"
+          data[:turbo_frames].each { |f| lines << "- `#{f[:id]}` in #{f[:file]}" }
+        end
+        if data[:turbo_streams]&.any?
+          lines << "### Turbo Stream Templates"
+          data[:turbo_streams].each { |t| lines << "- `#{t}`" }
+        end
+        if data[:model_broadcasts]&.any?
+          lines << "### Model Broadcasts"
+          data[:model_broadcasts].each { |b| lines << "- `#{b[:model]}`: #{b[:methods].join(', ')}" }
+        end
+        lines.join("\n")
+      end
+
+      def active_storage_section
+        data = context[:active_storage]
+        return if data[:error]
+        return unless data[:attachments]&.any?
+
+        lines = [ "## Active Storage" ]
+        data[:attachments].each { |a| lines << "- `#{a[:model]}` #{a[:type]} :#{a[:name]}" }
+        lines << "- Storage services: #{data[:storage_services].join(', ')}" if data[:storage_services]&.any?
+        lines.join("\n")
+      end
+
+      def action_text_section
+        data = context[:action_text]
+        return if data[:error]
+        return unless data[:rich_text_fields]&.any?
+
+        lines = [ "## Action Text" ]
+        data[:rich_text_fields].each { |f| lines << "- `#{f[:model]}` has_rich_text :#{f[:field]}" }
+        lines.join("\n")
+      end
+
+      def i18n_section
+        data = context[:i18n]
+        return if data[:error]
+
+        lines = [ "## Internationalization" ]
+        lines << "- Default locale: #{data[:default_locale]}"
+        lines << "- Available locales: #{data[:available_locales]&.join(', ')}"
+        lines << "- Locale files: #{data[:total_locale_files]}" if data[:total_locale_files]&.positive?
+        lines.join("\n")
+      end
+
+      def config_section
+        data = context[:config]
+        return if data[:error]
+
+        lines = [ "## Configuration" ]
+        lines << "- Cache store: #{data[:cache_store]}" if data[:cache_store]
+        lines << "- Session store: #{data[:session_store]}" if data[:session_store]
+        lines << "- Timezone: #{data[:timezone]}" if data[:timezone].present?
+        if data[:initializers]&.any?
+          lines << "- Initializers: #{data[:initializers].join(', ')}"
+        end
+        lines.join("\n")
+      end
+
+      def assets_section
+        data = context[:assets]
+        return if data[:error]
+
+        lines = [ "## Asset Pipeline" ]
+        lines << "- Pipeline: #{data[:pipeline]}" if data[:pipeline]
+        lines << "- JS bundler: #{data[:js_bundler]}" if data[:js_bundler]
+        lines << "- CSS framework: #{data[:css_framework]}" if data[:css_framework]
+        if data[:importmap_pins]&.any?
+          lines << "- Importmap pins: #{data[:importmap_pins].join(', ')}"
+        end
+        lines.join("\n")
+      end
+
+      def auth_section
+        data = context[:auth]
+        return if data[:error]
+
+        authn = data[:authentication] || {}
+        authz = data[:authorization] || {}
+        return if authn.empty? && authz.empty?
+
+        lines = [ "## Authentication & Authorization" ]
+        if authn[:devise]
+          lines << "### Devise"
+          authn[:devise].each { |d| lines << "- `#{d[:model]}`: #{d[:matches].join(', ')}" }
+        end
+        lines << "- Rails 8 built-in auth detected" if authn[:rails_auth]
+        lines << "- has_secure_password: #{authn[:has_secure_password].join(', ')}" if authn[:has_secure_password]
+        if authz[:pundit]
+          lines << "### Pundit Policies"
+          authz[:pundit].each { |p| lines << "- `#{p}`" }
+        end
+        lines << "- CanCanCan: Ability class detected" if authz[:cancancan]
+        lines.join("\n")
+      end
+
+      def api_section
+        data = context[:api]
+        return if data[:error]
+
+        lines = [ "## API Layer" ]
+        lines << "- API-only mode: #{data[:api_only]}"
+        if data[:api_versioning]&.any?
+          lines << "- API versions: #{data[:api_versioning].join(', ')}"
+        end
+        if data[:serializers]&.any?
+          lines << "- Jbuilder templates: #{data[:serializers][:jbuilder]}" if data[:serializers][:jbuilder]
+          if data[:serializers][:serializer_classes]&.any?
+            lines << "- Serializers: #{data[:serializers][:serializer_classes].join(', ')}"
+          end
+        end
+        if data[:graphql]
+          lines << "### GraphQL"
+          lines << "- Types: #{data[:graphql][:types]}, Mutations: #{data[:graphql][:mutations]}"
+        end
+        lines.join("\n")
+      end
+
+      def tests_section
+        data = context[:tests]
+        return if data[:error]
+
+        lines = [ "## Testing" ]
+        lines << "- Framework: #{data[:framework]}"
+        lines << "- Factories: #{data[:factories][:location]} (#{data[:factories][:count]} files)" if data[:factories]
+        lines << "- Fixtures: #{data[:fixtures][:location]} (#{data[:fixtures][:count]} files)" if data[:fixtures]
+        lines << "- System tests: #{data[:system_tests][:location]}" if data[:system_tests]
+        lines << "- CI: #{data[:ci_config].join(', ')}" if data[:ci_config]&.any?
+        lines << "- Coverage: #{data[:coverage]}" if data[:coverage]
+        lines.join("\n")
+      end
+
+      def rake_tasks_section
+        data = context[:rake_tasks]
+        return if data[:error]
+        return unless data[:tasks]&.any?
+
+        lines = [ "## Rake Tasks" ]
+        data[:tasks].each do |task|
+          desc = task[:description] ? " — #{task[:description]}" : ""
+          lines << "- `#{task[:name]}`#{desc}"
+        end
+        lines.join("\n")
+      end
+
+      def devops_section
+        data = context[:devops]
+        return if data[:error]
+
+        lines = [ "## DevOps" ]
+        if data[:puma]
+          lines << "### Puma"
+          lines << "- Threads: #{data[:puma][:threads_min]}-#{data[:puma][:threads_max]}" if data[:puma][:threads_min]
+          lines << "- Workers: #{data[:puma][:workers]}" if data[:puma][:workers]
+        end
+        lines << "- Deployment: #{data[:deployment]}" if data[:deployment]
+        if data[:docker]
+          lines << "- Docker: #{data[:docker][:multi_stage] ? 'multi-stage' : 'single-stage'} build"
+        end
+        lines.join("\n") if lines.size > 1
+      end
+
+      def action_mailbox_section
+        data = context[:action_mailbox]
+        return if data[:error]
+        return unless data[:mailboxes]&.any?
+
+        lines = [ "## Action Mailbox" ]
+        data[:mailboxes].each { |m| lines << "- `#{m[:name]}`" }
         lines.join("\n")
       end
 

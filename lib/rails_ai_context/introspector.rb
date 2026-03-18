@@ -55,6 +55,20 @@ module RailsAiContext
       when :conventions then Introspectors::ConventionDetector.new(app)
       when :stimulus       then Introspectors::StimulusIntrospector.new(app)
       when :database_stats then Introspectors::DatabaseStatsIntrospector.new(app)
+      when :controllers    then Introspectors::ControllerIntrospector.new(app)
+      when :views          then Introspectors::ViewIntrospector.new(app)
+      when :turbo          then Introspectors::TurboIntrospector.new(app)
+      when :i18n           then Introspectors::I18nIntrospector.new(app)
+      when :config         then Introspectors::ConfigIntrospector.new(app)
+      when :active_storage then Introspectors::ActiveStorageIntrospector.new(app)
+      when :action_text    then Introspectors::ActionTextIntrospector.new(app)
+      when :auth           then Introspectors::AuthIntrospector.new(app)
+      when :api            then Introspectors::ApiIntrospector.new(app)
+      when :tests          then Introspectors::TestIntrospector.new(app)
+      when :rake_tasks     then Introspectors::RakeTaskIntrospector.new(app)
+      when :assets         then Introspectors::AssetPipelineIntrospector.new(app)
+      when :devops         then Introspectors::DevOpsIntrospector.new(app)
+      when :action_mailbox then Introspectors::ActionMailboxIntrospector.new(app)
       else
         raise ConfigurationError, "Unknown introspector: #{name}"
       end

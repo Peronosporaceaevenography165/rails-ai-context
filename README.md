@@ -6,7 +6,7 @@
 [![CI](https://github.com/crisnahine/rails-ai-context/actions/workflows/ci.yml/badge.svg)](https://github.com/crisnahine/rails-ai-context/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`rails-ai-context` automatically introspects your Rails application and exposes your models, routes, schema, jobs, gems, and conventions to AI assistants through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
+`rails-ai-context` automatically introspects your Rails application and exposes your models, routes, schema, controllers, views, jobs, gems, auth, API, tests, config, and conventions to AI assistants through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
 
 **Your AI assistant instantly understands your entire Rails app. No configuration. No manual tool definitions. Just `bundle add` and go.**
 
@@ -27,12 +27,21 @@ bundle add rails-ai-context
 That's it. Now your AI assistant knows:
 
 - **Every table, column, index, and foreign key** in your database
-- **Every model** with its associations, validations, scopes, enums, and callbacks
+- **Every model** with associations, validations, scopes, enums, callbacks, and macros (has_secure_password, encrypts, normalizes, etc.)
+- **Every controller** with actions, filters, strong params, and concerns
+- **Every view** with layouts, templates, partials, helpers, and template engines
 - **Every route** with HTTP verbs, paths, and controller actions
 - **Every background job**, mailer, and Action Cable channel
-- **Every notable gem** and what it means (Devise = auth, Sidekiq = jobs, Turbo = Hotwire)
+- **Hotwire/Turbo** — Turbo Frames, Turbo Streams, model broadcasts
+- **Every notable gem** (70+) and what it means (Devise = auth, Sidekiq = jobs, Turbo = Hotwire)
+- **Auth & security** — Devise modules, Pundit policies, CanCanCan, CORS, CSP
+- **API layer** — serializers, GraphQL, versioning, rate limiting
+- **Test infrastructure** — framework, factories/fixtures, CI config, coverage
+- **Configuration** — cache store, session store, middleware, initializers
+- **Asset pipeline** — Propshaft/Sprockets, importmaps, CSS framework, JS bundler
+- **DevOps** — Puma config, Procfile, Docker, deployment tools
 - **Your architecture patterns**: service objects, STI, polymorphism, state machines, multi-tenancy
-- **Stimulus controllers** with targets, values, and actions
+- **Stimulus controllers** with targets, values, actions, outlets, and classes
 
 ---
 
@@ -85,7 +94,7 @@ Or add to your Claude Code config (`~/.claude/claude_desktop_config.json`):
 
 ## MCP Tools
 
-The gem exposes 6 tools via MCP that AI clients can call:
+The gem exposes 9 tools via MCP that AI clients can call:
 
 | Tool | Description | Annotations |
 |------|-------------|-------------|
@@ -95,6 +104,9 @@ The gem exposes 6 tools via MCP that AI clients can call:
 | `rails_get_gems` | Notable gems categorized by function with explanations | read-only, idempotent |
 | `rails_search_code` | Ripgrep-powered code search across the codebase | read-only, idempotent |
 | `rails_get_conventions` | Architecture patterns, directory structure, config files | read-only, idempotent |
+| `rails_get_controllers` | Controller actions, filters, strong params, concerns | read-only, idempotent |
+| `rails_get_config` | App configuration: cache, sessions, middleware, initializers | read-only, idempotent |
+| `rails_get_test_info` | Test framework, factories, CI config, coverage | read-only, idempotent |
 
 All tools are **read-only** — they never modify your application or database.
 
@@ -108,6 +120,9 @@ In addition to tools, the gem registers MCP resources that AI clients can read d
 | `rails://routes` | All routes (JSON) |
 | `rails://conventions` | Detected patterns and architecture (JSON) |
 | `rails://gems` | Notable gems with categories (JSON) |
+| `rails://controllers` | All controllers with actions and filters (JSON) |
+| `rails://config` | Application configuration (JSON) |
+| `rails://tests` | Test infrastructure details (JSON) |
 | `rails://models/{name}` | Per-model details (resource template) |
 
 ---
@@ -178,7 +193,7 @@ Check your app's AI readiness:
 rails ai:doctor
 ```
 
-Reports pass/warn/fail for schema, models, routes, gems, context files, MCP server, and ripgrep. Includes fix suggestions and an AI readiness score (0-100).
+Reports pass/warn/fail for schema, models, routes, gems, controllers, views, i18n, tests, context files, MCP server, and ripgrep. Includes fix suggestions and an AI readiness score (0-100).
 
 ---
 
@@ -186,8 +201,7 @@ Reports pass/warn/fail for schema, models, routes, gems, context files, MCP serv
 
 The gem automatically detects Stimulus controllers and extracts:
 - Controller names (derived from filenames)
-- Static targets
-- Static values
+- Static targets, values, outlets, and classes
 - Action methods
 
 This gives AI assistants context about your frontend JavaScript alongside your backend Ruby.

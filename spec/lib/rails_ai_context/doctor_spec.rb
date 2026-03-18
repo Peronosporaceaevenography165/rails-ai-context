@@ -26,6 +26,15 @@ RSpec.describe RailsAiContext::Doctor do
       expect(names).to include("Schema")
     end
 
+    it "includes new v0.4.0 checks" do
+      names = result[:checks].map(&:name)
+      expect(names).to include("Controllers", "Views", "I18n", "Tests")
+    end
+
+    it "runs 11 total checks" do
+      expect(result[:checks].size).to eq(11)
+    end
+
     it "checks MCP server buildability" do
       mcp_check = result[:checks].find { |c| c.name == "MCP server" }
       expect(mcp_check.status).to eq(:pass)

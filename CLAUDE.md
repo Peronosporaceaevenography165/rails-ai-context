@@ -7,7 +7,7 @@ structure to AI assistants via the Model Context Protocol (MCP).
 
 - `lib/rails_ai_context.rb` — Main entry point, public API
 - `lib/rails_ai_context/introspector.rb` — Orchestrates sub-introspectors
-- `lib/rails_ai_context/introspectors/` — Individual introspectors (schema, models, routes, jobs, gems, conventions, stimulus, database_stats)
+- `lib/rails_ai_context/introspectors/` — Individual introspectors (schema, models, routes, jobs, gems, conventions, stimulus, database_stats, controllers, views, turbo, i18n, config, active_storage, action_text, auth, api, tests, rake_tasks, assets, devops, action_mailbox)
 - `lib/rails_ai_context/tools/` — MCP tools using the official mcp SDK
 - `lib/rails_ai_context/serializers/` — Output formatters (claude, rules, copilot, markdown, JSON)
 - `lib/rails_ai_context/resources.rb` — MCP resources (static data AI clients read directly)
