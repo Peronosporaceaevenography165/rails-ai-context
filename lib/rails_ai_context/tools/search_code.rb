@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
+require "open3"
+
 module RailsAiContext
   module Tools
     class SearchCode < BaseTool
       tool_name "rails_search_code"
       description "Search the Rails codebase for a pattern using ripgrep (rg) or Ruby fallback. Returns matching lines with file paths and line numbers. Useful for finding usages, implementations, and patterns."
+
+      MAX_RESULTS_CAP = 100
 
       input_schema(
         properties: {
@@ -22,7 +26,7 @@ module RailsAiContext
           },
           max_results: {
             type: "integer",
-            description: "Maximum number of results. Default: 30."
+            description: "Maximum number of results. Default: 30, max: 100."
           }
         },
         required: [ "pattern" ]
@@ -32,9 +36,30 @@ module RailsAiContext
 
       def self.call(pattern:, path: nil, file_type: nil, max_results: 30, server_context: nil)
         root = Rails.root.to_s
+
+        # Validate file_type to prevent injection
+        if file_type && !file_type.match?(/\A[a-zA-Z0-9]+\z/)
+          return text_response("Invalid file_type: must contain only alphanumeric characters.")
+        end
+
+        # Cap max_results
+        max_results = [ max_results.to_i, MAX_RESULTS_CAP ].min
+        max_results = 30 if max_results < 1
+
         search_path = path ? File.join(root, path) : root
 
+        # Path traversal protection
         unless Dir.exist?(search_path)
+          return text_response("Path not found: #{path}")
+        end
+
+        begin
+          real_search = File.realpath(search_path)
+          real_root = File.realpath(root)
+          unless real_search.start_with?(real_root)
+            return text_response("Path not allowed: #{path}")
+          end
+        rescue Errno::ENOENT
           return text_response("Path not found: #{path}")
         end
 
@@ -60,12 +85,20 @@ module RailsAiContext
       end
 
       private_class_method def self.search_with_ripgrep(pattern, search_path, file_type, max_results, root)
-        excluded = RailsAiContext.configuration.excluded_paths.map { |p| "--glob=!#{p}" }.join(" ")
-        type_flag = file_type ? "--type-add 'custom:*.#{file_type}' --type custom" : ""
+        cmd = [ "rg", "--no-heading", "--line-number", "--max-count", max_results.to_s ]
 
-        cmd = "rg --no-heading --line-number --max-count #{max_results} #{excluded} #{type_flag} #{Shellwords.escape(pattern)} #{Shellwords.escape(search_path)} 2>/dev/null"
+        RailsAiContext.configuration.excluded_paths.each do |p|
+          cmd << "--glob=!#{p}"
+        end
 
-        output = `#{cmd}`
+        if file_type
+          cmd.push("--type-add", "custom:*.#{file_type}", "--type", "custom")
+        end
+
+        cmd << pattern
+        cmd << search_path
+
+        output, _status = Open3.capture2(*cmd, err: File::NULL)
         parse_rg_output(output, root)
       rescue => e
         [ { file: "error", line_number: 0, content: e.message } ]
