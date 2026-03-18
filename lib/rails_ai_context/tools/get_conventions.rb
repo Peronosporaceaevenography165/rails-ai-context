@@ -6,13 +6,13 @@ module RailsAiContext
       tool_name "rails_get_conventions"
       description "Detect architectural patterns and conventions used in this Rails app. Returns info about architecture style (API-only, Hotwire, GraphQL), design patterns (service objects, STI, polymorphism), directory structure, and config files present."
 
-      input_schema(properties: {}, required: [])
+      input_schema(properties: {})
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
       def self.call(server_context: nil)
         conventions = cached_context[:conventions]
-        return [{ type: "text", text: "Convention detection failed: #{conventions[:error]}" }] if conventions.is_a?(Hash) && conventions[:error]
+        return text_response("Convention detection failed: #{conventions[:error]}") if conventions.is_a?(Hash) && conventions[:error]
 
         lines = ["# App Conventions & Architecture", ""]
 
@@ -42,7 +42,7 @@ module RailsAiContext
           conventions[:config_files].each { |f| lines << "- `#{f}`" }
         end
 
-        [{ type: "text", text: lines.join("\n") }]
+        text_response(lines.join("\n"))
       end
 
       ARCH_LABELS = {

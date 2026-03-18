@@ -26,11 +26,15 @@ module RailsAiContext
         return [] unless defined?(ActiveJob::Base)
 
         ActiveJob::Base.descendants.filter_map do |job|
-          next if job.name.nil? || job.name.start_with?("ActionMailer")
+          next if job.name.nil? || job.name == "ApplicationJob" ||
+                  job.name.start_with?("ActionMailer", "ActiveStorage::", "ActionMailbox::", "Turbo::", "Sentry::")
+
+          queue = job.queue_name
+          queue = queue.call rescue queue.to_s if queue.is_a?(Proc)
 
           {
             name: job.name,
-            queue: job.queue_name,
+            queue: queue.to_s,
             priority: job.priority
           }.compact
         end.sort_by { |j| j[:name] }

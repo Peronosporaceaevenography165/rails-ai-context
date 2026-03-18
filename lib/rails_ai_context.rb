@@ -70,5 +70,5 @@ require_relative "rails_ai_context/serializers/json_serializer"
 # MCP Server
 require_relative "rails_ai_context/server"
 
-# Rails integration (auto-loads when Rails is present)
+# Rails integration — loaded by Bundler.require after Rails is booted
 require_relative "rails_ai_context/engine" if defined?(Rails::Engine)

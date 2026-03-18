@@ -26,13 +26,11 @@ module RailsAiContext
     def build
       config = RailsAiContext.configuration
 
-      server = MCP::Server.new(
+      MCP::Server.new(
         name: config.server_name,
         version: config.server_version,
         tools: TOOLS
       )
-
-      server
     end
 
     # Start the MCP server with the configured transport
@@ -63,14 +61,30 @@ module RailsAiContext
       config = RailsAiContext.configuration
       transport = MCP::Server::Transports::StreamableHTTPTransport.new(server)
 
+      # Build a minimal Rack app that delegates to the MCP transport
+      rack_app = build_rack_app(transport, config.http_path)
+
       $stderr.puts "[rails-ai-context] MCP server starting on #{config.http_bind}:#{config.http_port}#{config.http_path}"
       $stderr.puts "[rails-ai-context] Tools: #{TOOLS.map { |t| t.tool_name }.join(', ')}"
 
-      transport.start(
-        host: config.http_bind,
-        port: config.http_port,
-        path: config.http_path
-      )
+      require "rackup"
+      Rackup::Handler.default.run(rack_app, Host: config.http_bind, Port: config.http_port)
+    rescue LoadError
+      # Fallback for older rack without rackup gem
+      require "rack/handler"
+      Rack::Handler.default.run(rack_app, Host: config.http_bind, Port: config.http_port)
+    end
+
+    def build_rack_app(transport, path)
+      lambda do |env|
+        # Only handle requests at the configured MCP path
+        unless env["PATH_INFO"] == path || env["PATH_INFO"] == "#{path}/"
+          return [404, { "Content-Type" => "application/json" }, ['{"error":"Not found"}']]
+        end
+
+        request = Rack::Request.new(env)
+        transport.handle_request(request)
+      end
     end
   end
 end

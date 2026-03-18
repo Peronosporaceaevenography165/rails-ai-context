@@ -12,28 +12,27 @@ module RailsAiContext
             type: "string",
             description: "Model class name (e.g. 'User', 'Post'). Omit to list all models."
           }
-        },
-        required: []
+        }
       )
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
       def self.call(model: nil, server_context: nil)
         models = cached_context[:models]
-        return [{ type: "text", text: "Model introspection failed: #{models[:error]}" }] if models.is_a?(Hash) && models[:error]
+        return text_response("Model introspection failed: #{models[:error]}") if models.is_a?(Hash) && models[:error]
 
         unless model
           model_list = models.keys.sort.map { |m| "- #{m}" }.join("\n")
-          return [{ type: "text", text: "# Available models (#{models.size})\n\n#{model_list}" }]
+          return text_response("# Available models (#{models.size})\n\n#{model_list}")
         end
 
         # Support both "User" and "user" lookups
         key = models.keys.find { |k| k.downcase == model.downcase } || model
         data = models[key]
-        return [{ type: "text", text: "Model '#{model}' not found. Available: #{models.keys.sort.join(', ')}" }] unless data
-        return [{ type: "text", text: "Error inspecting #{key}: #{data[:error]}" }] if data[:error]
+        return text_response("Model '#{model}' not found. Available: #{models.keys.sort.join(', ')}") unless data
+        return text_response("Error inspecting #{key}: #{data[:error]}") if data[:error]
 
-        [{ type: "text", text: format_model(key, data) }]
+        text_response(format_model(key, data))
       end
 
       private_class_method def self.format_model(name, data)

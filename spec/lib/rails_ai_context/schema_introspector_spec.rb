@@ -8,15 +8,14 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
   let(:introspector) { described_class.new(app) }
 
   describe "#call" do
-    context "when ActiveRecord is not connected" do
+    context "when ActiveRecord is not connected and no schema.rb" do
       before do
         allow(introspector).to receive(:active_record_connected?).and_return(false)
       end
 
-      it "falls back to static schema.rb parsing" do
+      it "returns an error" do
         result = introspector.call
-        expect(result[:adapter]).to eq("static_parse")
-        expect(result[:note]).to include("no DB connection")
+        expect(result[:error]).to include("No schema.rb")
       end
     end
 
@@ -48,6 +47,12 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
 
       after do
         FileUtils.rm_rf(File.join(fixture_path, "db"))
+      end
+
+      it "falls back to static schema.rb parsing" do
+        result = introspector.call
+        expect(result[:adapter]).to eq("static_parse")
+        expect(result[:note]).to include("no DB connection")
       end
 
       it "parses tables from schema.rb" do

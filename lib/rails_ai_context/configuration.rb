@@ -36,7 +36,12 @@ module RailsAiContext
       @http_bind           = "127.0.0.1"
       @http_port           = 6029
       @output_dir          = nil # defaults to Rails.root
-      @excluded_models     = %w[ApplicationRecord ActiveStorage::Blob ActiveStorage::Attachment ActionText::RichText]
+      @excluded_models     = %w[
+        ApplicationRecord
+        ActiveStorage::Blob ActiveStorage::Attachment ActiveStorage::VariantRecord
+        ActionText::RichText ActionText::EncryptedRichText
+        ActionMailbox::InboundEmail ActionMailbox::Record
+      ]
       @max_association_depth = 2
     end
 

@@ -12,21 +12,20 @@ module RailsAiContext
             type: "string",
             description: "Optional: filter routes by controller name (e.g. 'users', 'api/v1/posts')."
           }
-        },
-        required: []
+        }
       )
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
       def self.call(controller: nil, server_context: nil)
         routes = cached_context[:routes]
-        return [{ type: "text", text: "Route introspection failed: #{routes[:error]}" }] if routes[:error]
+        return text_response("Route introspection failed: #{routes[:error]}") if routes[:error]
 
         by_controller = routes[:by_controller]
 
         if controller
           filtered = by_controller.select { |k, _| k.include?(controller) }
-          return [{ type: "text", text: "No routes found for '#{controller}'. Controllers: #{by_controller.keys.sort.join(', ')}" }] if filtered.empty?
+          return text_response("No routes found for '#{controller}'. Controllers: #{by_controller.keys.sort.join(', ')}") if filtered.empty?
           by_controller = filtered
         end
 
@@ -44,7 +43,7 @@ module RailsAiContext
           lines << "" << "## API namespaces: #{routes[:api_namespaces].join(', ')}"
         end
 
-        [{ type: "text", text: lines.join("\n") }]
+        text_response(lines.join("\n"))
       end
     end
   end

@@ -5,8 +5,8 @@ require_relative "lib/rails_ai_context/version"
 Gem::Specification.new do |spec|
   spec.name          = "rails-ai-context"
   spec.version       = RailsAiContext::VERSION
-  spec.authors       = ["Cris"]
-  spec.email         = ["your-email@example.com"]
+  spec.authors       = ["crisnahine"]
+  spec.email         = ["crisjosephnahine@gmail.com"]
 
   spec.summary       = "Turn any Rails app into an AI-ready codebase — one gem install."
   spec.description   = <<~DESC
@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
     any MCP-compatible AI tool. Zero configuration required.
   DESC
 
-  spec.homepage      = "https://github.com/your-username/rails-ai-context"
+  spec.homepage      = "https://github.com/crisnahine/rails-ai-context"
   spec.license       = "MIT"
 
   spec.required_ruby_version = ">= 3.2.0"
@@ -38,7 +38,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Core dependencies
-  spec.add_dependency "mcp-ruby", "~> 0.3"       # Official MCP Ruby SDK
+  spec.add_dependency "mcp", "~> 0.8"             # Official MCP Ruby SDK
   spec.add_dependency "railties", ">= 7.1", "< 9.0"
   spec.add_dependency "thor", ">= 1.0", "< 3.0"
 

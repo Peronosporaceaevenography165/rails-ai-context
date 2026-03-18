@@ -13,15 +13,14 @@ module RailsAiContext
             enum: %w[auth jobs frontend api database files testing deploy all],
             description: "Filter by category. Default: all."
           }
-        },
-        required: []
+        }
       )
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
       def self.call(category: "all", server_context: nil)
         gems = cached_context[:gems]
-        return [{ type: "text", text: "Gem introspection failed: #{gems[:error]}" }] if gems[:error]
+        return text_response("Gem introspection failed: #{gems[:error]}") if gems[:error]
 
         notable = gems[:notable_gems] || []
         notable = notable.select { |g| g[:category] == category } unless category == "all"
@@ -43,7 +42,7 @@ module RailsAiContext
           lines << "_No notable gems found#{" in category '#{category}'" unless category == 'all'}._"
         end
 
-        [{ type: "text", text: lines.join("\n") }]
+        text_response(lines.join("\n"))
       end
     end
   end

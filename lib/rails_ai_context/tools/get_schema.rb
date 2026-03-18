@@ -17,8 +17,7 @@ module RailsAiContext
             enum: %w[json markdown],
             description: "Output format. Default: markdown."
           }
-        },
-        required: []
+        }
       )
 
       annotations(
@@ -30,18 +29,18 @@ module RailsAiContext
 
       def self.call(table: nil, format: "markdown", server_context: nil)
         schema = cached_context[:schema]
-        return [{ type: "text", text: "Schema introspection not available: #{schema[:error]}" }] if schema[:error]
+        return text_response("Schema introspection not available: #{schema[:error]}") if schema[:error]
 
         if table
           table_data = schema.dig(:tables, table)
-          return [{ type: "text", text: "Table '#{table}' not found. Available: #{schema[:tables].keys.join(', ')}" }] unless table_data
+          return text_response("Table '#{table}' not found. Available: #{schema[:tables].keys.join(', ')}") unless table_data
 
           output = format == "json" ? table_data.to_json : format_table_markdown(table, table_data)
         else
           output = format == "json" ? schema.to_json : format_schema_markdown(schema)
         end
 
-        [{ type: "text", text: output }]
+        text_response(output)
       end
 
       private_class_method def self.format_table_markdown(name, data)

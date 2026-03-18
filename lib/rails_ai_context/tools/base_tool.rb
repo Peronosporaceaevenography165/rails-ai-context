@@ -26,6 +26,11 @@ module RailsAiContext
         def reset_cache!
           @cached_context = nil
         end
+
+        # Helper: wrap text in an MCP::Tool::Response
+        def text_response(text)
+          MCP::Tool::Response.new([{ type: "text", text: text }])
+        end
       end
     end
   end

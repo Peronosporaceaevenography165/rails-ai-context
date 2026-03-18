@@ -35,7 +35,7 @@ module RailsAiContext
         search_path = path ? File.join(root, path) : root
 
         unless Dir.exist?(search_path)
-          return [{ type: "text", text: "Path not found: #{path}" }]
+          return text_response("Path not found: #{path}")
         end
 
         results = if ripgrep_available?
@@ -45,14 +45,14 @@ module RailsAiContext
                   end
 
         if results.empty?
-          return [{ type: "text", text: "No results found for '#{pattern}' in #{path || 'app'}." }]
+          return text_response("No results found for '#{pattern}' in #{path || 'app'}.")
         end
 
         output = results.map { |r| "#{r[:file]}:#{r[:line_number]}: #{r[:content].strip}" }.join("\n")
         header = "# Search: `#{pattern}`\n**#{results.size} results**#{" in #{path}" if path}\n\n```\n"
         footer = "\n```"
 
-        [{ type: "text", text: "#{header}#{output}#{footer}" }]
+        text_response("#{header}#{output}#{footer}")
       end
 
       private_class_method def self.ripgrep_available?

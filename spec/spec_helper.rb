@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+require "combustion"
+
+Combustion.initialize! :active_record do
+  config.eager_load = false
+end
+
 require "rails_ai_context"
 
 RSpec.configure do |config|
