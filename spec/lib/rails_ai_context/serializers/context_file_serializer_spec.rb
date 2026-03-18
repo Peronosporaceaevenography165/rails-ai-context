@@ -10,8 +10,19 @@ RSpec.describe RailsAiContext::Serializers::ContextFileSerializer do
       Dir.mktmpdir do |dir|
         allow(RailsAiContext.configuration).to receive(:output_dir_for).and_return(dir)
         serializer = described_class.new(context, format: :all)
-        files = serializer.call
-        expect(files.size).to eq(5)
+        result = serializer.call
+        expect(result[:written].size).to eq(5)
+        expect(result[:skipped]).to be_empty
+      end
+    end
+
+    it "skips unchanged files on second run" do
+      Dir.mktmpdir do |dir|
+        allow(RailsAiContext.configuration).to receive(:output_dir_for).and_return(dir)
+        described_class.new(context, format: :claude).call
+        result = described_class.new(context, format: :claude).call
+        expect(result[:skipped].size).to eq(1)
+        expect(result[:written]).to be_empty
       end
     end
 
@@ -19,9 +30,9 @@ RSpec.describe RailsAiContext::Serializers::ContextFileSerializer do
       Dir.mktmpdir do |dir|
         allow(RailsAiContext.configuration).to receive(:output_dir_for).and_return(dir)
         serializer = described_class.new(context, format: :claude)
-        files = serializer.call
-        expect(files.size).to eq(1)
-        expect(File.read(files.first)).to include("Claude Code")
+        result = serializer.call
+        expect(result[:written].size).to eq(1)
+        expect(File.read(result[:written].first)).to include("Claude Code")
       end
     end
 
@@ -29,8 +40,8 @@ RSpec.describe RailsAiContext::Serializers::ContextFileSerializer do
       Dir.mktmpdir do |dir|
         allow(RailsAiContext.configuration).to receive(:output_dir_for).and_return(dir)
         serializer = described_class.new(context, format: :cursor)
-        files = serializer.call
-        expect(File.read(files.first)).to include("Project Rules")
+        result = serializer.call
+        expect(File.read(result[:written].first)).to include("Project Rules")
       end
     end
 

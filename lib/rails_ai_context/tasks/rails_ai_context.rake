@@ -10,6 +10,11 @@ ASSISTANT_TABLE = <<~TABLE
   JSON (generic)     .ai-context.json                      rails ai:context:json
 TABLE
 
+def print_result(result)
+  result[:written].each { |f| puts "  ✅ #{f}" }
+  result[:skipped].each { |f| puts "  ⏭️  #{f} (unchanged)" }
+end
+
 namespace :ai do
   desc "Generate AI context files (CLAUDE.md, .cursorrules, .windsurfrules, .github/copilot-instructions.md)"
   task context: :environment do
@@ -18,9 +23,9 @@ namespace :ai do
     puts "🔍 Introspecting #{Rails.application.class.module_parent_name}..."
 
     puts "📝 Writing context files..."
-    files = RailsAiContext.generate_context(format: :all)
+    result = RailsAiContext.generate_context(format: :all)
 
-    files.each { |f| puts "  ✅ #{f}" }
+    print_result(result)
     puts ""
     puts "Done! Your AI assistants now understand your Rails app."
     puts "Commit these files so your whole team benefits."
@@ -36,9 +41,9 @@ namespace :ai do
     puts "🔍 Introspecting #{Rails.application.class.module_parent_name}..."
 
     puts "📝 Writing #{format} context file..."
-    files = RailsAiContext.generate_context(format: format)
+    result = RailsAiContext.generate_context(format: format)
 
-    files.each { |f| puts "  ✅ #{f}" }
+    print_result(result)
   end
 
   namespace :context do
@@ -50,9 +55,9 @@ namespace :ai do
 
         puts "🔍 Introspecting #{Rails.application.class.module_parent_name}..."
         puts "📝 Writing #{file}..."
-        files = RailsAiContext.generate_context(format: fmt)
+        result = RailsAiContext.generate_context(format: fmt)
 
-        files.each { |f| puts "  ✅ #{f}" }
+        print_result(result)
         puts ""
         puts "Tip: Run `rails ai:context` to generate all formats at once."
       end

@@ -28,8 +28,9 @@ module RailsAiContext
 
       format = options[:format].to_sym
       $stderr.puts "Introspecting Rails app..."
-      files = RailsAiContext.generate_context(format: format)
-      files.each { |f| $stderr.puts "  Written: #{f}" }
+      result = RailsAiContext.generate_context(format: format)
+      result[:written].each { |f| $stderr.puts "  Written: #{f}" }
+      result[:skipped].each { |f| $stderr.puts "  Skipped: #{f} (unchanged)" }
     end
 
     desc "inspect", "Print introspection summary"

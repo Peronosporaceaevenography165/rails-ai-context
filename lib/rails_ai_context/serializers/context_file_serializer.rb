@@ -20,12 +20,13 @@ module RailsAiContext
         @format  = format
       end
 
-      # Write context files and return list of files written
-      # @return [Array<String>] file paths written
+      # Write context files, skipping unchanged ones.
+      # @return [Hash] { written: [paths], skipped: [paths] }
       def call
         formats = format == :all ? FORMAT_MAP.keys : Array(format)
         output_dir = RailsAiContext.configuration.output_dir_for(Rails.application)
         written = []
+        skipped = []
 
         formats.each do |fmt|
           filename = FORMAT_MAP[fmt]
@@ -40,11 +41,16 @@ module RailsAiContext
           FileUtils.mkdir_p(File.dirname(filepath))
 
           content = serialize(fmt)
-          File.write(filepath, content)
-          written << filepath
+
+          if File.exist?(filepath) && File.read(filepath) == content
+            skipped << filepath
+          else
+            File.write(filepath, content)
+            written << filepath
+          end
         end
 
-        written
+        { written: written, skipped: skipped }
       end
 
       private
