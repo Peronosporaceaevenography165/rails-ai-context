@@ -99,3 +99,28 @@ jobs:
               --notes "$NOTES" \
               *.gem
           fi
+
+  mcp-registry:
+    needs: publish
+    runs-on: ubuntu-latest
+    name: Publish to MCP Registry
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+
+      - name: Login via GitHub OIDC
+        run: mcp-publisher login github-oidc
+
+      - name: Update server.json version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          jq --arg v "$VERSION" '.version = $v' server.json > server.tmp && mv server.tmp server.json
+          echo "Publishing version $VERSION to MCP Registry"
+
+      - name: Publish to MCP Registry
+        run: mcp-publisher publish
