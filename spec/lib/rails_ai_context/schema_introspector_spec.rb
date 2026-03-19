@@ -69,5 +69,28 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
         expect(user_cols).to include(a_hash_including(name: "role", type: "integer"))
       end
     end
+
+    context "schema version parsing" do
+      before do
+        allow(introspector).to receive(:active_record_connected?).and_return(true)
+        allow(introspector).to receive(:adapter_name).and_return("postgresql")
+        allow(introspector).to receive(:table_names).and_return([])
+        allow(introspector).to receive(:extract_tables).and_return({})
+      end
+
+      it "parses full schema version with underscores" do
+        db_dir = File.join(fixture_path, "db")
+        FileUtils.mkdir_p(db_dir)
+        File.write(File.join(db_dir, "schema.rb"), <<~RUBY)
+          ActiveRecord::Schema[7.1].define(version: 2024_01_15_123456) do
+          end
+        RUBY
+
+        result = introspector.call
+        expect(result[:schema_version]).to eq("20240115123456")
+      ensure
+        FileUtils.rm_rf(db_dir)
+      end
+    end
   end
 end

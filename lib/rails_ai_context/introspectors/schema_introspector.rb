@@ -100,8 +100,8 @@ module RailsAiContext
       def current_schema_version
         if File.exist?(schema_file_path)
           content = File.read(schema_file_path)
-          match = content.match(/version:\s*(\d+)_?\d*/)
-          match ? match[1] : nil
+          match = content.match(/version:\s*([\d_]+)/)
+          match ? match[1].delete("_") : nil
         end
       end
 
