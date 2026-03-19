@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   DESC
 
   spec.homepage      = "https://github.com/crisnahine/rails-ai-context"
-  spec.license       = "AGPL-3.0"
+  spec.license       = "MIT"
 
   spec.required_ruby_version = ">= 3.2.0"
 
