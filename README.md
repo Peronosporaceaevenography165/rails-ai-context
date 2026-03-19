@@ -20,6 +20,8 @@ The AI doesn't know your schema, your Devise setup, your Sidekiq jobs, or that `
 
 **No configuration. No manual tool definitions. Just `bundle add` and go.**
 
+> **[Full Guide](docs/GUIDE.md)** — complete documentation with every command, parameter, and configuration option.
+
 ---
 
 ## Quick Start
