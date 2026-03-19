@@ -20,6 +20,7 @@ structure to AI assistants via the Model Context Protocol (MCP).
 - `lib/rails_ai_context/watcher.rb` — File watcher for auto-regenerating context files
 - `lib/rails_ai_context/engine.rb` — Rails Engine for auto-integration
 - `lib/generators/rails_ai_context/install/` — Install generator (creates .mcp.json, initializer, context files)
+- `exe/rails-ai-context` — Standalone Thor CLI (serve, context, inspect, watch, doctor, version)
 
 ## Key Design Decisions
 

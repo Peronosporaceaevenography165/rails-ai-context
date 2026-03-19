@@ -299,6 +299,8 @@ Frontend introspectors (views, Turbo, Stimulus, assets) degrade gracefully — t
 
 ## Commands
 
+### Rake tasks (recommended)
+
 | Command | Description |
 |---------|-------------|
 | `rails ai:context` | Generate all 20 context files (skips unchanged) |
@@ -321,6 +323,23 @@ Frontend introspectors (views, Turbo, Stimulus, assets) degrade gracefully — t
 > CONTEXT_MODE=full rails ai:context:claude     # full dump — Claude only
 > CONTEXT_MODE=full rails ai:context:cursor     # full dump — Cursor only
 > ```
+
+### Standalone CLI
+
+The gem also ships a `rails-ai-context` executable — an alternative to rake tasks. Useful for `.mcp.json` configs or when you prefer a shorter command.
+
+| Command | Equivalent rake task |
+|---------|---------------------|
+| `rails-ai-context serve` | `rails ai:serve` |
+| `rails-ai-context serve --transport http` | `rails ai:serve_http` |
+| `rails-ai-context context` | `rails ai:context` |
+| `rails-ai-context context --format claude` | `rails ai:context:claude` |
+| `rails-ai-context doctor` | `rails ai:doctor` |
+| `rails-ai-context watch` | `rails ai:watch` |
+| `rails-ai-context inspect` | `rails ai:inspect` |
+| `rails-ai-context version` | — |
+
+Run from your Rails app root. Use `rails-ai-context help` for all options.
 
 ---
 

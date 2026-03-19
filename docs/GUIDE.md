@@ -217,6 +217,25 @@ Commit **all files except `.ai-context.json`** (which is gitignored). This gives
 | `rails ai:watch` | Watch for file changes and auto-regenerate context files. Requires `listen` gem. |
 | `rails ai:inspect` | Print introspection summary to stdout. Useful for debugging. |
 
+### Standalone CLI
+
+The gem ships a `rails-ai-context` executable as an alternative to rake tasks. Useful for `.mcp.json` configs or when you prefer a shorter command.
+
+```bash
+rails-ai-context serve                     # Start MCP server (stdio)
+rails-ai-context serve --transport http    # Start MCP server (HTTP, port 6029)
+rails-ai-context serve --transport http --port 8080  # Custom port
+rails-ai-context context                   # Generate all context files
+rails-ai-context context --format claude   # Generate Claude files only
+rails-ai-context doctor                    # Run diagnostics
+rails-ai-context watch                     # Watch for changes
+rails-ai-context inspect                   # Print introspection JSON
+rails-ai-context version                   # Print version
+rails-ai-context help                      # Show all commands
+```
+
+Must be run from your Rails app root directory (requires `config/environment.rb`).
+
 ### Legacy command
 
 ```bash
