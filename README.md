@@ -39,7 +39,8 @@ rails-ai-context CLAUDE.md    33,106 tk  █████████████
 rails-ai-context (full)       28,834 tk  █████████████████████████████                 -37%
 ```
 
-https://github.com/user-attachments/assets/171f52ae-bd30-43f6-a44f-bcfdda7fc139
+https://github.com/user-attachments/assets/14476243-1210-4e62-9dc5-9d4aa9caef7e
+
 
 **What each layer gives you:**
 
