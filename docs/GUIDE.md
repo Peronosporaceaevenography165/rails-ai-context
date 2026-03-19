@@ -585,6 +585,15 @@ RailsAiContext.configure do |config|
   # Paths to exclude from code search
   config.excluded_paths += %w[vendor/bundle]
 
+  # --- Live reload ---
+
+  # Auto-invalidate MCP tool caches on file changes
+  # :auto — enable if `listen` gem is available (default)
+  # true  — enable, raise if `listen` is missing
+  # false — disable entirely
+  config.live_reload = :auto
+  config.live_reload_debounce = 1.5  # seconds
+
   # --- HTTP MCP endpoint ---
 
   # Auto-mount Rack middleware for HTTP MCP
@@ -612,6 +621,8 @@ end
 | `http_path` | String | `"/mcp"` | HTTP endpoint path |
 | `http_bind` | String | `"127.0.0.1"` | HTTP bind address |
 | `http_port` | Integer | `6029` | HTTP server port |
+| `live_reload` | Symbol/Boolean | `:auto` | `:auto`, `true`, or `false` — enable MCP live reload |
+| `live_reload_debounce` | Float | `1.5` | Debounce interval in seconds for live reload |
 | `server_name` | String | `"rails-ai-context"` | MCP server name |
 
 ---
@@ -796,6 +807,55 @@ gem "listen", group: :development
 ```
 
 Watches for changes in: `app/`, `config/`, `db/`, `lib/tasks/`, and regenerates only the files that changed (diff-aware, skips unchanged files).
+
+---
+
+## Live Reload (MCP)
+
+When running the MCP server via `rails ai:serve`, **live reload** automatically invalidates tool caches and notifies connected AI clients when files change — so the AI always has fresh context without manual re-querying.
+
+### How it works
+
+1. A background thread watches `app/`, `config/`, `db/`, and `lib/tasks/` for changes
+2. On change (debounced 1.5s), it checks the file fingerprint to avoid false positives
+3. If files truly changed, it:
+   - Clears all MCP tool caches
+   - Sends `notifications/resources/list_changed` to the AI client
+   - Logs a summary of what changed (e.g., "Files changed: 2 model(s), 1 controller(s)")
+
+### Setup
+
+Add the `listen` gem (you may already have it from Watch Mode):
+
+```ruby
+# Gemfile
+gem "listen", group: :development
+```
+
+Live reload is **enabled by default** when the `listen` gem is available. No configuration needed.
+
+### Configuration
+
+```ruby
+RailsAiContext.configure do |config|
+  # :auto (default) — enable if `listen` gem is available, skip silently otherwise
+  # true  — enable, raise if `listen` gem is missing
+  # false — disable entirely
+  config.live_reload = :auto
+
+  # Debounce interval in seconds (default: 1.5)
+  config.live_reload_debounce = 1.5
+end
+```
+
+### Difference from Watch Mode
+
+| | Watch Mode (`rails ai:watch`) | Live Reload (`rails ai:serve`) |
+|---|---|---|
+| **Trigger** | File changes | File changes |
+| **Action** | Regenerates static context files (CLAUDE.md, etc.) | Invalidates MCP tool caches + notifies AI client |
+| **Use case** | Keep committed files up to date | Keep live MCP sessions fresh |
+| **Transport** | N/A (writes to disk) | stdio and HTTP |
 
 ---
 

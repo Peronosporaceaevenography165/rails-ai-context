@@ -247,6 +247,10 @@ RailsAiContext.configure do |config|
 
   # Cache TTL for MCP tool responses (seconds)
   config.cache_ttl = 30
+
+  # Live reload: auto-invalidate MCP caches on file changes
+  # :auto (default), true, or false
+  # config.live_reload = :auto
 end
 ```
 
@@ -266,6 +270,8 @@ end
 | `http_path` | `"/mcp"` | HTTP endpoint path |
 | `http_port` | `6029` | HTTP server port |
 | `cache_ttl` | `30` | Cache TTL in seconds |
+| `live_reload` | `:auto` | `:auto`, `true`, or `false` — MCP live reload |
+| `live_reload_debounce` | `1.5` | Debounce interval in seconds |
 </details>
 
 ---

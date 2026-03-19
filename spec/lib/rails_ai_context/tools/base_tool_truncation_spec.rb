@@ -35,4 +35,26 @@ RSpec.describe RailsAiContext::Tools::BaseTool do
       expect(text).to include('detail:"summary"')
     end
   end
+
+  describe ".reset_all_caches!" do
+    it "calls reset_cache! on every registered tool" do
+      RailsAiContext::Server::TOOLS.each do |tool_class|
+        expect(tool_class).to receive(:reset_cache!)
+      end
+
+      described_class.reset_all_caches!
+    end
+
+    it "resets all 9 tools" do
+      # Populate a cache on one tool to verify it gets cleared
+      tool = RailsAiContext::Server::TOOLS.first
+      tool.instance_variable_set(:@cached_context, { fake: true })
+      tool.instance_variable_set(:@cache_timestamp, 999)
+
+      described_class.reset_all_caches!
+
+      expect(tool.instance_variable_get(:@cached_context)).to be_nil
+      expect(tool.instance_variable_get(:@cache_timestamp)).to be_nil
+    end
+  end
 end

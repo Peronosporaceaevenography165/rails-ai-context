@@ -19,6 +19,7 @@ module RailsAiContext
       check_context_files
       check_mcp_buildable
       check_ripgrep
+      check_live_reload
     ].freeze
 
     attr_reader :app
@@ -143,6 +144,13 @@ module RailsAiContext
       else
         Check.new(name: "ripgrep", status: :warn, message: "ripgrep not installed (code search will use slower Ruby fallback)", fix: "Install with `brew install ripgrep` or `apt install ripgrep`")
       end
+    end
+
+    def check_live_reload
+      require "listen"
+      Check.new(name: "Live reload", status: :pass, message: "`listen` gem available for live reload", fix: nil)
+    rescue LoadError
+      Check.new(name: "Live reload", status: :warn, message: "`listen` gem not installed (MCP live reload unavailable)", fix: "Add to your Gemfile: gem 'listen', group: :development")
     end
 
     def compute_score(results)

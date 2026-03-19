@@ -57,4 +57,54 @@ RSpec.describe "MCP Tool Integration" do
       )
     end
   end
+
+  describe "maybe_start_live_reload" do
+    let(:server_wrapper) { RailsAiContext::Server.new(Rails.application) }
+    let(:mcp_server) { server_wrapper.build }
+
+    before { allow($stderr).to receive(:puts) }
+
+    after { RailsAiContext.configuration.live_reload = :auto }
+
+    context "when live_reload is false" do
+      it "skips entirely" do
+        RailsAiContext.configuration.live_reload = false
+
+        expect(RailsAiContext::LiveReload).not_to receive(:new)
+        server_wrapper.send(:maybe_start_live_reload, mcp_server)
+      end
+    end
+
+    context "when live_reload is :auto and listen is available" do
+      it "creates and starts LiveReload" do
+        RailsAiContext.configuration.live_reload = :auto
+        live_reload = instance_double(RailsAiContext::LiveReload)
+        allow(RailsAiContext::LiveReload).to receive(:new).and_return(live_reload)
+        allow(live_reload).to receive(:start)
+
+        server_wrapper.send(:maybe_start_live_reload, mcp_server)
+
+        expect(live_reload).to have_received(:start)
+      end
+    end
+
+    context "when live_reload is :auto and listen is missing" do
+      it "logs a tip and continues" do
+        RailsAiContext.configuration.live_reload = :auto
+        allow(RailsAiContext::LiveReload).to receive(:new).and_raise(LoadError, "cannot load such file -- listen")
+
+        expect { server_wrapper.send(:maybe_start_live_reload, mcp_server) }.not_to raise_error
+        expect($stderr).to have_received(:puts).with(a_string_matching(/Live reload unavailable/))
+      end
+    end
+
+    context "when live_reload is true and listen is missing" do
+      it "raises LoadError with install instructions" do
+        RailsAiContext.configuration.live_reload = true
+        allow(RailsAiContext::LiveReload).to receive(:new).and_raise(LoadError, "cannot load such file -- listen")
+
+        expect { server_wrapper.send(:maybe_start_live_reload, mcp_server) }.to raise_error(LoadError, /listen/)
+      end
+    end
+  end
 end

@@ -44,6 +44,15 @@ module RailsAiContext
     # Max characters for any single MCP tool response (safety net)
     attr_accessor :max_tool_response_chars
 
+    # Live reload: auto-invalidate MCP tool caches on file changes
+    # :auto (default) — enable if `listen` gem is available, skip silently otherwise
+    # true  — enable, raise if `listen` gem is missing
+    # false — disable entirely
+    attr_accessor :live_reload
+
+    # Debounce interval in seconds for live reload file watching
+    attr_accessor :live_reload_debounce
+
     def initialize
       @server_name         = "rails-ai-context"
       @server_version      = RailsAiContext::VERSION
@@ -64,6 +73,8 @@ module RailsAiContext
       @context_mode             = :compact
       @claude_max_lines         = 150
       @max_tool_response_chars  = 120_000
+      @live_reload              = :auto
+      @live_reload_debounce     = 1.5
     end
 
     def preset=(name)

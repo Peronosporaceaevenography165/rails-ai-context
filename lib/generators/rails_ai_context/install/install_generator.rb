@@ -52,6 +52,13 @@ module RailsAiContext
             # Max response size for MCP tool results (chars). Safety net for large apps.
             # config.max_tool_response_chars = 120_000
 
+            # Live reload: auto-invalidate MCP tool caches on file changes
+            # :auto (default) — enable if `listen` gem is available
+            # true  — enable, raise if `listen` is missing
+            # false — disable entirely
+            # config.live_reload = :auto
+            # config.live_reload_debounce = 1.5  # seconds
+
             # Auto-mount HTTP MCP endpoint at /mcp
             # config.auto_mount = false
             # config.http_path  = "/mcp"

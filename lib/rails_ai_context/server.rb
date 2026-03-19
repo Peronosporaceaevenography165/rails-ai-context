@@ -61,6 +61,7 @@ module RailsAiContext
       # Log to stderr so we don't pollute the JSON-RPC channel on stdout
       $stderr.puts "[rails-ai-context] MCP server started (stdio transport)"
       $stderr.puts "[rails-ai-context] Tools: #{TOOLS.map { |t| t.tool_name }.join(', ')}"
+      maybe_start_live_reload(server)
       transport.open
     end
 
@@ -73,6 +74,7 @@ module RailsAiContext
 
       $stderr.puts "[rails-ai-context] MCP server starting on #{config.http_bind}:#{config.http_port}#{config.http_path}"
       $stderr.puts "[rails-ai-context] Tools: #{TOOLS.map { |t| t.tool_name }.join(', ')}"
+      maybe_start_live_reload(server)
 
       require "rackup"
       Rackup::Handler.default.run(rack_app, Host: config.http_bind, Port: config.http_port)
@@ -80,6 +82,28 @@ module RailsAiContext
       # Fallback for older rack without rackup gem
       require "rack/handler"
       Rack::Handler.default.run(rack_app, Host: config.http_bind, Port: config.http_port)
+    end
+
+    # Conditionally start live reload based on configuration.
+    # :auto  — try to load `listen`, skip silently with a tip if missing
+    # true   — try to load `listen`, raise if missing
+    # false  — skip entirely
+    def maybe_start_live_reload(mcp_server)
+      mode = RailsAiContext.configuration.live_reload
+
+      return if mode == false
+
+      begin
+        @live_reload = LiveReload.new(app, mcp_server)
+        @live_reload.start
+      rescue LoadError => e
+        if mode == true
+          raise LoadError, "Live reload requires the `listen` gem. Add to your Gemfile: gem 'listen', group: :development"
+        end
+
+        # :auto mode — skip silently with a tip
+        $stderr.puts "[rails-ai-context] Live reload unavailable (add `listen` gem for auto-refresh)"
+      end
     end
 
     def build_rack_app(transport, path)

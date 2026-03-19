@@ -39,6 +39,12 @@ module RailsAiContext
           @cache_fingerprint = nil
         end
 
+        # Reset cache on ALL registered tool subclasses at once.
+        # Used by LiveReload to invalidate everything on file change.
+        def reset_all_caches!
+          RailsAiContext::Server::TOOLS.each(&:reset_cache!)
+        end
+
         # Helper: wrap text in an MCP::Tool::Response with safety-net truncation
         def text_response(text)
           max = RailsAiContext.configuration.max_tool_response_chars

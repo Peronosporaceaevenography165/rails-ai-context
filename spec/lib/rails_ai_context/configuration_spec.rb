@@ -14,6 +14,8 @@ RSpec.describe RailsAiContext::Configuration do
     expect(config.context_mode).to eq(:compact)
     expect(config.claude_max_lines).to eq(150)
     expect(config.max_tool_response_chars).to eq(120_000)
+    expect(config.live_reload).to eq(:auto)
+    expect(config.live_reload_debounce).to eq(1.5)
   end
 
   it "defaults to standard preset" do

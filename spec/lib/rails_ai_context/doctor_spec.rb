@@ -31,8 +31,8 @@ RSpec.describe RailsAiContext::Doctor do
       expect(names).to include("Controllers", "Views", "I18n", "Tests")
     end
 
-    it "runs 12 total checks" do
-      expect(result[:checks].size).to eq(12)
+    it "runs 13 total checks" do
+      expect(result[:checks].size).to eq(13)
     end
 
     it "checks MCP server buildability" do

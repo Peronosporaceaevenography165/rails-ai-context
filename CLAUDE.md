@@ -16,6 +16,7 @@ structure to AI assistants via the Model Context Protocol (MCP).
 - `lib/rails_ai_context/middleware.rb` — Rack middleware for auto-mounting MCP HTTP endpoint
 - `lib/rails_ai_context/fingerprinter.rb` — SHA256 file fingerprinting for cache invalidation
 - `lib/rails_ai_context/doctor.rb` — Diagnostic checks and AI readiness scoring
+- `lib/rails_ai_context/live_reload.rb` — MCP live reload: watches files, invalidates caches, notifies AI clients
 - `lib/rails_ai_context/watcher.rb` — File watcher for auto-regenerating context files
 - `lib/rails_ai_context/engine.rb` — Rails Engine for auto-integration
 - `lib/generators/rails_ai_context/install/` — Install generator (creates .mcp.json, initializer, context files)
