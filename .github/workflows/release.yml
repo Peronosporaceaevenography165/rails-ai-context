@@ -100,6 +100,15 @@ jobs:
               *.gem
           fi
 
+      - name: Upload mcpb to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Download mcpb from the initial release that created it
+          gh release download v0.7.1 --pattern "rails-ai-context-mcp.mcpb" --dir .
+          gh release upload "$TAG" rails-ai-context-mcp.mcpb --clobber
+
   mcp-registry:
     needs: publish
     runs-on: ubuntu-latest
@@ -116,11 +125,16 @@ jobs:
       - name: Login via GitHub OIDC
         run: mcp-publisher login github-oidc
 
-      - name: Update server.json version
+      - name: Update server.json version and mcpb URL
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          jq --arg v "$VERSION" '.version = $v' server.json > server.tmp && mv server.tmp server.json
+          TAG="${GITHUB_REF#refs/tags/}"
+          MCPB_URL="https://github.com/crisnahine/rails-ai-context/releases/download/${TAG}/rails-ai-context-mcp.mcpb"
+          jq --arg v "$VERSION" --arg url "$MCPB_URL" \
+            '.version = $v | .packages[0].identifier = $url' \
+            server.json > server.tmp && mv server.tmp server.json
           echo "Publishing version $VERSION to MCP Registry"
+          cat server.json
 
       - name: Publish to MCP Registry
         run: mcp-publisher publish
