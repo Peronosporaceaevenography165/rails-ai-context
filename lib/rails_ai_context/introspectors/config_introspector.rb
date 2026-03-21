@@ -20,7 +20,7 @@ module RailsAiContext
           mailer: detect_mailer_settings,
           middleware_stack: extract_middleware,
           initializers: extract_initializers,
-          credentials_keys: extract_credentials_keys,
+          credentials_configured: credentials_configured?,
           current_attributes: detect_current_attributes
         }.compact
       rescue => e
@@ -95,12 +95,13 @@ module RailsAiContext
         Dir.glob(File.join(dir, "*.rb")).map { |f| File.basename(f) }.sort
       end
 
-      def extract_credentials_keys
+      # Returns whether credentials are configured (boolean).
+      # Does NOT expose key names — those could reveal integrated services.
+      def credentials_configured?
         creds = app.credentials
-        return [] unless creds.respond_to?(:config)
-        creds.config.keys.map(&:to_s).sort
+        creds.respond_to?(:config) && creds.config.keys.any?
       rescue
-        []
+        false
       end
 
       def detect_current_attributes

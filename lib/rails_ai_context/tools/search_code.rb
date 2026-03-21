@@ -102,6 +102,11 @@ module RailsAiContext
           cmd << "--glob=!#{p}"
         end
 
+        # Block sensitive files from search results
+        RailsAiContext.configuration.sensitive_patterns.each do |p|
+          cmd << "--glob=!#{p}"
+        end
+
         if file_type
           cmd.push("--type-add", "custom:*.#{file_type}", "--type", "custom")
         end
@@ -110,8 +115,11 @@ module RailsAiContext
         cmd << pattern
         cmd << search_path
 
+        sensitive = RailsAiContext.configuration.sensitive_patterns
         output, _status = Open3.capture2(*cmd, err: File::NULL)
-        parse_rg_output(output, root).first(max_results)
+        parse_rg_output(output, root)
+          .reject { |r| sensitive_file?(r[:file], sensitive) }
+          .first(max_results)
       rescue => e
         [ { file: "error", line_number: 0, content: e.message } ]
       end
@@ -125,10 +133,12 @@ module RailsAiContext
         end
         glob = file_type ? "**/*.#{file_type}" : "**/*.{rb,js,erb,yml,yaml,json}"
         excluded = RailsAiContext.configuration.excluded_paths
+        sensitive = RailsAiContext.configuration.sensitive_patterns
 
         Dir.glob(File.join(search_path, glob)).each do |file|
           relative = file.sub("#{root}/", "")
           next if excluded.any? { |ex| relative.start_with?(ex) }
+          next if sensitive_file?(relative, sensitive)
 
           File.readlines(file).each_with_index do |line, idx|
             if line.match?(regex)
@@ -141,6 +151,14 @@ module RailsAiContext
         end
 
         results
+      end
+
+      private_class_method def self.sensitive_file?(relative_path, patterns)
+        basename = File.basename(relative_path)
+        patterns.any? do |pattern|
+          File.fnmatch(pattern, relative_path, File::FNM_DOTMATCH) ||
+            File.fnmatch(pattern, basename, File::FNM_DOTMATCH)
+        end
       end
 
       private_class_method def self.parse_rg_output(output, root)

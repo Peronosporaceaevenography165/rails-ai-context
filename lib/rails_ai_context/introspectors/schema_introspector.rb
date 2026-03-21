@@ -106,14 +106,15 @@ module RailsAiContext
 
       # Parse default values from schema.rb for a specific table.
       # Used to supplement live DB column data when the adapter returns nil defaults.
+      # Caches the schema.rb content to avoid re-reading once per table.
       def parse_schema_defaults_for_table(table)
         return {} unless File.exist?(schema_file_path)
 
-        content = File.read(schema_file_path)
+        @schema_rb_content ||= File.read(schema_file_path)
         defaults = {}
         in_table = false
 
-        content.each_line do |line|
+        @schema_rb_content.each_line do |line|
           if line.match?(/create_table\s+"#{Regexp.escape(table)}"/)
             in_table = true
           elsif in_table && line.match?(/\A\s*end\b/)
@@ -149,6 +150,8 @@ module RailsAiContext
         File.join(app.root, "db", "structure.sql")
       end
 
+      MAX_SCHEMA_FILE_SIZE = 10_000_000 # 10MB safety limit for schema files
+
       # Fallback: parse schema file as text when DB isn't connected.
       # Tries db/schema.rb first, then db/structure.sql.
       # This enables introspection in CI, Claude Code, etc.
@@ -163,6 +166,7 @@ module RailsAiContext
       end
 
       def parse_schema_rb(path)
+        return { error: "schema.rb too large (#{File.size(path)} bytes)" } if File.size(path) > MAX_SCHEMA_FILE_SIZE
         content = File.read(path)
         tables = {}
         current_table = nil
@@ -198,6 +202,7 @@ module RailsAiContext
       end
 
       def parse_structure_sql(path) # rubocop:disable Metrics/MethodLength
+        return { error: "structure.sql too large (#{File.size(path)} bytes)" } if File.size(path) > MAX_SCHEMA_FILE_SIZE
         content = File.read(path)
         tables = {}
 

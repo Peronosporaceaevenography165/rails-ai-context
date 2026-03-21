@@ -36,8 +36,8 @@ RSpec.describe RailsAiContext::Introspectors::ConfigIntrospector do
       end
     end
 
-    it "returns credentials keys as array" do
-      expect(result[:credentials_keys]).to be_an(Array)
+    it "returns credentials_configured as boolean" do
+      expect(result[:credentials_configured]).to eq(true).or(eq(false))
     end
 
     it "returns current attributes as array" do

@@ -28,8 +28,16 @@ module RailsAiContext
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
+      # Sensitive file patterns that should not be readable
+      SENSITIVE_PATTERNS = nil # uses configuration.sensitive_patterns
+
       def self.call(file:, near:, context_lines: 5, server_context: nil)
         full_path = Rails.root.join(file)
+
+        # Block access to sensitive files (secrets, keys, credentials)
+        if sensitive_file?(file)
+          return text_response("Access denied: #{file} is a sensitive file (secrets/keys/credentials).")
+        end
 
         # Path traversal protection (resolves symlinks)
         unless File.exist?(full_path)
@@ -100,6 +108,15 @@ module RailsAiContext
         end
 
         text_response(output.join("\n"))
+      end
+
+      private_class_method def self.sensitive_file?(relative_path)
+        patterns = RailsAiContext.configuration.sensitive_patterns
+        basename = File.basename(relative_path)
+        patterns.any? do |pattern|
+          File.fnmatch(pattern, relative_path, File::FNM_DOTMATCH) ||
+            File.fnmatch(pattern, basename, File::FNM_DOTMATCH)
+        end
       end
 
       private_class_method def self.extract_methods(source_lines)

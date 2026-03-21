@@ -18,6 +18,9 @@ module RailsAiContext
     # Paths to exclude from code search
     attr_accessor :excluded_paths
 
+    # Sensitive file patterns blocked from search and read tools
+    attr_accessor :sensitive_patterns
+
     # Whether to auto-mount the MCP HTTP endpoint
     attr_accessor :auto_mount
 
@@ -62,6 +65,10 @@ module RailsAiContext
       @server_version      = RailsAiContext::VERSION
       @introspectors       = PRESETS[:standard].dup
       @excluded_paths      = %w[node_modules tmp log vendor .git]
+      @sensitive_patterns  = %w[
+        .env .env.* config/master.key config/credentials.yml.enc
+        config/credentials/*.yml.enc *.pem *.key
+      ]
       @auto_mount          = false
       @http_path           = "/mcp"
       @http_bind           = "127.0.0.1"
