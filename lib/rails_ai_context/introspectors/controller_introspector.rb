@@ -150,28 +150,61 @@ module RailsAiContext
         actions.sort
       end
 
-      # Prefer source-based parsing for filters — always reflects current file state.
-      # Falls back to reflection for controllers without readable source files.
+      # Hybrid approach: reflection for complete filter names (handles inheritance + skips),
+      # source parsing from inheritance chain for only/except constraints.
       def extract_filters(ctrl, source = nil)
+        if ctrl.respond_to?(:_process_action_callbacks)
+          reflection_filters = ctrl._process_action_callbacks.filter_map do |cb|
+            next if cb.filter.is_a?(Proc) || cb.filter.to_s.start_with?("_")
+            next if excluded_filters.include?(cb.filter.to_s)
+            { name: cb.filter.to_s, kind: cb.kind.to_s }
+          end
+
+          if reflection_filters.any?
+            # Collect only/except constraints from source files in the inheritance chain
+            source_constraints = collect_source_constraints(ctrl, source)
+            reflection_filters.each do |f|
+              if (sc = source_constraints[f[:name]])
+                f[:only] = sc[:only] if sc[:only]&.any?
+                f[:except] = sc[:except] if sc[:except]&.any?
+              end
+            end
+            return reflection_filters
+          end
+        end
+
+        # Fallback to source parsing when reflection is unavailable
         if source
           filters = extract_filters_from_source(source)
           return filters if filters.any?
         end
-        return [] unless ctrl.respond_to?(:_process_action_callbacks)
 
-        ctrl._process_action_callbacks.filter_map do |cb|
-          next if cb.filter.is_a?(Proc) || cb.filter.to_s.start_with?("_")
-          next if excluded_filters.include?(cb.filter.to_s)
-
-          filter = { name: cb.filter.to_s, kind: cb.kind.to_s }
-          filter[:only] = cb.instance_variable_get(:@if)&.filter_map { |c| extract_action_condition(c) }&.flatten
-          filter[:except] = cb.instance_variable_get(:@unless)&.filter_map { |c| extract_action_condition(c) }&.flatten
-          filter.delete(:only) if filter[:only]&.empty?
-          filter.delete(:except) if filter[:except]&.empty?
-          filter
-        end
+        []
       rescue
         []
+      end
+
+      # Walk up the controller inheritance chain and collect filter constraints from source files
+      def collect_source_constraints(ctrl, current_source = nil)
+        constraints = {}
+        klass = ctrl
+        while klass && klass.name
+          break if klass.name.start_with?("ActionController::", "AbstractController::")
+          break if klass == ActionController::Base
+          break if defined?(ActionController::API) && klass == ActionController::API
+
+          src = (klass == ctrl) ? (current_source || read_source(klass)) : read_source(klass)
+          if src
+            extract_filters_from_source(src).each do |sf|
+              # First definition wins (most specific controller in chain)
+              constraints[sf[:name]] ||= sf
+            end
+          end
+          klass = klass.superclass
+        end
+        constraints
+      rescue
+        {}
       end
 
       def extract_filters_from_source(source)

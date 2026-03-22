@@ -145,7 +145,7 @@ module RailsAiContext
           after_commit after_rollback
         ]
 
-        callback_types.each_with_object({}) do |type, hash|
+        result = callback_types.each_with_object({}) do |type, hash|
           callbacks = model.send(:"_#{type}_callbacks").reject do |cb|
             cb.filter.to_s.start_with?(*EXCLUDED_CALLBACKS) || cb.filter.is_a?(Proc)
           end
@@ -154,6 +154,29 @@ module RailsAiContext
 
           hash[type.to_s] = callbacks.map { |cb| cb.filter.to_s }
         end
+
+        # If reflection returned nothing, fall back to source parsing
+        return result if result.any?
+        extract_callbacks_from_source(model)
+      rescue
+        extract_callbacks_from_source(model)
+      end
+
+      # Parse callback declarations from model source file
+      def extract_callbacks_from_source(model)
+        source_path = model_source_path(model)
+        return {} unless source_path && File.exist?(source_path)
+
+        source = File.read(source_path)
+        callbacks = {}
+        source.each_line do |line|
+          if (match = line.match(/\A\s*(before_validation|after_validation|before_save|after_save|before_create|after_create|before_update|after_update|before_destroy|after_destroy|after_commit|after_rollback)\s+:(\w+)/))
+            type = match[1]
+            method_name = match[2]
+            (callbacks[type] ||= []) << method_name
+          end
+        end
+        callbacks
       rescue
         {}
       end
@@ -168,13 +191,18 @@ module RailsAiContext
 
       def framework_concern?(name)
         return true if name.nil?
-        return true if %w[Kernel JSON PP Marshal MessagePack].include?(name)
+        return true if %w[Kernel JSON PP Marshal MessagePack].any? { |prefix| name == prefix || name.start_with?("#{prefix}::") }
+        return true if name.start_with?("ActiveModel::", "ActiveRecord::", "ActiveSupport::")
         RailsAiContext.configuration.excluded_concerns.any? { |pattern| name.match?(pattern) }
       end
 
       def extract_public_class_methods(model)
+        scope_names = extract_scopes(model).map(&:to_s)
         (model.methods - ActiveRecord::Base.methods - Object.methods)
-          .reject { |m| m.to_s.start_with?("_", "autosave") }
+          .reject { |m|
+            ms = m.to_s
+            ms.start_with?("_", "autosave") || scope_names.include?(ms)
+          }
           .sort
           .first(30) # Cap to avoid noise
           .map(&:to_s)

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "erb"
 
 module RailsAiContext
   module Tools
@@ -106,28 +107,44 @@ module RailsAiContext
       end
 
       # Validate ERB by compiling to Ruby source then syntax-checking the result.
-      # ERB.new(...).src only validates ERB tag syntax — it does NOT catch missing <% end %>.
-      # So we compile to Ruby, then run ruby -c on the compiled output to catch block mismatches.
+      # Catches missing <% end %>, unclosed blocks, and mismatched do/end.
+      #
+      # Two key pre-processing steps avoid false positives:
+      # 1. Convert `<%= ... %>` to `<% ... %>` — prevents the `_buf << ( helper do ).to_s`
+      #    ambiguity that standard ERB compilation creates for block-form helpers
+      #    like `<%= link_to ... do %>`, `<%= form_with ... do |f| %>`, etc.
+      # 2. Wrap compiled source in a method def — makes `yield` syntactically valid.
       private_class_method def self.validate_erb(full_path)
-        # Step 1: Compile ERB to Ruby source
-        compile_script = "require 'erb'; print ERB.new(File.read(ARGV[0])).src"
-        compiled, compile_status = Open3.capture2e("ruby", "-e", compile_script, full_path.to_s)
+        return [ false, "file too large" ] if File.size(full_path) > RailsAiContext.configuration.max_file_size
 
-        unless compile_status.success?
-          error = compiled.lines.reject { |l| l.strip.empty? }.first&.strip || "ERB syntax error"
-          return [ false, error ]
-        end
+        content = File.binread(full_path).force_encoding("UTF-8")
 
-        # Step 2: Syntax-check the compiled Ruby to catch missing end, unclosed blocks, etc.
+        # Pre-process: convert output tags to non-output for syntax-only checking.
+        # This is safe because we only check structure (do/end, if/end matching),
+        # not whether output is correct.
+        processed = content.gsub("<%=", "<%")
+
+        # Compile ERB to Ruby, wrapped in a method so `yield` is valid syntax.
+        # Force UTF-8 on .src output — ERB may return ASCII-8BIT which breaks
+        # concatenation with UTF-8 strings when non-ASCII bytes (emoji, etc.) are present.
+        erb_src = +ERB.new(processed).src
+        erb_src.force_encoding("UTF-8")
+        compiled = "# encoding: utf-8\ndef __erb_syntax_check\n#{erb_src}\nend"
+
         check_result, check_status = Open3.capture2e("ruby", "-c", "-", stdin_data: compiled)
         if check_status.success?
           [ true, nil ]
         else
-          error = check_result.lines.reject { |l| l.strip.empty? || l.include?("Syntax OK") }.first&.strip || "ERB error"
-          # Make the error more helpful — it's from compiled source, translate back
-          error = error.sub(/^-:/, "compiled ERB line ")
-          [ false, error ]
+          # Adjust line numbers: subtract 1 for the wrapper def line
+          error = check_result.lines
+            .reject { |l| l.strip.empty? || l.include?("Syntax OK") }
+            .first(5)
+            .map { |l| l.strip.sub(/-:(\d+):/) { "ruby: -:#{$1.to_i - 1}:" } }
+          msg = error.any? ? error.join("\n") : "ERB syntax error"
+          [ false, msg ]
         end
+      rescue => e
+        [ false, "ERB check error: #{e.message}" ]
       end
 
       # Validate JavaScript syntax via `node -c` (no shell — uses Open3 array form)

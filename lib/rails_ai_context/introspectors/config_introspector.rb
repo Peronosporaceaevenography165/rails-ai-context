@@ -3,7 +3,7 @@
 module RailsAiContext
   module Introspectors
     # Extracts application configuration: cache store, session store,
-    # timezone, middleware stack, initializers, credentials keys.
+    # timezone, middleware stack, initializers, credentials status.
     class ConfigIntrospector
       attr_reader :app
 

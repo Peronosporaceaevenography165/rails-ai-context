@@ -155,7 +155,7 @@ module RailsAiContext
 
       def detect_test_files
         categories = {}
-        %w[models controllers requests system services integration features].each do |cat|
+        %w[models models/concerns controllers requests system services integration features].each do |cat|
           %w[spec test].each do |base|
             dir = File.join(root, base, cat)
             next unless Dir.exist?(dir)

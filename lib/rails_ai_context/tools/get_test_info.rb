@@ -130,7 +130,9 @@ module RailsAiContext
         when :model
           [
             "spec/models/#{snake}_spec.rb",
-            "test/models/#{snake}_test.rb"
+            "test/models/#{snake}_test.rb",
+            "spec/models/concerns/#{snake}_spec.rb",
+            "test/models/concerns/#{snake}_test.rb"
           ]
         when :controller
           [

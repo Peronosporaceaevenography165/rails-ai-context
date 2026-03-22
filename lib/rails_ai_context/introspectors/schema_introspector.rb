@@ -179,7 +179,14 @@ module RailsAiContext
             next if current_table.start_with?("ar_internal_metadata", "schema_migrations")
             tables[current_table] = { columns: [], indexes: [], foreign_keys: [] }
           elsif current_table && (match = line.match(/t\.(\w+)\s+"(\w+)"/))
-            tables[current_table][:columns] << { name: match[2], type: match[1] }
+            col = { name: match[2], type: match[1] }
+            col[:null] = false if line.include?("null: false")
+            if (default_match = line.match(/default:\s*("[^"]*"|\{[^}]*\}|\[[^\]]*\]|-?\d+(?:\.\d+)?|true|false)/))
+              raw = default_match[1]
+              col[:default] = raw.start_with?('"') ? raw[1..-2] : raw
+            end
+            col[:array] = true if line.include?("array: true")
+            tables[current_table][:columns] << col
           elsif current_table && (match = line.match(/t\.index\s+\[([^\]]*)\]/))
             cols = match[1].scan(/["'](\w+)["']/).flatten
             unique = line.include?("unique: true")
@@ -199,6 +206,17 @@ module RailsAiContext
             unique = rest.include?("unique: true")
             idx_name = rest.match(/name:\s*"(\w+)"/)&.send(:[], 1)
             tables[table_name]&.dig(:indexes)&.push({ name: idx_name, columns: cols, unique: unique }.compact) if cols.any?
+          elsif (match = line.match(/add_foreign_key\s+"(\w+)",\s+"(\w+)"/))
+            from_table = match[1]
+            to_table = match[2]
+            column_match = line.match(/column:\s*"(\w+)"/)
+            column = column_match ? column_match[1] : "#{to_table.singularize}_id"
+            pk_match = line.match(/primary_key:\s*"(\w+)"/)
+            primary_key = pk_match ? pk_match[1] : "id"
+            tables[from_table]&.dig(:foreign_keys)&.push({
+              from_table: from_table, to_table: to_table,
+              column: column, primary_key: primary_key
+            })
           end
         end
 

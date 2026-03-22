@@ -129,12 +129,17 @@ module RailsAiContext
           end
         end
 
-        # Validations — compress repeated inclusion lists
+        # Validations — compress repeated inclusion lists, deduplicate same kind+attribute
         if data[:validations]&.any?
           lines << "" << "## Validations"
+          # Deduplicate validations with same kind and attributes (e.g. implicit belongs_to + explicit validates :user, presence)
+          seen_validations = Set.new
           # Track seen inclusion arrays to avoid repeating long lists
           seen_inclusions = {}
           data[:validations].each do |v|
+            dedup_key = "#{v[:kind]}:#{v[:attributes].sort.join(',')}"
+            next if seen_validations.include?(dedup_key)
+            seen_validations << dedup_key
             attrs = v[:attributes].join(", ")
             if v[:options]&.any?
               compressed_opts = v[:options].map do |k, val|

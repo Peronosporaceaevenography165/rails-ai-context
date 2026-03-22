@@ -136,7 +136,8 @@ module RailsAiContext
 
         columns.each do |col|
           nullable = col.key?(:null) ? (col[:null] ? "yes" : "**NO**") : "yes"
-          line = "| #{col[:name]} | #{col[:type]} | #{nullable}"
+          col_type = col[:array] ? "#{col[:type]}[]" : col[:type].to_s
+          line = "| #{col[:name]} | #{col_type} | #{nullable}"
           line += " | #{col[:default]}" if has_defaults
           lines << "#{line} |"
         end

@@ -404,7 +404,7 @@ Returns test infrastructure details. Optionally filter by model or controller to
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `model` | string | Show tests for a specific model (e.g. `User`). |
+| `model` | string | Show tests for a specific model (e.g. `User`). Also searches concern test paths (`spec/models/concerns/`, `test/models/concerns/`). |
 | `controller` | string | Show tests for a specific controller (e.g. `Cooks`). |
 | `detail` | string | `summary` / `standard` (default) / `full`. |
 
@@ -782,6 +782,12 @@ RailsAiContext.configure do |config|
   # schema.rb / structure.sql parse limit (default: 10MB)
   # config.max_schema_file_size = 10_000_000
 
+  # Total aggregated view content for UI patterns (default: 5MB)
+  # config.max_view_total_size = 5_000_000
+
+  # Per-view file during aggregation (default: 500KB)
+  # config.max_view_file_size = 500_000
+
   # Max search results per call (default: 100)
   # config.max_search_results = 100
 
@@ -888,7 +894,7 @@ These run by default. Fast and cover core Rails structure.
 | `controllers` | Actions, filters (before/after/around with only/except), strong params methods, parent class, API controller detection, concerns. |
 | `tests` | Test framework (rspec/minitest), factories/fixtures with locations and counts, system tests, CI config files, coverage tool, test helpers, VCR cassettes. |
 | `migrations` | Total count, schema version, pending migrations, recent migration history with detected actions (create_table, add_column, etc.), migration statistics. |
-| `config` | Cache store, session store, timezone, middleware stack, initializers, credentials keys, CurrentAttributes classes. |
+| `config` | Cache store, session store, timezone, queue adapter, mailer settings, middleware stack, initializers, credentials status, CurrentAttributes classes. |
 | `stimulus` | Stimulus controllers with targets, values (with types), actions, outlets, classes. Extracted from JS/TS files. |
 | `view_templates` | View file contents, partial references, Stimulus data attributes, UI pattern extraction, model field usage in partials. |
 | `design_tokens` | Auto-detects CSS framework (Tailwind v3/v4, Bootstrap, Sass, plain CSS) and extracts design tokens from config files and built CSS. |

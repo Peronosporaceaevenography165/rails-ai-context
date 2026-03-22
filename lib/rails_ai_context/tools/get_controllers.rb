@@ -49,12 +49,14 @@ module RailsAiContext
         # Flexible matching: "cooks", "CooksController", "cookscontroller" all work
         if controller
           # Accept multiple formats: "CooksController", "cooks", "bonus/crises", "Bonus::CrisesController"
-          normalized = controller.downcase.delete_suffix("controller").tr("/", "::")
+          # Use underscore for CamelCase→snake_case: "OmniauthCallbacks" → "omniauth_callbacks"
+          # Also match on plain downcase to handle "userscontroller" → "users"
+          input_snake = controller.gsub("/", "::").underscore.delete_suffix("_controller")
+          input_down = controller.downcase.delete_suffix("controller").tr("/", "::")
           key = controllers.keys.find { |k|
-            kd = k.downcase
-            kd == controller.downcase ||
-              kd.delete_suffix("controller") == normalized ||
-              kd.delete_suffix("controller").tr("::", "/") == controller.downcase.delete_suffix("controller")
+            key_snake = k.underscore.delete_suffix("_controller")
+            key_down = k.downcase.delete_suffix("controller")
+            key_snake == input_snake || key_down == input_down
           } || controller
           info = controllers[key]
           unless info
