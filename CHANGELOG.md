@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.7] - 2026-03-22
+
+### Improved
+
+- **Hybrid filter extraction** — controller filters now use reflection for complete names (handles inheritance + skips), with source parsing from the inheritance chain for only/except constraints.
+- **Callback source fallback** — when reflection returns nothing (e.g. CI), falls back to parsing callback declarations from model source files.
+- **ERB validation accuracy** — in-process compilation with `<%=` → `<%` pre-processing and yield wrapper eliminates false positives from block-form helpers.
+- **Schema static parser** — now extracts `null: false`, `default:`, `array: true` from schema.rb columns, and parses `add_foreign_key` declarations.
+- **Array column display** — schema tool shows PostgreSQL array types as `string[]`, `integer[]`, etc.
+- **Concern test lookup** — `rails_get_test_info(model:"PlanLimitable")` searches concern test paths.
+- **Controller flexible matching** — underscore-based normalization handles CamelCase, snake_case, and slash notation consistently.
+
 ## [0.15.6] - 2026-03-22
 
 ### Added
