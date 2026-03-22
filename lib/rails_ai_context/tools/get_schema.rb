@@ -123,23 +123,20 @@ module RailsAiContext
 
       private_class_method def self.format_table_markdown(name, data)
         columns = data[:columns] || []
-        has_nullable = columns.any? { |c| c[:null] }
-        has_defaults = columns.any? { |c| c[:default] }
+        # Always show Nullable and Default — agents need these for migrations and validations
+        has_defaults = columns.any? { |c| c.key?(:default) && !c[:default].nil? }
 
         lines = [ "## Table: #{name}", "" ]
 
-        # Only show Nullable/Default columns when they have meaningful values
-        header = "| Column | Type"
-        sep = "|--------|-----"
-        header += " | Nullable" if has_nullable
-        sep += "-|----------" if has_nullable
+        header = "| Column | Type | Null"
+        sep = "|--------|------|-----"
         header += " | Default" if has_defaults
         sep += "-|---------" if has_defaults
         lines << "#{header} |" << "#{sep}|"
 
         columns.each do |col|
-          line = "| #{col[:name]} | #{col[:type]}"
-          line += " | #{col[:null] ? 'yes' : 'no'}" if has_nullable
+          nullable = col.key?(:null) ? (col[:null] ? "yes" : "**NO**") : "yes"
+          line = "| #{col[:name]} | #{col[:type]} | #{nullable}"
           line += " | #{col[:default]}" if has_defaults
           lines << "#{line} |"
         end

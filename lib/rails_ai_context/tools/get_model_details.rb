@@ -123,6 +123,7 @@ module RailsAiContext
             detail += " (class: #{a[:class_name]})" if a[:class_name] && a[:class_name] != a[:name].to_s.classify
             detail += " through: #{a[:through]}" if a[:through]
             detail += " [polymorphic]" if a[:polymorphic]
+            detail += " [optional]" if a[:optional]
             detail += " dependent: #{a[:dependent]}" if a[:dependent]
             lines << detail
           end
@@ -157,6 +158,11 @@ module RailsAiContext
           end
         end
 
+        # Custom validate methods (business rules)
+        if data[:custom_validates]&.any?
+          lines << "- **Custom:** #{data[:custom_validates].map { |v| "`#{v}`" }.join(', ')}"
+        end
+
         # Enums
         if data[:enums]&.any?
           lines << "" << "## Enums"
@@ -189,8 +195,21 @@ module RailsAiContext
           end
           if app_concerns.any?
             lines << "" << "## Concerns"
-            lines << app_concerns.map { |c| "- #{c}" }.join("\n")
+            app_concerns.each do |c|
+              methods = extract_concern_methods(c)
+              if methods&.any?
+                lines << "- **#{c}** — #{methods.join(', ')}"
+              else
+                lines << "- #{c}"
+              end
+            end
           end
+        end
+
+        # Class methods (e.g. Plan.free, Plan.pro)
+        if data[:class_methods]&.any?
+          lines << "" << "## Class methods"
+          lines << data[:class_methods].first(15).map { |m| "- `#{m}`" }.join("\n")
         end
 
         # Key instance methods — include signatures from source if available
@@ -237,6 +256,31 @@ module RailsAiContext
         end
 
         signatures
+      rescue
+        nil
+      end
+
+      # Extract public method names from a concern's source file
+      private_class_method def self.extract_concern_methods(concern_name)
+        path = Rails.root.join("app", "models", "concerns", "#{concern_name.underscore}.rb")
+        return nil unless File.exist?(path)
+        return nil if File.size(path) > MAX_MODEL_SIZE
+
+        source = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace)
+        methods = []
+        in_private = false
+
+        source.each_line do |line|
+          in_private = true if line.match?(/\A\s*(private|protected)\s*$/)
+          in_private = false if line.match?(/\A\s*public\s*$/)
+          next if in_private
+
+          if (match = line.match(/\A\s*def\s+([\w?!]+)/))
+            methods << match[1] unless match[1].start_with?("_")
+          end
+        end
+
+        methods.empty? ? nil : methods
       rescue
         nil
       end

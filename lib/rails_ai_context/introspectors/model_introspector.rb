@@ -59,6 +59,7 @@ module RailsAiContext
           table_name: model.table_name,
           associations: extract_associations(model),
           validations: extract_validations(model),
+          custom_validates: extract_custom_validates(model),
           scopes: extract_scopes(model),
           enums: extract_enums(model),
           callbacks: extract_callbacks(model),
@@ -105,6 +106,17 @@ module RailsAiContext
         return [] unless source_path && File.exist?(source_path)
 
         File.read(source_path).scan(/^\s*scope\s+:(\w+)/).flatten
+      rescue
+        []
+      end
+
+      # Extract custom validate :method_name calls from source
+      # These are business-rule validators that model.validators doesn't include
+      def extract_custom_validates(model)
+        source_path = model_source_path(model)
+        return [] unless source_path && File.exist?(source_path)
+
+        File.read(source_path).scan(/^\s*validate\s+:(\w+)/).flatten
       rescue
         []
       end
