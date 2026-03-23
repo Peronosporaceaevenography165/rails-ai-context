@@ -602,17 +602,16 @@ module RailsAiContext
         model_data[:associations]&.each { |a| valid << a[:name]; valid << a[:foreign_key] if a[:foreign_key] }
         valid.merge(%w[id _destroy created_at updated_at])
 
-        # V1: Smarter JSONB skip — only skip params matching JSON column names, check the rest
-        json_column_names = table_data[:columns]
-          &.select { |c| %w[jsonb json].include?(c[:type]) }
-          &.map { |c| c[:name] }
-          &.to_set || Set.new
+        # If model has JSONB/JSON columns, permitted params likely go INTO those columns
+        # (e.g. Cook permits :product_details which is stored inside intake JSONB)
+        # Skip the entire check — too many false positives otherwise
+        has_json_columns = table_data[:columns]&.any? { |c| %w[jsonb json].include?(c[:type]) }
+        return warnings if has_json_columns
 
         visitor.permit_calls.each do |pc|
           pc[:params].each do |param|
             next if param.end_with?("_attributes") # nested attributes
             next if valid.include?(param)
-            next if json_column_names.include?(param) # param matches a JSON column, skip
             warnings << "permits :#{param} \u2014 not a column in #{table_name} table"
           end
         end
