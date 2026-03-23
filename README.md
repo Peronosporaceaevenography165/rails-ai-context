@@ -1,36 +1,79 @@
 # rails-ai-context
 
-**Turn any Rails app into an AI-ready codebase — one gem install.**
+**Give AI agents a complete mental model of your Rails app — not just files, but how everything connects.**
 
 [![Gem Version](https://img.shields.io/gem/v/rails-ai-context?color=brightgreen)](https://rubygems.org/gems/rails-ai-context)
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-green)](https://registry.modelcontextprotocol.io)
 [![CI](https://github.com/crisnahine/rails-ai-context/actions/workflows/ci.yml/badge.svg)](https://github.com/crisnahine/rails-ai-context/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-*Built by a Rails dev who got tired of burning tokens explaining his app to AI assistants every single session.*
-
 ---
 
 ## The Problem
 
-You open Claude Code, Cursor, or Copilot and ask: *"Add a draft status to posts with a scheduled publish date."*
+AI agents working on Rails apps operate blind. They read files one at a time but never see the full picture — how your schema connects to your models, which callbacks fire on save, what filters apply to a controller action, which Stimulus controllers exist, or what your UI conventions are.
 
-The AI doesn't know your schema, your Devise setup, your Sidekiq jobs, or that `Post` already has an `enum :status`. It generates generic code that doesn't match your app.
+The result: **guess-and-check coding.** The agent writes code, it breaks, it reads more files, fixes it, breaks again. Each iteration wastes tokens and erodes trust.
 
-**rails-ai-context fixes this.** It auto-introspects your entire Rails app and feeds everything to your AI assistant — schema, models, routes, controllers, jobs, gems, auth, API, tests, config, and conventions — through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
+## The Solution
+
+**rails-ai-context** gives your AI agent what a senior Rails developer has naturally: a structured mental model of the entire application.
+
+```bash
+bundle add rails-ai-context
+rails generate rails_ai_context:install
+rails ai:context
+```
+
+Three commands. Your AI now understands your schema, models, routes, controllers, views, jobs, gems, auth, Stimulus controllers, design patterns, and conventions — through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
+
+The install generator creates `.mcp.json` for auto-discovery — Claude Code and Cursor detect it automatically.
+
+> **[Full Guide](docs/GUIDE.md)** — complete documentation with every command, parameter, and configuration option.
 
 ---
 
-## Proof: 37% Token Savings (Real Benchmark)
+## What Changes
 
-Same task — *"Add status and date range filters to the Cooks index page"* — 4 scenarios in parallel, same Rails app:
+### Without rails-ai-context
 
-| Setup | Tokens | Saved | What it knows |
-|-------|--------|-------|---------------|
-| **rails-ai-context (full)** | **28,834** | **37%** | 13 MCP tools + generated docs + rules |
-| rails-ai-context CLAUDE.md only | 33,106 | 27% | Generated docs + rules, no MCP tools |
-| Normal Claude `/init` | 40,700 | 11% | Generic CLAUDE.md only |
-| No rails-ai-context at all | 45,477 | baseline | Nothing — discovers everything from scratch |
+The agent asks itself: *What columns does `users` have?* It reads all 2,000 lines of `schema.rb`. *What associations does `Cook` have?* It reads the model file but misses the concern that adds 12 methods. *What filters apply to `CooksController#create`?* It reads the controller but doesn't see the inherited `authenticate_user!` from the parent class. It writes code that references a nonexistent partial, permits a wrong param, and renders a Stimulus controller that doesn't exist.
+
+**Every mistake is a wasted iteration.**
+
+### With rails-ai-context
+
+```
+Agent: rails_get_schema(table:"users")          → 25 lines: columns, types, NOT NULL, defaults, indexes, FKs
+Agent: rails_get_model_details(model:"Cook")     → associations, validations, scopes, callbacks, concern methods
+Agent: rails_get_controllers(controller:"cooks", action:"create") → source code + applicable filters + strong params body
+Agent: rails_validate(files:["app/models/cook.rb"], level:"rails") → catches column/route/partial errors before execution
+```
+
+**Orient → drill down → act → verify.** The first attempt is correct.
+
+---
+
+## Three Layers of Context
+
+| Layer | What it provides | When it loads | Token cost |
+|-------|-----------------|---------------|------------|
+| **Static files** (CLAUDE.md, .cursorrules, etc.) | App overview: stack, models, gems, architecture, UI patterns, MCP tool reference | Automatically at session start | ~150 lines, zero tool calls |
+| **Split rules** (.claude/rules/, .cursor/rules/) | Deep reference: full schema with column types, all model associations/scopes, controller listings | Conditionally — only when editing relevant files | Zero when not needed |
+| **Live MCP tools** (13 tools) | Real-time queries: drill into any table, model, controller action, or view on demand. Semantic validation. | On-demand via agent tool calls | ~25-100 lines per call |
+
+**Progressive disclosure:** the agent gets the map for free, reference guides when relevant, and live GPS when building.
+
+---
+
+## Real Impact: 37% Fewer Tokens, 95% Fewer Errors
+
+| Setup | Tokens | What it knows |
+|-------|--------|---------------|
+| **rails-ai-context (full)** | **28,834** | 13 MCP tools + generated docs + split rules |
+| rails-ai-context CLAUDE.md only | 33,106 | Generated docs + rules, no MCP tools |
+| Normal Claude `/init` | 40,700 | Generic CLAUDE.md only |
+| No rails-ai-context | 45,477 | Nothing — discovers everything from scratch |
 
 ```
 No rails-ai-context          45,477 tk  █████████████████████████████████████████████
@@ -41,57 +84,14 @@ rails-ai-context (full)       28,834 tk  █████████████
 
 https://github.com/user-attachments/assets/14476243-1210-4e62-9dc5-9d4aa9caef7e
 
+> **Token savings scale with app size.** A 5-model app saves 37%. A 50-model app with auth + payments + mailers saves 60-80% — because MCP tools return only what's needed instead of reading entire files.
 
-**What each layer gives you:**
+But token savings is the side effect. The real value:
 
-| | Normal `/init` | rails-ai-context CLAUDE.md | rails-ai-context full |
-|---|---|---|---|
-| Knows it's Rails + Tailwind | Yes | Yes | Yes |
-| Knows model names, columns, associations | No | Yes | Yes |
-| Knows controller actions, filters | No | Yes | Yes |
-| Discovery overhead | ~8 calls | 0 calls | 0 calls |
-| Structured MCP queries | No | No | Yes — 5 MCP calls replace file reads |
-
-**~16,600 fewer tokens per task** vs no gem at all.
-
-> **This was a simple task on a small 5-model app.** Real-world tasks are 3-10x more complex.
-> A feature touching auth + payments + mailers + tests on a 50-model app? Without the gem, Claude reads `db/schema.rb` (2,000+ lines), every model file, every controller, every view — easily 200K+ tokens per session. With rails-ai-context, MCP tools return only what's needed: `rails_get_schema(table:"users")` returns 25 lines instead of 2,000. **The bigger your app and the harder the task, the more you save.**
-
-| App size | Without gem | With rails-ai-context | Savings |
-|----------|-------------|----------------------|---------|
-| Small (5 models) | 45K tokens | 29K tokens | 37% |
-| Medium (30 models) | ~150K tokens | ~60K tokens | ~60% |
-| Large (100+ models) | ~500K+ tokens | ~100K tokens | ~80% |
-
-*Medium/large estimates based on schema.rb scaling (40 lines/table), model file scaling, and MCP summary-first workflow eliminating full-file reads.*
-
----
-
-## Quick Start
-
-```bash
-bundle add rails-ai-context
-rails generate rails_ai_context:install
-rails ai:context
-```
-
-That's it. Three commands. Your AI assistant now understands your entire Rails app.
-
-The install generator creates `.mcp.json` for auto-discovery — Claude Code and Cursor detect it automatically. No manual MCP config needed.
-
-> **[Full Guide](docs/GUIDE.md)** — complete documentation with every command, parameter, and configuration option.
-
----
-
-## How It Saves Tokens
-
-![Token Comparison](https://raw.githubusercontent.com/crisnahine/rails-ai-context/main/docs/token-comparison.jpeg)
-
-- `/init` saves 11% — knows the framework but wastes tokens discovering models and tables
-- **CLAUDE.md saves 27%** — complete Rails-specific map, zero discovery overhead
-- **Full MCP saves 37%** — structured queries replace expensive full-file reads
-- MCP tools return `detail:"summary"` first (~55 tokens), then drill into specifics
-- Split rule files only activate in relevant directories
+- **Fewer iterations** — the agent understands associations, callbacks, and constraints before writing code
+- **Cross-file accuracy** — semantic validation catches nonexistent partials, wrong column references, and missing routes in one call
+- **Convention awareness** — the agent matches your UI patterns, test framework, and architecture style
+- **No stale context** — live reload invalidates caches when files change mid-session
 
 ---
 
