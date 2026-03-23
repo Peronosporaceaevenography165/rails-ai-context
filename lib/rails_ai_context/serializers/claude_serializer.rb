@@ -8,6 +8,7 @@ module RailsAiContext
     class ClaudeSerializer
       include TestCommandDetection
       include StackOverviewHelper
+      include DesignSystemHelper
 
       attr_reader :context
 
@@ -192,40 +193,12 @@ module RailsAiContext
       end
 
       def render_ui_patterns
-        vt = context[:view_templates]
-        return [] unless vt.is_a?(Hash) && !vt[:error]
-        patterns = vt[:ui_patterns] || {}
-        components = patterns[:components] || []
-        return [] if components.empty?
-
-        lines = [ "## UI Patterns" ]
-
-        # Color scheme summary
-        scheme = patterns[:color_scheme] || {}
-        if scheme.any?
-          parts = []
-          parts << "Primary: #{scheme[:primary]}" if scheme[:primary]
-          parts << "Text: #{scheme[:text]}" if scheme[:text]
-          lines << parts.join(" | ") if parts.any?
-        end
-
-        lines << ""
-        components.first(15).each do |comp|
-          lines << "- #{comp[:label]}: `#{comp[:classes]}`"
-        end
-
-        # Form layout
-        fl = patterns[:form_layout] || {}
-        if fl.any?
-          lines << "" << "Form: #{fl.values.join(', ')}"
-        end
-        lines << ""
-        lines
+        render_design_system(context, max_lines: 30)
       end
 
       def render_mcp_guide # rubocop:disable Metrics/MethodLength
         [
-          "## MCP Tools (14) — ALWAYS Use These First",
+          "## MCP Tools (15) — ALWAYS Use These First",
           "",
           "Use MCP for reference files (schema, routes, tests). Read directly if you'll edit.",
           "MCP tools return line numbers. Start with `detail:\"summary\"`.",
@@ -238,6 +211,7 @@ module RailsAiContext
           "- `rails_get_stimulus(detail:\"summary\")` → `(controller:\"name\")` — targets, actions, values",
           "- `rails_get_test_info(detail:\"full\")` — fixtures, factories, helpers; `(model:\"Cook\")` — tests",
           "- `rails_analyze_feature(feature:\"auth\")` — schema + models + controllers + routes for a feature",
+          "- `rails_get_design_system` — color palette, component patterns, canonical page examples",
           "- `rails_get_config` | `rails_get_gems` | `rails_get_conventions` | `rails_search_code`",
           "- `rails_validate(files:[\"path/to/file.rb\"])` — validate Ruby, ERB, JS syntax in one call",
           ""

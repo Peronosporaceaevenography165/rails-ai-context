@@ -8,6 +8,7 @@ module RailsAiContext
     class OpencodeSerializer
       include TestCommandDetection
       include StackOverviewHelper
+      include DesignSystemHelper
 
       attr_reader :context
 
@@ -159,27 +160,12 @@ module RailsAiContext
       end
 
       def render_ui_patterns
-        vt = context[:view_templates]
-        return [] unless vt.is_a?(Hash) && !vt[:error]
-        patterns = vt[:ui_patterns] || {}
-        components = patterns[:components] || []
-        return [] if components.empty?
-
-        lines = [ "## UI Patterns" ]
-        scheme = patterns[:color_scheme] || {}
-        parts = []
-        parts << "Primary: #{scheme[:primary]}" if scheme[:primary]
-        parts << "Text: #{scheme[:text]}" if scheme[:text]
-        lines << parts.join(" | ") if parts.any?
-        lines << ""
-        components.first(15).each { |c| next unless c[:label] && c[:classes]; lines << "- #{c[:label]}: `#{c[:classes]}`" }
-        lines << ""
-        lines
+        render_design_system(context, max_lines: 30)
       end
 
       def render_mcp_guide # rubocop:disable Metrics/MethodLength
         [
-          "## MCP Tools (14) — ALWAYS Use These First",
+          "## MCP Tools (15) — ALWAYS Use These First",
           "",
           "Use MCP for reference files (schema, routes, tests). Read directly if you'll edit.",
           "MCP tools return line numbers. Start with `detail:\"summary\"`.",
@@ -193,6 +179,7 @@ module RailsAiContext
           "- `rails_get_test_info(detail:\"full\")` — fixtures, factories, helpers; `(model:\"Cook\")` — tests",
           "- `rails_get_edit_context(file:\"path\", near:\"keyword\")` — surgical edit context with line numbers",
           "- `rails_analyze_feature(feature:\"auth\")` — schema + models + controllers + routes for a feature",
+          "- `rails_get_design_system` — color palette, component patterns, canonical page examples",
           "- `rails_validate(files:[...])` — batch syntax check for Ruby, ERB, JS",
           "- `rails_get_config` | `rails_get_gems` | `rails_get_conventions` | `rails_search_code`",
           ""

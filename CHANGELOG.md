@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-23
+
+### Added
+
+- **Design system extraction** — ViewTemplateIntrospector now extracts canonical page examples (real HTML/ERB snippets from actual views), full color palette with semantic roles (primary/danger/success/warning), typography scale (sizes, weights, heading styles), layout patterns (containers, grids, spacing scale), responsive breakpoint usage, interactive state patterns (hover/focus/active/disabled), dark mode detection, and icon system identification.
+- **New MCP tool: `rails_get_design_system`** — dedicated tool (15th) returns the app's design system: color palette, component patterns with real HTML examples, typography, layout conventions, responsive breakpoints. Supports `detail` parameter (summary/standard/full). Total MCP tools: 15.
+- **DesignSystemHelper serializer module** — replaces flat component listings with actionable design guidance across all output formats (Claude, Cursor, Windsurf, Copilot, OpenCode). Shows components with semantic roles, canonical page examples in split rules, and explicit design rules.
+- **DesignTokenIntrospector semantic categorization** — tokens now grouped into colors/typography/spacing/sizing/borders/shadows. Enhanced Tailwind v3 parsing for fontSize, spacing, borderRadius, and screens.
+
+### Changed
+
+- **"UI Patterns" section renamed to "Design System"** — richer content with color palette, typography, components, spacing conventions, interactive states, and design rules.
+- **Design tokens consumed for the first time** — `context[:design_tokens]` data was previously extracted but never rendered. Now merged into design system output in all serializers and the new MCP tool.
+
 ## [1.1.1] - 2026-03-23
 
 ### Added

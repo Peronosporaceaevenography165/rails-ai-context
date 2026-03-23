@@ -8,6 +8,7 @@ module RailsAiContext
     class CopilotSerializer
       include TestCommandDetection
       include StackOverviewHelper
+      include DesignSystemHelper
 
       attr_reader :context
 
@@ -87,16 +88,8 @@ module RailsAiContext
           end
         end
 
-        # UI Patterns
-        vt = context[:view_templates]
-        if vt.is_a?(Hash) && !vt[:error]
-          components = vt.dig(:ui_patterns, :components) || []
-          if components.any?
-            lines << "## UI Patterns"
-            components.first(15).each { |c| next unless c[:label] && c[:classes]; lines << "- #{c[:label]}: `#{c[:classes]}`" }
-            lines << ""
-          end
-        end
+        # Design System
+        lines.concat(render_design_system(context, max_lines: 35))
 
         # MCP tools
         lines << "## MCP Tool Reference"

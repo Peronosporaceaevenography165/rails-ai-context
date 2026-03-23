@@ -5,6 +5,8 @@ module RailsAiContext
     # Generates .windsurf/rules/*.md files in the new Windsurf rules format.
     # Each file is hard-capped at 5,800 characters (within Windsurf's 6K limit).
     class WindsurfRulesSerializer
+      include DesignSystemHelper
+
       MAX_CHARS_PER_FILE = 5_800
 
       attr_reader :context
@@ -56,52 +58,16 @@ module RailsAiContext
         components = vt.dig(:ui_patterns, :components) || []
         return nil if components.empty?
 
-        lines = [ "# UI Patterns", "" ]
-        components.first(8).each { |c| next unless c[:label] && c[:classes]; lines << "- #{c[:label]}: `#{c[:classes]}`" }
-
-        # Shared partials
-        begin
-          root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
-          shared_dir = File.join(root, "app", "views", "shared")
-          if Dir.exist?(shared_dir)
-            partials = Dir.glob(File.join(shared_dir, "_*.html.erb")).map { |f| File.basename(f) }.sort
-            if partials.any?
-              lines << "" << "## Shared partials"
-              partials.each { |p| lines << "- #{p}" }
-            end
-          end
-        rescue; end
-
-        # Helpers
-        begin
-          root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
-          helper_file = File.join(root, "app", "helpers", "application_helper.rb")
-          if File.exist?(helper_file)
-            helper_methods = File.read(helper_file).scan(/def\s+(\w+)/).flatten
-            if helper_methods.any?
-              lines << "" << "## Helpers (ApplicationHelper)"
-              helper_methods.each { |m| lines << "- #{m}" }
-            end
-          end
-        rescue; end
-
-        # Stimulus controllers
-        stim = context[:stimulus]
-        if stim.is_a?(Hash) && !stim[:error]
-          controllers = stim[:controllers] || []
-          if controllers.any?
-            names = controllers.map { |c| c[:name] || c[:file]&.gsub("_controller.js", "") }.compact.sort
-            lines << "" << "## Stimulus controllers"
-            lines << names.join(", ")
-          end
-        end
+        # Compact design system for Windsurf's character budget
+        lines = render_design_system(context, max_lines: 25)
+        return nil if lines.empty?
 
         lines.join("\n")
       end
 
       def render_mcp_tools_rule # rubocop:disable Metrics/MethodLength
         lines = [
-          "# Rails MCP Tools (14) — Use These First",
+          "# Rails MCP Tools (15) — Use These First",
           "",
           "Use MCP for reference files (schema, routes, tests). Read directly if you'll edit.",
           "",
@@ -113,6 +79,7 @@ module RailsAiContext
           "- rails_get_stimulus(detail:\"summary\") → rails_get_stimulus(controller:\"name\")",
           "- rails_get_test_info(detail:\"full\") — fixtures, helpers; (model:\"Cook\") — tests",
           "- rails_analyze_feature(feature:\"auth\") — schema + models + controllers + routes for a feature",
+          "- rails_get_design_system — color palette, components, page examples",
           "- rails_get_config | rails_get_gems | rails_get_conventions | rails_search_code",
           "- rails_get_edit_context(file:\"path\", near:\"keyword\") — surgical edit context with line numbers",
           "- rails_validate(files:[\"path\"]) — validate Ruby, ERB, JS syntax in one call",

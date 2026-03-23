@@ -6,6 +6,7 @@ module RailsAiContext
     # for GitHub Copilot path-specific instructions.
     class CopilotInstructionsSerializer
       include StackOverviewHelper
+      include DesignSystemHelper
 
       attr_reader :context
 
@@ -193,37 +194,10 @@ module RailsAiContext
           "---",
           "applyTo: \"app/views/**/*.erb\"",
           "---",
-          "",
-          "# UI Patterns",
           ""
         ]
-        components.first(15).each { |c| next unless c[:label] && c[:classes]; lines << "- #{c[:label]}: `#{c[:classes]}`" }
 
-        # Shared partials
-        begin
-          root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
-          shared_dir = File.join(root, "app", "views", "shared")
-          if Dir.exist?(shared_dir)
-            partials = Dir.glob(File.join(shared_dir, "_*.html.erb")).map { |f| File.basename(f) }.sort
-            if partials.any?
-              lines << "" << "## Shared partials"
-              partials.each { |p| lines << "- #{p}" }
-            end
-          end
-        rescue; end
-
-        # Helpers
-        begin
-          root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
-          helper_file = File.join(root, "app", "helpers", "application_helper.rb")
-          if File.exist?(helper_file)
-            helper_methods = File.read(helper_file).scan(/def\s+(\w+)/).flatten
-            if helper_methods.any?
-              lines << "" << "## Helpers (ApplicationHelper)"
-              helper_methods.each { |m| lines << "- #{m}" }
-            end
-          end
-        rescue; end
+        lines.concat(render_design_system_full(context))
 
         # Stimulus controllers
         stim = context[:stimulus]
@@ -245,7 +219,7 @@ module RailsAiContext
           "applyTo: \"**/*\"",
           "---",
           "",
-          "# Rails MCP Tools (14) — Use These First",
+          "# Rails MCP Tools (15) — Use These First",
           "",
           "Use MCP for reference files (schema, routes, tests). Read directly if you'll edit.",
           "MCP tools return line numbers for surgical edits.",
@@ -259,6 +233,7 @@ module RailsAiContext
           "- `rails_get_stimulus(detail:\"summary\")` → `(controller:\"name\")` — targets, actions, values",
           "- `rails_get_test_info(detail:\"full\")` — fixtures, factories, helpers; `(model:\"Cook\")` — existing tests",
           "- `rails_analyze_feature(feature:\"auth\")` — schema + models + controllers + routes for a feature",
+          "- `rails_get_design_system` — color palette, components, canonical page examples",
           "- `rails_get_config` | `rails_get_gems` | `rails_get_conventions` | `rails_search_code`",
           "- `rails_get_edit_context(file:\"path\", near:\"keyword\")` — surgical edit context with line numbers",
           "- `rails_validate(files:[\"path\"])` — validate Ruby, ERB, JS syntax in one call",

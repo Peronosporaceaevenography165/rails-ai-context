@@ -6,6 +6,7 @@ module RailsAiContext
     # These provide quick-reference lists without bloating CLAUDE.md.
     class ClaudeRulesSerializer
       include StackOverviewHelper
+      include DesignSystemHelper
 
       attr_reader :context
 
@@ -250,31 +251,10 @@ module RailsAiContext
         components = patterns[:components] || []
         return nil if components.empty?
 
-        lines = [ "# UI Patterns", "" ]
+        lines = [ "# Design System", "" ]
 
-        scheme = patterns[:color_scheme] || {}
-        parts = []
-        parts << "Primary: #{scheme[:primary]}" if scheme[:primary]
-        parts << "Text: #{scheme[:text]}" if scheme[:text]
-        lines << parts.join(" | ") if parts.any?
-
-        radius = patterns[:radius] || {}
-        if radius.any?
-          # Group by radius value to avoid repetition
-          by_radius = radius.group_by { |_, r| r }.map { |r, types| "#{r} (#{types.map(&:first).join(', ')})" }
-          lines << "Radius: #{by_radius.join(', ')}"
-        end
-        lines << ""
-
-        lines << "## Components"
-        components.first(20).each { |c| next unless c[:label] && c[:classes]; lines << "- #{c[:label]}: `#{c[:classes]}`" }
-
-        fl = patterns[:form_layout] || {}
-        if fl.any?
-          lines << "" << "## Form layout"
-          lines << "- Spacing: #{fl[:spacing]}" if fl[:spacing]
-          lines << "- Grid: #{fl[:grid]}" if fl[:grid]
-        end
+        # Full design system with canonical examples
+        lines.concat(render_design_system_full(context))
 
         # Shared partials — so agents reuse them instead of recreating
         begin
@@ -346,7 +326,7 @@ module RailsAiContext
           "- app/javascript/controllers/index.js — Stimulus auto-registers controllers. No need to read.",
           "- Test files — use `rails_get_test_info(detail:\"full\")` for patterns.",
           "",
-          "## Tools (14)",
+          "## Tools (15)",
           "",
           "**rails_get_schema** — database tables, columns, indexes, foreign keys",
           "- `rails_get_schema(detail:\"summary\")` — all tables with column counts",
@@ -386,6 +366,10 @@ module RailsAiContext
           "",
           "**rails_analyze_feature** — combined schema + models + controllers + routes for a feature area",
           "- `rails_analyze_feature(feature:\"authentication\")` — one call gets everything related to a feature",
+          "",
+          "**rails_get_design_system** — color palette, component patterns, canonical page examples",
+          "- `rails_get_design_system(detail:\"standard\")` — colors + components + real HTML examples + design rules",
+          "- `rails_get_design_system(detail:\"full\")` — + typography, responsive, dark mode, layout, spacing",
           "",
           "**rails_get_config** — cache store, session, timezone, middleware, initializers",
           "**rails_get_gems** — notable gems categorized by function",

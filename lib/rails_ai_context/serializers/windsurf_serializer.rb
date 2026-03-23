@@ -7,6 +7,7 @@ module RailsAiContext
     class WindsurfSerializer
       include TestCommandDetection
       include StackOverviewHelper
+      include DesignSystemHelper
 
       MAX_CHARS = 5_800 # Leave buffer below 6K limit
 
@@ -124,37 +125,9 @@ module RailsAiContext
 
         lines << ""
 
-        # UI Patterns (compact — character budget is tight)
-        vt = context[:view_templates]
-        if vt.is_a?(Hash) && !vt[:error]
-          components = vt.dig(:ui_patterns, :components) || []
-          if components.any?
-            lines << "# UI Patterns"
-            components.first(8).each { |c| next unless c[:label] && c[:classes]; lines << "- #{c[:label]}: `#{c[:classes]}`" }
-
-            # Shared partials
-            begin
-              root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
-              shared_dir = File.join(root, "app", "views", "shared")
-              if Dir.exist?(shared_dir)
-                partials = Dir.glob(File.join(shared_dir, "_*.html.erb")).map { |f| File.basename(f) }.sort
-                lines << "Shared partials: #{partials.join(', ')}" if partials.any?
-              end
-            rescue; end
-
-            # Helpers
-            begin
-              root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
-              helper_file = File.join(root, "app", "helpers", "application_helper.rb")
-              if File.exist?(helper_file)
-                helper_methods = File.read(helper_file).scan(/def\s+(\w+)/).flatten
-                lines << "Helpers: #{helper_methods.join(', ')}" if helper_methods.any?
-              end
-            rescue; end
-
-            lines << ""
-          end
-        end
+        # Design System (compact — character budget is tight)
+        ds_lines = render_design_system(context, max_lines: 15)
+        lines.concat(ds_lines) if ds_lines.any?
 
         # MCP tools — compact but complete (character budget is tight)
         lines << "# MCP Tools (detail:\"summary\"|\"standard\"|\"full\")"
@@ -169,6 +142,7 @@ module RailsAiContext
         lines << "- rails_search_code(pattern:\"regex\"|file_type:\"rb\"|max_results:N)"
         lines << "- rails_get_edit_context(file:\"path\"|near:\"keyword\")"
         lines << "- rails_analyze_feature(feature:\"auth\") — combined context for a feature"
+        lines << "- rails_get_design_system — color palette, components, page examples"
         lines << "- rails_validate(files:[\"path\"])"
         lines << "Start with detail:\"summary\", then drill into specifics."
         lines << ""

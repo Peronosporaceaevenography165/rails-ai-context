@@ -20,7 +20,9 @@ module RailsAiContext
         {
           templates: scan_templates(views_dir),
           partials: scan_partials(views_dir),
-          ui_patterns: extract_ui_patterns(all_content)
+          ui_patterns: extract_ui_patterns(all_content).merge(
+            canonical_examples: extract_canonical_examples(views_dir)
+          )
         }
       rescue => e
         { error: e.message }
@@ -106,7 +108,13 @@ module RailsAiContext
           color_scheme: color_scheme,
           radius: radius_convention,
           form_layout: form_layout,
-          components: components
+          components: components,
+          typography: extract_typography(all_content),
+          layout: extract_layout_patterns(all_content),
+          responsive: extract_responsive_patterns(all_content),
+          interactive_states: extract_interactive_states(all_content),
+          dark_mode: extract_dark_mode_patterns(all_content),
+          icons: extract_icon_system(all_content)
         }
       end
 
@@ -149,12 +157,19 @@ module RailsAiContext
             "primary"
           end
           next unless role # skip unclassified buttons
-          classified[role] = { classes: c, count: count } if !classified[role] || count > classified[role][:count]
+          classified[role] ||= { classes: c, count: count, variants: [] }
+          classified[role][:variants] << { classes: c, count: count }
+          if count > classified[role][:count]
+            classified[role][:classes] = c
+            classified[role][:count] = count
+          end
         end
 
         classified.each do |role, data|
           label = role == "default" ? "Button" : "Button (#{role})"
-          components << { type: :button, label: label, classes: data[:classes] }
+          entry = { type: :button, label: label, classes: data[:classes] }
+          entry[:variants] = data[:variants] if data[:variants]&.size&.> 1
+          components << entry
           used << data[:classes]
         end
       end
@@ -287,7 +302,7 @@ module RailsAiContext
         components << { type: :alert, label: "Alert", classes: best[0] }
       end
 
-      def extract_color_scheme(_content, groups)
+      def extract_color_scheme(content, groups)
         # Find primary color from button backgrounds
         primary_colors = Hash.new(0)
         groups.each do |c, count|
@@ -306,6 +321,27 @@ module RailsAiContext
         scheme = {}
         scheme[:primary] = primary if primary
         scheme[:text] = text_colors.join("/") if text_colors.any?
+
+        # Full palette: background colors used
+        bg_colors = Hash.new(0)
+        content.scan(/bg-(\w+)-(\d+)/).each { |color, shade| bg_colors["#{color}-#{shade}"] += 1 }
+        scheme[:background_palette] = bg_colors.sort_by { |_, c| -c }.first(10).map(&:first) if bg_colors.any?
+
+        # Text color palette
+        text_palette = Hash.new(0)
+        content.scan(/text-(\w+)-(\d+)/).each { |color, shade| text_palette["#{color}-#{shade}"] += 1 }
+        scheme[:text_palette] = text_palette.sort_by { |_, c| -c }.first(8).map(&:first) if text_palette.any?
+
+        # Border color palette
+        border_colors = Hash.new(0)
+        content.scan(/border-(\w+)-(\d+)/).each { |color, shade| border_colors["#{color}-#{shade}"] += 1 }
+        scheme[:border_palette] = border_colors.sort_by { |_, c| -c }.first(5).map(&:first) if border_colors.any?
+
+        # Semantic roles inferred from usage
+        scheme[:danger] = "red" if bg_colors.any? { |k, _| k.start_with?("red-") }
+        scheme[:success] = "green" if bg_colors.any? { |k, _| k.start_with?("green-") }
+        scheme[:warning] = "yellow" if bg_colors.any? { |k, _| k.start_with?("yellow-") || k.start_with?("amber-") }
+
         scheme
       end
 
@@ -330,6 +366,179 @@ module RailsAiContext
           layout[:grid] = "grid grid-cols-#{match[1]}"
         end
         layout
+      end
+
+      def extract_responsive_patterns(content)
+        breakpoints = {}
+        %w[sm md lg xl 2xl].each do |bp|
+          matches = content.scan(/#{bp}:[\w-]+/).map { |m| m.sub("#{bp}:", "") }
+          next if matches.empty?
+          breakpoints[bp] = matches.tally.sort_by { |_, c| -c }.first(5).to_h
+        end
+        breakpoints
+      end
+
+      def extract_interactive_states(content)
+        states = {}
+        %w[hover focus active disabled group-hover focus-within focus-visible].each do |state|
+          matches = content.scan(/#{state}:[\w-]+/)
+          next if matches.empty?
+          states[state] = matches.tally.sort_by { |_, c| -c }.first(5).to_h
+        end
+        states
+      end
+
+      def extract_dark_mode_patterns(content)
+        dark_classes = content.scan(/dark:[\w-]+/)
+        return {} if dark_classes.empty?
+        { used: true, patterns: dark_classes.tally.sort_by { |_, c| -c }.first(10).to_h }
+      end
+
+      def extract_layout_patterns(content)
+        layout = {}
+
+        containers = content.scan(/(?:max-w-\w+|container)\b/).tally
+        layout[:containers] = containers.sort_by { |_, c| -c }.first(3).to_h unless containers.empty?
+
+        flex = content.scan(/(?:flex-(?:row|col|wrap)|items-\w+|justify-\w+)\b/).tally
+        layout[:flex] = flex.sort_by { |_, c| -c }.first(5).to_h unless flex.empty?
+
+        grids = content.scan(/grid-cols-\d+/).tally
+        layout[:grid] = grids.sort_by { |_, c| -c }.first(3).to_h unless grids.empty?
+
+        spacing = content.scan(/(?:space-[xy]-|gap-|p-|px-|py-|m-|mx-|my-|mt-|mb-)\d+/).tally
+        layout[:spacing_scale] = spacing.sort_by { |_, c| -c }.first(8).to_h unless spacing.empty?
+
+        layout
+      end
+
+      def extract_typography(content)
+        typo = {}
+
+        sizes = content.scan(/text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl)/).tally
+        typo[:sizes] = sizes.sort_by { |_, c| -c }.to_h unless sizes.empty?
+
+        weights = content.scan(/font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)/).tally
+        typo[:weights] = weights.sort_by { |_, c| -c }.to_h unless weights.empty?
+
+        headings = {}
+        %w[h1 h2 h3 h4].each do |tag|
+          classes = content.scan(/<#{tag}[^>]*class=["']([^"']+)["']/i).map { |m| m[0].gsub(/<%=.*?%>/, "").strip }
+          next if classes.empty?
+          headings[tag] = classes.tally.max_by { |_, c| c }[0]
+        end
+        typo[:heading_styles] = headings unless headings.empty?
+
+        leading = content.scan(/leading-\w+/).tally
+        typo[:line_height] = leading.sort_by { |_, c| -c }.first(3).to_h unless leading.empty?
+
+        typo
+      end
+
+      def extract_icon_system(content)
+        icons = {}
+
+        icons[:library] = "heroicons" if content.match?(/heroicon|hero_icon/)
+        icons[:library] = "lucide" if content.match?(/lucide|data-lucide/)
+        icons[:library] = "font-awesome" if content.match?(/fa-\w+|font-awesome/)
+        icons[:library] = "bootstrap-icons" if content.match?(/bi-\w+/)
+
+        svg_count = content.scan(/<svg\b/).size
+        icons[:inline_svg_count] = svg_count if svg_count > 0
+
+        icon_sizes = content.scan(/(?:w-\d+\s+h-\d+|size-\d+)/).tally
+        icons[:sizes] = icon_sizes.sort_by { |_, c| -c }.first(3).to_h unless icon_sizes.empty?
+
+        icons.empty? ? nil : icons
+      end
+
+      # Analyzes individual templates to find canonical examples of common page types.
+      # Returns up to 5 representative ERB snippets that AI can copy.
+      def extract_canonical_examples(views_dir) # rubocop:disable Metrics
+        max_snippet = 80 # lines per example
+        max_file = RailsAiContext.configuration.max_view_file_size
+        examples = {}
+
+        Dir.glob(File.join(views_dir, "**", "*.{erb,haml,slim}")).each do |path|
+          next if File.directory?(path)
+          next if File.basename(path).start_with?("_") # skip partials
+          next if path.include?("/layouts/")
+          next if File.size(path) > max_file
+
+          relative = path.sub("#{views_dir}/", "")
+          content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
+
+          page_type = classify_template(content)
+          next unless page_type
+
+          score = score_template(content)
+          existing = examples[page_type]
+
+          if !existing || score > existing[:score]
+            snippet = content.lines.first(max_snippet).join
+            # Strip large SVG blocks
+            snippet = snippet.gsub(/<svg[^>]*>.*?<\/svg>/m, "<!-- svg icon -->")
+            components_used = detect_components_in_template(content)
+
+            examples[page_type] = {
+              type: page_type,
+              template: relative,
+              snippet: snippet,
+              components_used: components_used,
+              score: score
+            }
+          end
+        end
+
+        examples.values.map { |e| e.except(:score) }.first(5)
+      rescue
+        []
+      end
+
+      def classify_template(content)
+        has_form = content.match?(/form_with|form_for|<form\b/i)
+        has_collection = content.match?(/\.each\s+do\b|render\s+collection:|render\s+@\w+/)
+        has_grid = content.match?(/grid-cols-|grid\s+grid-/)
+        has_show = content.match?(/\A(?:(?!\.each).)*@\w+\.\w+/m) && !has_collection
+
+        if has_form && !has_collection
+          :form_page
+        elsif has_collection || has_grid
+          :list_page
+        elsif has_show
+          :show_page
+        end
+      end
+
+      def score_template(content)
+        score = 0
+        # Prefer templates with more design patterns
+        score += content.scan(/class=["'][^"']+["']/).size.clamp(0, 20)
+        # Responsive classes
+        score += 5 if content.match?(/(?:sm|md|lg|xl):/)
+        # Interactive states
+        score += 3 if content.match?(/hover:|focus:/)
+        # Component variety
+        score += 2 if content.match?(/<button|btn/i)
+        score += 2 if content.match?(/shadow.*rounded|card/i)
+        score += 2 if content.match?(/<input|form_with|form_for/i)
+        # Not too short, not too long (sweet spot: 30-100 lines)
+        lines = content.lines.size
+        score += 5 if lines.between?(30, 100)
+        score -= 3 if lines < 10
+        score
+      end
+
+      def detect_components_in_template(content)
+        used = []
+        used << :button if content.match?(/bg-\w+-[5-9]00.*text-white|btn-|<button/i)
+        used << :card if content.match?(/shadow.*rounded|card/i)
+        used << :input if content.match?(/<input|text_field|email_field|password_field/i)
+        used << :form if content.match?(/form_with|form_for|<form/i)
+        used << :link if content.match?(/link_to|<a\b/i)
+        used << :badge if content.match?(/rounded-full.*text-(?:xs|sm)|badge/i)
+        used << :grid if content.match?(/grid-cols-|grid\s+grid-/)
+        used
       end
 
       EXCLUDED_METHODS = %w[

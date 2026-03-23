@@ -27,32 +27,32 @@ RSpec.describe "Token-saving improvements" do
       end
     end
 
-    it "includes UI Patterns in ClaudeSerializer compact output" do
+    it "includes Design System in ClaudeSerializer compact output" do
       context = RailsAiContext.introspect
       context[:view_templates] = {
         ui_patterns: { components: [ { type: :button, label: "Button (primary)", classes: "bg-orange-600 text-white px-4 py-2 rounded-xl hover:bg-orange-700" } ], color_scheme: { primary: "orange" } }
       }
       output = RailsAiContext::Serializers::ClaudeSerializer.new(context).call
-      expect(output).to include("UI Patterns")
+      expect(output).to include("Design System")
       expect(output).to include("bg-orange-600")
     end
 
-    it "includes UI Patterns in OpencodeSerializer compact output" do
+    it "includes Design System in OpencodeSerializer compact output" do
       context = RailsAiContext.introspect
       context[:view_templates] = {
         ui_patterns: { components: [ { type: :card, label: "Card", classes: "bg-white rounded-2xl p-6 shadow-sm" } ] }
       }
       output = RailsAiContext::Serializers::OpencodeSerializer.new(context).call
-      expect(output).to include("UI Patterns")
+      expect(output).to include("Design System")
     end
 
-    it "includes UI Patterns in CopilotSerializer compact output" do
+    it "includes Design System in CopilotSerializer compact output" do
       context = RailsAiContext.introspect
       context[:view_templates] = {
         ui_patterns: { components: [ { type: :input, label: "Input", classes: "border rounded-lg px-3 py-2 focus:ring-2" } ] }
       }
       output = RailsAiContext::Serializers::CopilotSerializer.new(context).call
-      expect(output).to include("UI Patterns")
+      expect(output).to include("Design System")
     end
 
     it "generates rails-ui-patterns.md in Claude rules" do

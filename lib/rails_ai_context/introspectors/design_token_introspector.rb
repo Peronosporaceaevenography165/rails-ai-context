@@ -37,7 +37,8 @@ module RailsAiContext
 
         {
           framework: detect_framework(root),
-          tokens: tokens
+          tokens: tokens,
+          categorized: categorize_tokens(tokens)
         }
       rescue => e
         { error: e.message }
@@ -116,6 +117,34 @@ module RailsAiContext
         content.scan(/(\w+)\s*:\s*\[['"]([^'"]+)['"]/).each do |name, font|
           tokens["tw3-font-#{name}"] = font if name.match?(/font|sans|serif|mono|display|heading/)
         end
+
+        # Extract fontSize configuration
+        content.scan(/fontSize\s*:\s*\{([^}]+)\}/m).each do |match|
+          match[0].scan(/['"]([\w-]+)['"]\s*:\s*['"]([^'"]+)['"]/).each do |name, value|
+            tokens["tw3-fontSize-#{name}"] = value
+          end
+        end
+
+        # Extract screens (breakpoints)
+        content.scan(/screens\s*:\s*\{([^}]+)\}/m).each do |match|
+          match[0].scan(/['"]([\w-]+)['"]\s*:\s*['"]([^'"]+)['"]/).each do |name, value|
+            tokens["tw3-screen-#{name}"] = value
+          end
+        end
+
+        # Extract spacing overrides
+        content.scan(/spacing\s*:\s*\{([^}]+)\}/m).each do |match|
+          match[0].scan(/['"]([\w.-]+)['"]\s*:\s*['"]([^'"]+)['"]/).each do |name, value|
+            tokens["tw3-spacing-#{name}"] = value
+          end
+        end
+
+        # Extract borderRadius overrides
+        content.scan(/borderRadius\s*:\s*\{([^}]+)\}/m).each do |match|
+          match[0].scan(/['"]([\w-]+)['"]\s*:\s*['"]([^'"]+)['"]/).each do |name, value|
+            tokens["tw3-radius-#{name}"] = value
+          end
+        end
       end
 
       # 4. Bootstrap/Sass variable definitions
@@ -172,6 +201,41 @@ module RailsAiContext
           content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
           extract_root_vars(content, tokens)
         end
+      end
+
+      def categorize_tokens(tokens)
+        categories = {
+          colors: {},
+          typography: {},
+          spacing: {},
+          sizing: {},
+          borders: {},
+          shadows: {},
+          other: {}
+        }
+
+        tokens.each do |name, value|
+          category = case name
+          when /color|brand|primary|secondary|danger|success|warning|accent|neutral|bg|surface/i
+            :colors
+          when /font|text-size|leading|tracking|letter-spacing|line-height/i
+            :typography
+          when /spacing|gap|margin|padding|space|inset/i
+            :spacing
+          when /width|height|size|radius|rounded|screen|breakpoint/i
+            :sizing
+          when /border|ring|outline|divide/i
+            :borders
+          when /shadow/i
+            :shadows
+          else
+            name.match?(/shade-\d+|#[\da-fA-F]/) ? :colors : :other
+          end
+
+          categories[category][name] = value
+        end
+
+        categories.reject { |_, v| v.empty? }
       end
 
       # Helper: extract :root { --var: value } from CSS content

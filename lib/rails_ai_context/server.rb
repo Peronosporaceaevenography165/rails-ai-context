@@ -22,7 +22,8 @@ module RailsAiContext
       Tools::GetStimulus,
       Tools::GetEditContext,
       Tools::Validate,
-      Tools::AnalyzeFeature
+      Tools::AnalyzeFeature,
+      Tools::GetDesignSystem
     ].freeze
 
     def initialize(app, transport: :stdio)
