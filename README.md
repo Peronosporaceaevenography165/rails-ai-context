@@ -7,6 +7,8 @@
 [![CI](https://github.com/crisnahine/rails-ai-context/actions/workflows/ci.yml/badge.svg)](https://github.com/crisnahine/rails-ai-context/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+> Built by a Rails developer with 10 years of production experience. Yes, AI helped write this gem — the same way AI helps me ship features at work. I designed the architecture, made every decision, reviewed every line, and wrote 510 tests. The gem exists because I understand Rails deeply enough to know what AI agents get wrong and what context they need to get it right.
+
 ---
 
 ## The Problem
