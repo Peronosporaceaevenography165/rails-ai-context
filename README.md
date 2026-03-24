@@ -127,8 +127,8 @@ Schema, routes, models, and controllers tools support a `detail` parameter — c
 | Level | Returns | Default limit |
 |-------|---------|---------------|
 | `summary` | Names + counts | 50 |
-| `standard` | Names + key details *(default)* | 15 |
-| `full` | Everything (indexes, FKs, constraints) | 5 |
+| `standard` | Names + key details *(default)* | 25 |
+| `full` | Everything (indexes, FKs, constraints) | 10 |
 
 ```ruby
 rails_get_schema(detail: "summary")           # → all tables with column counts
@@ -315,8 +315,8 @@ end
 | `http_path` | `"/mcp"` | HTTP endpoint path |
 | `http_port` | `6029` | HTTP server port |
 | `http_bind` | `"127.0.0.1"` | HTTP server bind address |
-| `cache_ttl` | `30` | Cache TTL in seconds |
-| `max_tool_response_chars` | `120_000` | Safety cap for MCP tool responses |
+| `cache_ttl` | `60` | Cache TTL in seconds |
+| `max_tool_response_chars` | `200_000` | Safety cap for MCP tool responses |
 | `live_reload` | `:auto` | `:auto`, `true`, or `false` — MCP live reload |
 | `live_reload_debounce` | `1.5` | Debounce interval in seconds |
 | **Filtering & Exclusions** | | |
@@ -329,13 +329,13 @@ end
 | `excluded_filters` | `verify_authenticity_token` etc. | Framework filter names hidden from controller output |
 | `excluded_middleware` | standard Rack/Rails middleware | Default middleware hidden from config output |
 | **File Size Limits** | | |
-| `max_file_size` | `2_000_000` | Per-file read limit for tools (bytes) |
-| `max_test_file_size` | `500_000` | Test file read limit (bytes) |
+| `max_file_size` | `5_000_000` | Per-file read limit for tools (bytes) |
+| `max_test_file_size` | `1_000_000` | Test file read limit (bytes) |
 | `max_schema_file_size` | `10_000_000` | schema.rb / structure.sql parse limit (bytes) |
-| `max_view_total_size` | `5_000_000` | Total aggregated view content for UI patterns (bytes) |
-| `max_view_file_size` | `500_000` | Per-view file during aggregation (bytes) |
-| `max_search_results` | `100` | Max search results per call |
-| `max_validate_files` | `20` | Max files per validate call |
+| `max_view_total_size` | `10_000_000` | Total aggregated view content for UI patterns (bytes) |
+| `max_view_file_size` | `1_000_000` | Per-view file during aggregation (bytes) |
+| `max_search_results` | `200` | Max search results per call |
+| `max_validate_files` | `50` | Max files per validate call |
 | **Search & Discovery** | | |
 | `search_extensions` | `rb js erb yml yaml json ts tsx vue svelte haml slim` | File extensions for Ruby fallback search |
 | `concern_paths` | `app/models/concerns app/controllers/concerns` | Where to look for concern source files |

@@ -40,7 +40,7 @@ RSpec.describe RailsAiContext::Tools::Validate do
     end
 
     it "enforces MAX_FILES limit" do
-      files = 25.times.map { |i| "app/models/fake#{i}.rb" }
+      files = 55.times.map { |i| "app/models/fake#{i}.rb" }
       result = described_class.call(files: files)
       text = result.content.first[:text]
       expect(text).to include("Too many files")

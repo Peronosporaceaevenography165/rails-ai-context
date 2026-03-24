@@ -81,6 +81,22 @@ module RailsAiContext
           SHARED_CACHE[:fingerprint] || "none"
         end
 
+        # App size classification — tools use this to auto-tune pagination and detail
+        # small: <15 models, medium: 15-50 models, large: 50+ models
+        def app_size
+          ctx = SHARED_CACHE[:context]
+          return :medium unless ctx
+
+          model_count = ctx[:models]&.size || 0
+          table_count = ctx.dig(:schema, :tables)&.size || 0
+          biggest = [ model_count, table_count ].max
+
+          if biggest > 50 then :large
+          elsif biggest > 15 then :medium
+          else :small
+          end
+        end
+
         # Helper: wrap text in an MCP::Tool::Response with safety-net truncation
         def text_response(text)
           max = RailsAiContext.configuration.max_tool_response_chars

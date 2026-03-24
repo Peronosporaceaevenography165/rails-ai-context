@@ -688,8 +688,8 @@ All tools that support `detail` use these three levels. Default limits vary by t
 | Level | What it returns | Schema default limit | Best for |
 |-------|----------------|---------------------|----------|
 | `summary` | Names + counts | 50 | Getting the landscape, understanding what exists |
-| `standard` | Names + key details | 15 | Working context, column types, action names |
-| `full` | Everything | 5 | Deep inspection, indexes, FKs, constraints |
+| `standard` | Names + key details | 25 | Working context, column types, action names |
+| `full` | Everything | 10 | Deep inspection, indexes, FKs, constraints |
 
 Other tools default to higher limits (e.g. models/controllers/stimulus: 50 for all levels, routes: 100/200).
 
@@ -935,8 +935,8 @@ end
 | `introspectors` | Array | 28 (full preset) | Which introspectors to run |
 | `context_mode` | Symbol | `:compact` | `:compact` or `:full` |
 | `claude_max_lines` | Integer | `150` | Max lines for CLAUDE.md in compact mode |
-| `max_tool_response_chars` | Integer | `120_000` | Safety cap for MCP tool responses |
-| `cache_ttl` | Integer | `30` | Cache TTL in seconds for introspection results |
+| `max_tool_response_chars` | Integer | `200_000` | Safety cap for MCP tool responses |
+| `cache_ttl` | Integer | `60` | Cache TTL in seconds for introspection results |
 | `custom_tools` | Array | `[]` | Additional MCP tool classes to register alongside built-in tools |
 | `skip_tools` | Array | `[]` | Built-in tool names to exclude (e.g. `%w[rails_security_scan]`) |
 | `excluded_models` | Array | internal Rails models | Models to skip |

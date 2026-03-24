@@ -53,7 +53,8 @@ module RailsAiContext
         total = models.size
         offset = [ offset.to_i, 0 ].max
         limit = normalize_limit(limit, 50)
-        all_names = models.keys.sort
+        # Sort by association count (most connected first) — AI agents need central models first
+        all_names = models.keys.sort_by { |m| -(models[m][:associations]&.size || 0) }
         paginated = all_names.drop(offset).first(limit)
 
         if paginated.empty? && total > 0
@@ -274,7 +275,7 @@ module RailsAiContext
         # Class methods (e.g. Plan.free, Plan.pro)
         if data[:class_methods]&.any?
           lines << "" << "## Class methods"
-          lines << data[:class_methods].first(15).map { |m| "- `#{m}`" }.join("\n")
+          lines << data[:class_methods].first(25).map { |m| "- `#{m}`" }.join("\n")
         end
 
         # Key instance methods — include signatures from source if available
@@ -282,7 +283,7 @@ module RailsAiContext
           lines << "" << "## Key instance methods"
           signatures = extract_method_signatures(name)
           if signatures&.any?
-            signatures.first(15).each { |s| lines << "- `#{s}`" }
+            signatures.first(25).each { |s| lines << "- `#{s}`" }
           else
             # Filter out association-generated methods (getters, setters, build_, create_)
             assoc_names = (data[:associations] || []).flat_map do |a|
@@ -292,10 +293,18 @@ module RailsAiContext
             end
             filtered = data[:instance_methods].reject { |m| assoc_names.include?(m) || m.end_with?("=") }
             if filtered.any?
-              lines << filtered.first(15).map { |m| "- `#{m}`" }.join("\n")
+              lines << filtered.first(25).map { |m| "- `#{m}`" }.join("\n")
             end
           end
         end
+
+        # Cross-reference hints — guide AI to related tools
+        hints = []
+        hints << "`rails_get_schema(table:\"#{data[:table_name]}\")` for columns/indexes" if data[:table_name]
+        controller_name = "#{name.pluralize}Controller"
+        hints << "`rails_get_controllers(controller:\"#{controller_name}\")` for actions" if name.match?(/\A[A-Z][a-z]/)
+        hints << "`rails_analyze_feature(feature:\"#{name}\")` for full-stack view"
+        lines << "" << "_Next: #{hints.join(' | ')}_"
 
         lines.join("\n")
       end

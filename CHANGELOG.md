@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Gem version display** — `get_gems` shows version numbers from Gemfile.lock.
 - **Package manager detection** — `get_conventions` detects npm/yarn/pnpm/bun from lock files.
 - **Exact match search** — `search_code` supports `exact_match:true` for whole-word matching with `\b` boundaries.
+- **Scaled defaults for big apps** — increased `max_tool_response_chars` (120K→200K), `max_search_results` (100→200), `max_validate_files` (20→50), `cache_ttl` (30→60s), `max_file_size` (2MB→5MB), `max_test_file_size` (500KB→1MB), `max_view_total_size` (5MB→10MB), `max_view_file_size` (500KB→1MB). Schema standard pagination 15→25, full 5→10. Methods shown per model 15→25. Routes standard 100→150.
+- **AI-optimal tool ordering** — schema standard sorts tables by column count (complex first), model listing sorts by association count (central models first). Stops AI from missing important tables/models buried alphabetically.
+- **Cross-reference navigation hints** — schema single-table suggests `rails_get_model_details`, model detail suggests `rails_get_controllers` + `rails_get_schema` + `rails_analyze_feature`, controller detail suggests `rails_get_routes` + `rails_get_view`. Reduces AI round-trips.
+- **Schema adapter in summary** — `get_schema` summary shows database adapter (postgresql/mysql/sqlite3) so AI knows query syntax immediately.
+- **App size detection** — `BaseTool.app_size` returns `:small`/`:medium`/`:large` based on model/table count for auto-tuning.
+- **Doctor checks for Prism and Brakeman** — `rails ai:doctor` now reports availability of Prism parser and Brakeman security scanner.
 
 ### Fixed
 

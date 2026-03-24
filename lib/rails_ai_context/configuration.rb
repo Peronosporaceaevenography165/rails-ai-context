@@ -106,20 +106,20 @@ module RailsAiContext
         ActionText::RichText ActionText::EncryptedRichText
         ActionMailbox::InboundEmail ActionMailbox::Record
       ]
-      @cache_ttl                = 30
+      @cache_ttl                = 60
       @context_mode             = :compact
       @claude_max_lines         = 150
-      @max_tool_response_chars  = 120_000
+      @max_tool_response_chars  = 200_000
       @live_reload              = :auto
       @live_reload_debounce     = 1.5
       @generate_root_files      = true
-      @max_file_size            = 2_000_000
-      @max_test_file_size       = 500_000
+      @max_file_size            = 5_000_000
+      @max_test_file_size       = 1_000_000
       @max_schema_file_size     = 10_000_000
-      @max_view_total_size      = 5_000_000
-      @max_view_file_size       = 500_000
-      @max_search_results       = 100
-      @max_validate_files       = 20
+      @max_view_total_size      = 10_000_000
+      @max_view_file_size       = 1_000_000
+      @max_search_results       = 200
+      @max_validate_files       = 50
       @excluded_controllers     = %w[DeviseController Devise::OmniauthCallbacksController]
       @excluded_route_prefixes  = %w[action_mailbox/ active_storage/ rails/ conductor/ devise/ turbo/]
       @excluded_concerns        = [

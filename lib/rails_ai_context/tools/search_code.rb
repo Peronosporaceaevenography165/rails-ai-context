@@ -39,7 +39,7 @@ module RailsAiContext
           },
           max_results: {
             type: "integer",
-            description: "Maximum number of results. Default: 30, max: 100."
+            description: "Maximum number of results. Default: 30, max: 200."
           },
           context_lines: {
             type: "integer",

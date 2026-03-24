@@ -276,6 +276,14 @@ module RailsAiContext
           lines << info[:strong_params].map { |p| "- `#{p}`" }.join("\n")
         end
 
+        # Cross-reference hints
+        ctrl_path = name.underscore.delete_suffix("_controller")
+        model_name = ctrl_path.split("/").last.singularize.camelize
+        lines << ""
+        lines << "_Next: `rails_get_routes(controller:\"#{ctrl_path}\")` for routes"
+        lines << " | `rails_get_model_details(model:\"#{model_name}\")` for model"
+        lines << " | `rails_get_view(controller:\"#{ctrl_path.split('/').last}\")` for views_"
+
         lines.join("\n")
       end
     end

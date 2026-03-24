@@ -161,7 +161,7 @@ module RailsAiContext
             line_count = source.lines.size
             methods = source.scan(/\A\s*def (?:self\.)?(\w+)/m).flatten.reject { |m| m == "initialize" }
             lines << "- `#{relative}` (#{line_count} lines)"
-            lines << "  Methods: #{methods.first(10).join(', ')}" if methods.any?
+            lines << "  Methods: #{methods.first(20).join(', ')}" if methods.any?
           end
           lines << ""
         rescue

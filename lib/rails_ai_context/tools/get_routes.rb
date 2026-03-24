@@ -112,7 +112,7 @@ module RailsAiContext
           text_response(lines.join("\n"))
 
         when "standard"
-          limit ||= 100
+          limit ||= 150
           # Separate app vs framework routes (unless user filtered by controller)
           app_routes = controller ? by_controller : by_controller.reject { |k, _| route_prefixes.any? { |p| k.downcase.start_with?(p) } }
           framework_routes = controller ? {} : by_controller.select { |k, _| route_prefixes.any? { |p| k.downcase.start_with?(p) } }

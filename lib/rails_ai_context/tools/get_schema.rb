@@ -21,7 +21,7 @@ module RailsAiContext
           },
           limit: {
             type: "integer",
-            description: "Max tables to return when listing. Default: 50 for summary, 15 for standard, 5 for full."
+            description: "Max tables to return when listing. Default: 50 for summary, 25 for standard, 10 for full."
           },
           offset: {
             type: "integer",
@@ -63,7 +63,16 @@ module RailsAiContext
             return not_found_response("Table", table, tables.keys.sort,
               recovery_tool: "Call rails_get_schema(detail:\"summary\") to see all tables")
           end
-          output = format == "json" ? table_data.to_json : format_table_markdown(table_key, table_data)
+          if format == "json"
+            return text_response(table_data.to_json)
+          end
+
+          output = format_table_markdown(table_key, table_data)
+          # Cross-reference hint for AI: suggest next tool call
+          model_refs = models_for_table(table_key)
+          if model_refs.any?
+            output += "\n\n_Next: `rails_get_model_details(model:\"#{model_refs.first}\")` for associations, validations, scopes._"
+          end
           return text_response(output)
         end
 
@@ -76,6 +85,7 @@ module RailsAiContext
             return text_response("No tables at offset #{offset}. Total: #{total}. Use `offset:0` to start over.")
           end
           lines = [ "# Schema Summary (#{total} tables)", "" ]
+          lines << "**Adapter:** #{schema[:adapter]}" if schema[:adapter]
           paginated.each do |name|
             data = tables[name]
             col_count = data[:columns]&.size || 0
@@ -89,9 +99,11 @@ module RailsAiContext
           text_response(lines.join("\n"))
 
         when "standard"
-          limit ||= 15
-          limit = 15 if limit.to_i < 1
-          paginated = tables.keys.sort.drop(offset).first(limit)
+          limit ||= 25
+          limit = 25 if limit.to_i < 1
+          # Sort by column count (most complex first) — AI agents care about big tables first
+          sorted = tables.keys.sort_by { |name| -(tables[name][:columns]&.size || 0) }
+          paginated = sorted.drop(offset).first(limit)
           if paginated.empty?
             return text_response("No tables at offset #{offset}. Total tables: #{total}. Use `offset:0` to start from the beginning.")
           end
@@ -126,8 +138,8 @@ module RailsAiContext
           text_response(lines.join("\n"))
 
         when "full"
-          limit ||= 5
-          limit = 5 if limit.to_i < 1
+          limit ||= 10
+          limit = 10 if limit.to_i < 1
           paginated = tables.keys.sort.drop(offset).first(limit)
           if paginated.empty? && total > 0
             return text_response("No tables at offset #{offset}. Total: #{total}. Use `offset:0` to start over.")
