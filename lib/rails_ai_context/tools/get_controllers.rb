@@ -219,7 +219,14 @@ module RailsAiContext
           lines << "```ruby" << source_with_lines[:code] << "```"
 
           # Instance variables set by this action
-          ivars = source_with_lines[:code].scan(/@(\w+)\s*=/).flatten.uniq
+          # Detect instance variables — handles both @var = x and @a, @b = x
+          ivars = []
+          source_with_lines[:code].each_line do |line|
+            next unless line.include?("=")
+            left_side = line.split("=", 2).first
+            left_side.scan(/@(\w+)/).each { |m| ivars << m[0] }
+          end
+          ivars.uniq!
           lines << "" << "## Instance Variables" << ivars.map { |v| "- `@#{v}`" }.join("\n") if ivars.any?
 
           # Private methods called by this action — include their source inline

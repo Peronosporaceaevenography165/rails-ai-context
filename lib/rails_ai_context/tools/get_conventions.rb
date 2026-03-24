@@ -172,18 +172,18 @@ module RailsAiContext
           end
 
           # Authorization denials: redirect_to ... alert: "..."
-          content.scan(/redirect_to\s+.+?,\s*alert:\s*["']([^"']+)["']/).each do |match|
+          content.scan(/redirect_to\s+.+?,\s*alert:\s*"([^"]*)"/).each do |match|
             denial = "redirect_to ..., alert: \"#{match[0]}\""
             auth_denials << denial unless auth_denials.include?(denial)
           end
 
           # Flash notices: redirect_to ... notice: "..."
-          content.scan(/(?:notice:\s*["']([^"']+)["'])/).each do |match|
+          content.scan(/notice:\s*"([^"]*)"/).each do |match|
             flash_notices << match[0] unless flash_notices.include?(match[0])
           end
 
-          # Flash alerts: redirect_to ... alert: "..." or flash[:alert]
-          content.scan(/(?:alert:\s*["']([^"']+)["'])/).each do |match|
+          # Flash alerts: redirect_to ... alert: "..."
+          content.scan(/alert:\s*"([^"]*)"/).each do |match|
             flash_alerts << match[0] unless flash_alerts.include?(match[0])
           end
 
@@ -234,8 +234,26 @@ module RailsAiContext
         end
 
         if create_flows.any?
-          sections << "" << "### Create Action Flows"
-          create_flows.first(10).each { |f| sections << "- #{f}" }
+          sections << "" << "### Create Action Pattern (follow this for new actions)"
+          sections << "```ruby"
+          sections << "def create"
+          sections << "  unless current_user.can_[permission]?"
+          sections << '    redirect_to [path], alert: "[limit message]"'
+          sections << "    return"
+          sections << "  end"
+          sections << ""
+          sections << "  @record = current_user.[association].build([params_method])"
+          sections << ""
+          sections << "  if @record.save"
+          sections << '    redirect_to @record, notice: "[success message]"'
+          sections << "  else"
+          sections << "    @[collection] = current_user.[association].[scope]"
+          sections << "    render :new, status: :unprocessable_entity"
+          sections << "  end"
+          sections << "end"
+          sections << "```"
+          sections << ""
+          sections << "Detected in: #{create_flows.map { |f| f.split(':').first }.join(', ')}"
         end
 
         if has_services

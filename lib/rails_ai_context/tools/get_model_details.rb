@@ -182,9 +182,16 @@ module RailsAiContext
           end
         end
 
-        # Custom validate methods (business rules)
+        # Custom validate methods (business rules) — show method body when possible
         if data[:custom_validates]&.any?
-          lines << "- **Custom:** #{data[:custom_validates].map { |v| "`#{v}`" }.join(', ')}"
+          bodies = extract_custom_validate_bodies(name, data[:custom_validates])
+          data[:custom_validates].each do |v|
+            if bodies[v]
+              lines << "- **Custom:** `#{v}` → #{bodies[v]}"
+            else
+              lines << "- **Custom:** `#{v}`"
+            end
+          end
         end
 
         # Enums
@@ -320,6 +327,25 @@ module RailsAiContext
         lines << "" << "_Next: #{hints.join(' | ')}_"
 
         lines.join("\n")
+      end
+
+      # Extract bodies of custom validate methods (single-line or first meaningful line)
+      private_class_method def self.extract_custom_validate_bodies(model_name, method_names)
+        path = Rails.root.join("app", "models", "#{model_name.underscore}.rb")
+        return {} unless File.exist?(path) && File.size(path) <= max_file_size
+
+        source = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace)
+        bodies = {}
+        method_names.each do |name|
+          # Find the method body
+          if (match = source.match(/def\s+#{Regexp.escape(name)}\s*\n(.*?)(?=\n\s*end\b)/m))
+            body_lines = match[1].lines.map(&:strip).reject(&:empty?)
+            bodies[name] = body_lines.first&.truncate(120) if body_lines.any?
+          end
+        end
+        bodies
+      rescue
+        {}
       end
 
       # Extract class methods defined in the model source (not inherited)

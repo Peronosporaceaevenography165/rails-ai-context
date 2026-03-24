@@ -808,8 +808,9 @@ module RailsAiContext
         warnings = []
         return warnings unless file.start_with?("app/views/") && !file.include?("/layouts/")
 
-        # Extract instance variables used in view
-        ivars = content.scan(/@(\w+)/).flatten.uniq
+        # Extract instance variables used in ERB tags only (not HTML/JS content)
+        erb_content = content.scan(/<%[=\-]?\s*(.+?)\s*-?%>/m).map { |m| m[0] }.join("\n")
+        ivars = erb_content.scan(/@(\w+)/).flatten.uniq
         return warnings if ivars.empty?
 
         # Try to find the controller that renders this view
@@ -829,8 +830,16 @@ module RailsAiContext
         ctrl_source = File.read(source_path, encoding: "UTF-8") rescue nil
         return warnings unless ctrl_source
 
-        set_ivars = ctrl_source.scan(/@(\w+)\s*=/).flatten.uniq
-        # Add common framework ivars
+        # Detect ivars from controller — handles @a, @b = multi-assignment
+        set_ivars = []
+        ctrl_source.each_line do |line|
+          next unless line.include?("@")
+          if line.include?("=")
+            line.split("=", 2).first.scan(/@(\w+)/).each { |m| set_ivars << m[0] }
+          end
+        end
+        set_ivars.uniq!
+        # Add common framework ivars that don't appear as explicit assignments
         set_ivars += %w[pagy current_user _request]
 
         ivars.each do |ivar|
