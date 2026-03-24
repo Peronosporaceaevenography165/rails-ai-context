@@ -117,7 +117,7 @@ module RailsAiContext
 
       private_class_method def self.format_service_listing(service_files, services_dir, root, detail)
         # Detect common pattern across all services
-        pattern_stats = { initialize_call: 0, class_method_call: 0, result_object: 0, total: 0 }
+        pattern_stats = { initialize_call: 0, initialize_single_method: 0, class_method_call: 0, result_object: 0, total: 0 }
         service_data = []
 
         service_files.each do |file|
@@ -131,7 +131,9 @@ module RailsAiContext
           public_methods = extract_public_methods(source)
 
           pattern_stats[:total] += 1
-          pattern_stats[:initialize_call] += 1 if source.match?(/def initialize/) && public_methods.any? { |m| m.start_with?("call") }
+          has_initialize = source.match?(/def initialize/)
+          pattern_stats[:initialize_call] += 1 if has_initialize && public_methods.any? { |m| m.start_with?("call") }
+          pattern_stats[:initialize_single_method] += 1 if has_initialize && public_methods.size == 1
           pattern_stats[:class_method_call] += 1 if source.match?(/def self\.call/)
           pattern_stats[:result_object] += 1 if source.match?(/Result\.new|OpenStruct\.new|Struct\.new|\.success|\.failure/)
 
@@ -301,7 +303,9 @@ module RailsAiContext
 
         parts = []
         if stats[:initialize_call] > stats[:total] / 2
-          parts << "initialize + call instance method (#{stats[:initialize_call]}/#{stats[:total]})"
+          parts << "initialize + #call instance method (#{stats[:initialize_call]}/#{stats[:total]})"
+        elsif stats[:initialize_single_method] > stats[:total] / 2
+          parts << "initialize + single public method (#{stats[:initialize_single_method]}/#{stats[:total]})"
         end
         if stats[:class_method_call] > stats[:total] / 2
           parts << "self.call class method (#{stats[:class_method_call]}/#{stats[:total]})"

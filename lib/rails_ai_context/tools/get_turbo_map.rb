@@ -404,9 +404,17 @@ module RailsAiContext
 
       # Extract stream name from broadcast_*_to call
       private_class_method def self.extract_stream_from_broadcast(line, method)
-        # broadcast_replace_to :stream_name, ...
-        # broadcast_replace_to "stream_name", ...
-        # broadcast_replace_to stream_name, ...
+        # Try string interpolation first: "cook_#{cook.id}" → "cook_#{id}"
+        interp_pattern = /#{Regexp.escape(method)}\s*\(?\s*["']([^"']*#\{[^}]+\}[^"']*)["']/
+        interp_match = line.match(interp_pattern)
+        if interp_match
+          # Normalize: "cook_#{cook.id}" → "cook_{id}"
+          return interp_match[1].gsub(/#\{[^}]*\.?(\w+)\}/, '{\1}')
+        end
+
+        # Try symbol: :stream_name
+        # Try plain string: "stream_name"
+        # Try bare identifier: stream_name
         pattern = /#{Regexp.escape(method)}\s*\(?\s*:?["']?(\w+)["']?/
         match = line.match(pattern)
         match ? match[1] : "(dynamic)"
@@ -436,10 +444,18 @@ module RailsAiContext
         # turbo_stream_from "notifications"
         # turbo_stream_from @room
         # turbo_stream_from current_user, :notifications
+        # turbo_stream_from "cook_#{@cook.id}"
         match = line.match(/turbo_stream_from\s+(.+?)(?:\s*%>|\s*$|\s*do\b)/)
         return "(dynamic)" unless match
 
         args = match[1].strip
+
+        # Handle string interpolation: "cook_#{@cook.id}" → "cook_{id}"
+        if args.include?("#")
+          normalized = args.gsub(/["']/, "").gsub(/#\{[^}]*\.?(\w+)\}/, '{\1}')
+          return normalized
+        end
+
         # Clean up and return meaningful stream name
         args.gsub(/["']/, "").gsub(/\s*,\s*/, ", ").strip
       rescue

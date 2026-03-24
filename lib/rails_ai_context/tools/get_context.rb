@@ -25,24 +25,38 @@ module RailsAiContext
           feature: {
             type: "string",
             description: "Feature keyword (e.g. 'cook'). Like analyze_feature but includes schema columns and scope bodies."
+          },
+          include: {
+            type: "array",
+            items: { type: "string" },
+            description: "Additional context to bundle: 'stimulus', 'turbo', 'services', 'jobs', 'conventions', 'design', 'helpers', 'env', 'callbacks'. Appends these to any mode."
           }
         }
       )
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
-      def self.call(controller: nil, action: nil, model: nil, feature: nil, server_context: nil)
-        if controller && action
-          return controller_action_context(controller, action)
+      def self.call(controller: nil, action: nil, model: nil, feature: nil, include: nil, server_context: nil)
+        result = if controller && action
+          controller_action_context(controller, action)
         elsif controller
-          return controller_context(controller)
+          controller_context(controller)
         elsif model
-          return model_context(model)
+          model_context(model)
         elsif feature
-          return feature_context(feature)
+          feature_context(feature)
+        else
+          return text_response("Provide at least one of: controller, model, or feature.")
         end
 
-        text_response("Provide at least one of: controller, model, or feature.")
+        # Append additional context sections if include: is specified
+        if include.is_a?(Array) && include.any?
+          base_text = result.content.first[:text]
+          extra = append_includes(include)
+          return text_response(base_text + extra)
+        end
+
+        result
       end
 
       private_class_method def self.controller_action_context(controller_name, action_name)
@@ -92,10 +106,20 @@ module RailsAiContext
         lines << ctrl_result.content.first[:text]
 
         snake = controller_name.to_s.underscore.delete_suffix("_controller")
+
+        # Routes for this controller
         route_result = GetRoutes.call(controller: snake)
         route_text = route_result.content.first[:text]
-        unless route_text.include?("not found")
+        unless route_text.include?("not found") || route_text.include?("No routes")
           lines << "" << "---" << "" << route_text
+        end
+
+        # Views for this controller
+        view_ctrl = snake.split("/").last
+        view_result = GetView.call(controller: view_ctrl, detail: "standard")
+        view_text = view_result.content.first[:text]
+        unless view_text.include?("No views")
+          lines << "" << "---" << "" << view_text
         end
 
         text_response(lines.join("\n"))
@@ -130,8 +154,62 @@ module RailsAiContext
         text_response("Error assembling context: #{e.message}")
       end
 
+      INCLUDE_MAP = {
+        "stimulus"    => -> { GetStimulus.call(detail: "standard") },
+        "turbo"       => -> { GetTurboMap.call(detail: "standard") },
+        "services"    => -> { GetServicePattern.call(detail: "standard") },
+        "jobs"        => -> { GetJobPattern.call(detail: "standard") },
+        "conventions" => -> { GetConventions.call },
+        "design"      => -> { GetDesignSystem.call(detail: "summary") },
+        "helpers"     => -> { GetHelperMethods.call(detail: "standard") },
+        "env"         => -> { GetEnv.call(detail: "summary") },
+        "callbacks"   => -> { GetCallbacks.call(detail: "standard") },
+        "tests"       => -> { GetTestInfo.call(detail: "full") },
+        "config"      => -> { GetConfig.call },
+        "gems"        => -> { GetGems.call },
+        "security"    => -> { SecurityScan.call(detail: "summary") }
+      }.freeze
+
+      private_class_method def self.append_includes(includes)
+        extra = ""
+        includes.each do |key|
+          handler = INCLUDE_MAP[key.to_s.downcase]
+          next unless handler
+          begin
+            result = handler.call
+            text = result.content.first[:text]
+            extra << "\n\n---\n\n" << text
+          rescue => e
+            extra << "\n\n---\n\n_Error loading #{key}: #{e.message}_"
+          end
+        end
+        extra
+      end
+
       private_class_method def self.feature_context(feature_name)
-        # Delegate to analyze_feature which already does full-stack discovery
+        # Start with full-stack feature analysis
+        analyze_result = AnalyzeFeature.call(feature: feature_name)
+        lines = [ analyze_result.content.first[:text] ]
+
+        # Enrich with schema columns for matching models
+        ctx = begin; cached_context; rescue; nil; end
+        if ctx
+          models = ctx[:models] || {}
+          models.each_key do |model_name|
+            next unless model_name.downcase.include?(feature_name.downcase)
+            table_name = models[model_name][:table_name]
+            next unless table_name
+            schema_result = GetSchema.call(table: table_name)
+            schema_text = schema_result.content.first[:text]
+            unless schema_text.include?("not found")
+              lines << "" << "---" << "" << schema_text
+            end
+          end
+        end
+
+        text_response(lines.join("\n"))
+      rescue => e
+        # Fall back to plain analyze_feature on error
         AnalyzeFeature.call(feature: feature_name)
       end
     end
