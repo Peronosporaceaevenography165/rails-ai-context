@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **9 new MCP tools (16→25)** — `rails_get_concern` (concern methods + includers), `rails_get_callbacks` (execution order + source), `rails_get_helper_methods` (app + framework helpers + view refs), `rails_get_service_pattern` (interface, deps, side effects), `rails_get_job_pattern` (queue, retries, guards, broadcasts), `rails_get_env` (env vars, credentials keys, external services), `rails_get_partial_interface` (locals contract + usage), `rails_get_turbo_map` (stream/frame wiring + mismatch warnings), `rails_get_context` (composite cross-layer tool).
+- **Phase 1 improvements** — scope definitions include lambda body, controller actions show instance variables + private methods called inline, Stimulus shows HTML data-attributes + reverse view lookup.
+- **3 new validation rules** — instance variable consistency (view uses @foo but controller never sets it), Turbo Stream channel matching (broadcast without subscriber), respond_to template existence.
 - **`rails_security_scan` tool** — Brakeman static security analysis via MCP. Detects SQL injection, XSS, mass assignment, and more. Optional dependency — returns install instructions if Brakeman isn't present. Supports file filtering, confidence levels (high/medium/weak), specific check selection, and three detail levels (summary/standard/full).
 - **`config.skip_tools`** — users can now exclude specific built-in tools: `config.skip_tools = %w[rails_security_scan]`. Defaults to empty (all 25 tools active).
 - **Schema index hints** — `get_schema` standard detail now shows `[indexed]`/`[unique]` on columns, saving a round-trip to full detail.

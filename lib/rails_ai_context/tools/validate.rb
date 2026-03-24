@@ -376,6 +376,8 @@ module RailsAiContext
             warnings.concat(check_route_helpers_regex(content, context))
           end
           warnings.concat(check_stimulus_controllers(content, context))
+          warnings.concat(check_instance_variable_usage(file, content, context))
+          warnings.concat(check_respond_to_template_existence(file, content))
         elsif file.end_with?(".rb")
           if visitor
             warnings.concat(check_route_helpers_ast(visitor, context))
@@ -390,6 +392,7 @@ module RailsAiContext
           warnings.concat(check_has_many_dependent(file, context))
           warnings.concat(check_missing_fk_index(file, context))
           warnings.concat(check_route_action_consistency(file, context))
+          warnings.concat(check_turbo_stream_channels(file, content, context))
         end
 
         warnings
@@ -797,6 +800,107 @@ module RailsAiContext
           end
         end
         warnings
+      end
+
+      # ── CHECK 10: Instance variable usage in views ─────────────────
+
+      private_class_method def self.check_instance_variable_usage(file, content, context)
+        warnings = []
+        return warnings unless file.start_with?("app/views/") && !file.include?("/layouts/")
+
+        # Extract instance variables used in view
+        ivars = content.scan(/@(\w+)/).flatten.uniq
+        return warnings if ivars.empty?
+
+        # Try to find the controller that renders this view
+        parts = file.sub("app/views/", "").split("/")
+        return warnings if parts.size < 2
+
+        ctrl_dir = parts[0..-2].join("/")
+        ctrl_class = "#{ctrl_dir.camelize}Controller"
+        controllers = context.dig(:controllers, :controllers) || {}
+        ctrl_data = controllers[ctrl_class]
+        return warnings unless ctrl_data
+
+        # Get all instance variables set across all actions
+        source_path = Rails.root.join("app", "controllers", "#{ctrl_class.underscore}.rb")
+        return warnings unless File.exist?(source_path)
+
+        ctrl_source = File.read(source_path, encoding: "UTF-8") rescue nil
+        return warnings unless ctrl_source
+
+        set_ivars = ctrl_source.scan(/@(\w+)\s*=/).flatten.uniq
+        # Add common framework ivars
+        set_ivars += %w[pagy current_user _request]
+
+        ivars.each do |ivar|
+          next if set_ivars.include?(ivar)
+          next if ivar.start_with?("_") # framework internal
+          next if %w[output_buffer virtual_path].include?(ivar)
+          warnings << "@#{ivar} used in view but not set in #{ctrl_class}. Fix: add `@#{ivar} = ...` to action"
+        end
+        warnings
+      rescue
+        []
+      end
+
+      # ── CHECK 11: Turbo Stream channel matching ────────────────────
+
+      private_class_method def self.check_turbo_stream_channels(file, content, context)
+        warnings = []
+        return warnings unless file.start_with?("app/")
+
+        # Detect broadcasts in Ruby files
+        broadcasts = content.scan(/broadcast_(?:replace|append|prepend|remove|update|action)_to\s*\(\s*["']([^"']+)["']/).flatten
+        return warnings if broadcasts.empty?
+
+        # Scan views for turbo_stream_from subscriptions
+        views_dir = Rails.root.join("app", "views")
+        return warnings unless Dir.exist?(views_dir)
+
+        subscriptions = Set.new
+        Dir.glob(File.join(views_dir, "**", "*.{erb,html.erb}")).each do |path|
+          view_content = File.read(path) rescue next
+          view_content.scan(/turbo_stream_from\s+["']([^"']+)["']/).each do |match|
+            subscriptions << match[0]
+          end
+        end
+
+        broadcasts.each do |channel|
+          # Skip dynamic channels (containing interpolation)
+          next if channel.include?("#") || channel.include?("{")
+          unless subscriptions.any? { |s| s == channel || channel.include?(s) || s.include?(channel) }
+            warnings << "broadcast to \"#{channel}\" — no matching turbo_stream_from found in views"
+          end
+        end
+        warnings
+      rescue
+        []
+      end
+
+      # ── CHECK 12: respond_to template existence ────────────────────
+
+      private_class_method def self.check_respond_to_template_existence(file, content)
+        warnings = []
+        return warnings unless file.start_with?("app/views/") && file.end_with?(".html.erb")
+
+        # Check if there's a turbo_stream version when turbo_stream_from is used
+        # (This checks from the view side — controller respond_to check is separate)
+        return warnings unless content.include?("turbo_stream_from") || content.include?("turbo_frame_tag")
+
+        # If view has turbo_stream_from, check the controller action has respond_to :turbo_stream
+        # and that a .turbo_stream.erb template exists
+        base = file.sub(/\.html\.erb$/, "")
+        turbo_template = "#{base}.turbo_stream.erb"
+        turbo_path = Rails.root.join(turbo_template)
+
+        if content.include?("turbo_stream_from") && !File.exist?(turbo_path)
+          # Only warn if the controller likely needs it
+          warnings << "#{file} uses turbo_stream_from but #{turbo_template} doesn't exist (Turbo Stream updates may need this)"
+        end
+        warnings
+      rescue
+        []
       end
     end
   end
