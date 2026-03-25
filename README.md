@@ -101,7 +101,7 @@ Every tool is **read-only** and returns structured, token-efficient data. Start 
 
 | Tool | One-liner |
 |------|-----------|
-| `rails_search_code` | **Trace mode**: definition + callers + internal calls. Also: `"definition"`, `"call"`, `"class"` filters, smart pagination |
+| `rails_search_code` | **Trace mode**: definition + class context + source + internal calls + sibling methods + callers with route chain + test coverage. Also: `"definition"`, `"call"`, `"class"` filters, smart pagination |
 | `rails_get_context` | **Composite**: schema + model + controller + routes + views in one call |
 | `rails_analyze_feature` | **Full-stack**: everything about a feature — models, controllers, routes, services, jobs, views, Stimulus, tests |
 | `rails_validate` | **Syntax + semantic + security** in one call. Catches wrong columns, missing partials, broken routes, Brakeman vulnerabilities |

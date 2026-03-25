@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-03-25
+
+### Added
+
+- **Trace mode 100%** — `match_type:"trace"` now shows 7 sections: definition with class/module context, source code, internal calls, sibling methods (same file), app callers with route chain hints, and test coverage (separated from app code). Zero follow-up calls needed.
+- **README rewrite** — neuro marketing techniques: loss aversion hook, measured token savings table, trace output inline, architecture diagram. 456→261 lines.
+
 ## [2.0.2] - 2026-03-25
 
 ### Added

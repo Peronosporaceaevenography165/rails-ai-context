@@ -564,7 +564,7 @@ Ripgrep-powered regex search across the codebase.
 | `pattern` | string | **Required.** Regex pattern or method name to search for. |
 | `path` | string | Subdirectory to search in (e.g. `app/models`, `config`). Default: entire app. |
 | `file_type` | string | Filter by file extension (e.g. `rb`, `erb`, `js`). Alphanumeric only. |
-| `match_type` | string | `any` (default), `definition` (def lines), `class` (class/module lines), `call` (call sites only), `trace` (**full picture** — definition + source + callers + internal calls). |
+| `match_type` | string | `any` (default), `definition` (def lines), `class` (class/module lines), `call` (call sites only), `trace` (**full picture** — definition with class context + source code + internal calls + sibling methods + callers with route chain + test coverage separated). |
 | `exact_match` | boolean | Match whole words only (wraps pattern in `\b` boundaries). Default: false. |
 | `exclude_tests` | boolean | Exclude test/spec/features directories. Default: false. |
 | `group_by_file` | boolean | Group results by file with match counts. Default: false. |
@@ -577,7 +577,8 @@ Smart result limiting: <10 results shows all, 10-100 shows half, >100 caps at 10
 
 ```
 rails_search_code(pattern: "can_cook?", match_type: "trace")
-  → FULL PICTURE: definition + source code + all callers grouped by type + internal calls
+  → FULL PICTURE: definition with class context + source code + internal calls
+    + sibling methods + app callers with route chain + test coverage (separated)
 
 rails_search_code(pattern: "create", match_type: "definition")
   → Only `def create` / `def self.create` lines
