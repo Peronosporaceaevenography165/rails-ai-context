@@ -6,9 +6,10 @@ module RailsAiContext
   module Tools
     class SearchCode < BaseTool
       tool_name "rails_search_code"
-      description "Search the Rails codebase by regex pattern, returning matching lines with file paths and line numbers. " \
-        "Use when: finding where a method is called, locating class definitions, or tracing how a feature is implemented. " \
-        "Requires pattern:\"def activate\". Narrow with path:\"app/models\" and file_type:\"rb\"."
+      description "Search the Rails codebase with smart modes. " \
+        "Use match_type:\"trace\" to see where a method is defined, who calls it, and what it calls — in one call. " \
+        "Use match_type:\"definition\" for definitions only, \"call\" for call sites only, \"class\" for class/module definitions. " \
+        "Requires pattern:\"method_name\". Narrow with path:\"app/models\" and file_type:\"rb\"."
 
       def self.max_results_cap
         RailsAiContext.configuration.max_search_results
@@ -30,8 +31,8 @@ module RailsAiContext
           },
           match_type: {
             type: "string",
-            enum: %w[any definition class call],
-            description: "Filter match type. any: all matches (default). definition: only `def method_name` lines. class: only `class/module Name` lines. call: only call sites (excludes the definition)."
+            enum: %w[any definition class call trace],
+            description: "any: all matches (default). definition: `def` lines only. class: `class/module` lines. call: call sites only (excludes definitions). trace: FULL PICTURE — shows definition + source code + all callers + what it calls internally."
           },
           exact_match: {
             type: "boolean",
@@ -66,6 +67,11 @@ module RailsAiContext
         # Reject empty or whitespace-only patterns
         if pattern.nil? || pattern.strip.empty?
           return text_response("Pattern is required. Provide a search term or regex.")
+        end
+
+        # Trace mode — the game changer: full method picture in one call
+        if match_type == "trace"
+          return trace_method(pattern.strip, root, path, exclude_tests)
         end
 
         # Apply exact_match word boundaries
@@ -279,6 +285,129 @@ module RailsAiContext
             content: match[3]
           }
         end
+      end
+
+      # ── Trace Mode — the game changer ──────────────────────────────
+      # Shows definition + source + callers + internal calls in one response
+
+      private_class_method def self.trace_method(method_name, root, path, exclude_tests) # rubocop:disable Metrics
+        # Clean input: strip "def ", "self.", parens
+        cleaned = method_name.sub(/\A\s*def\s+/, "").sub(/\Aself\./, "").sub(/\(.*/, "").strip
+        return text_response("Provide a method name to trace.") if cleaned.empty?
+
+        search_path = path ? File.join(root, path) : root
+        lines = [ "# Trace: `#{cleaned}`", "" ]
+
+        # 1. Find the definition (no \b after ? or ! since they ARE word boundaries)
+        def_pattern = "^\\s*def\\s+(self\\.)?#{Regexp.escape(cleaned)}"
+        def_pattern += "\\b" unless cleaned.end_with?("?") || cleaned.end_with?("!")
+        def_results = quick_search(def_pattern, search_path, root, 10, exclude_tests)
+
+        if def_results.any?
+          lines << "## Definition"
+          def_results.each do |r|
+            lines << "**#{r[:file]}:#{r[:line_number]}**"
+            # Extract the full method body
+            body = extract_method_body(File.join(root, r[:file]), r[:line_number])
+            if body
+              lines << "```ruby"
+              lines << body
+              lines << "```"
+
+              # 3. What does this method call? (extract method-like calls from body)
+              internal_calls = body.scan(/\b([a-z_]\w*[!?]?)(?:\s*[\(])/).flatten.uniq
+              internal_calls += body.scan(/\b([A-Z]\w+(?:::\w+)*)\.(new|call|perform_later|perform_async|find|where|create)/).map { |c| "#{c[0]}.#{c[1]}" }
+              internal_calls.reject! { |c| %w[if else elsif unless return end def class module do begin rescue ensure raise puts print].include?(c) }
+              internal_calls.reject! { |c| c == cleaned }
+
+              if internal_calls.any?
+                lines << "" << "## Calls internally"
+                internal_calls.first(15).each { |c| lines << "- `#{c}`" }
+              end
+            end
+            lines << ""
+          end
+        else
+          lines << "_No definition found for `def #{cleaned}`_"
+          lines << ""
+        end
+
+        # 2. Find all callers (everywhere the method is referenced, excluding the def line)
+        call_pattern = if cleaned.end_with?("?") || cleaned.end_with?("!")
+          "#{Regexp.escape(cleaned)}"
+        else
+          "\\b#{Regexp.escape(cleaned)}\\b"
+        end
+        call_results = quick_search(call_pattern, search_path, root, max_results_cap, exclude_tests)
+        callers = call_results.reject { |r| r[:content].match?(/\A\s*def\s/) }
+
+        # Exclude the definition file+line to avoid self-reference
+        def_locations = def_results.map { |r| "#{r[:file]}:#{r[:line_number]}" }.to_set
+        callers.reject! { |r| def_locations.include?("#{r[:file]}:#{r[:line_number]}") }
+
+        if callers.any?
+          lines << "## Called from (#{callers.size} sites)"
+
+          # Group by file for readability
+          grouped = callers.group_by { |r| r[:file] }
+          grouped.each do |file, matches|
+            # Categorize the file
+            category = case file
+            when /controller/i then "Controller"
+            when /model/i then "Model"
+            when /view|\.erb/i then "View"
+            when /job/i then "Job"
+            when /service/i then "Service"
+            when /test|spec/i then "Test"
+            when /\.js$|\.ts$/i then "JavaScript"
+            else "Other"
+            end
+
+            lines << "### #{file} (#{category})"
+            matches.first(5).each do |r|
+              lines << "  #{r[:line_number]}: #{r[:content].strip}"
+            end
+            lines << "  _(#{matches.size - 5} more)_" if matches.size > 5
+          end
+        else
+          lines << "## Called from"
+          lines << "_No call sites found (method may be unused or called dynamically)_"
+        end
+
+        text_response(lines.join("\n"))
+      rescue => e
+        text_response("Trace error: #{e.message}")
+      end
+
+      # Fast ripgrep search for trace mode (no formatting, just results)
+      private_class_method def self.quick_search(pattern, search_path, root, limit, exclude_tests)
+        if ripgrep_available?
+          search_with_ripgrep(pattern, search_path, nil, limit, root, 0, exclude_tests: exclude_tests)
+        else
+          search_with_ruby(pattern, search_path, nil, limit, root, exclude_tests: exclude_tests)
+        end
+      end
+
+      # Extract a method body from a file given the def line number
+      private_class_method def self.extract_method_body(file_path, def_line)
+        return nil unless File.exist?(file_path)
+        return nil if File.size(file_path) > RailsAiContext.configuration.max_file_size
+
+        source_lines = File.readlines(file_path)
+        start_idx = def_line - 1
+        return nil if start_idx >= source_lines.size
+
+        def_indent = source_lines[start_idx][/\A\s*/].length
+        result = [ source_lines[start_idx].rstrip ]
+
+        source_lines[(start_idx + 1)..].each do |line|
+          result << line.rstrip
+          break if line.match?(/\A\s{#{def_indent}}end\b/)
+        end
+
+        result.join("\n")
+      rescue
+        nil
       end
     end
   end
