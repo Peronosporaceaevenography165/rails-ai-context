@@ -292,7 +292,7 @@ RailsAiContext.configure do |config|
   config.excluded_paths += %w[vendor/bundle]
 
   # Cache TTL for MCP tool responses (seconds)
-  config.cache_ttl = 30
+  config.cache_ttl = 60
 
   # Live reload: auto-invalidate MCP caches on file changes
   # :auto (default), true, or false
