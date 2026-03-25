@@ -9,6 +9,8 @@
 
 **Works with:** Claude Code &bull; Cursor &bull; GitHub Copilot &bull; Windsurf &bull; OpenCode
 
+> Built by a Rails developer with 10 years of production experience. Yes, AI helped write this gem — the same way AI helps me ship features at work. I designed the architecture, made every decision, reviewed every line, and wrote 575 tests. The gem exists because I understand Rails deeply enough to know what AI agents get wrong and what context they need to get it right.
+
 ```bash
 gem "rails-ai-context", group: :development
 rails generate rails_ai_context:install
