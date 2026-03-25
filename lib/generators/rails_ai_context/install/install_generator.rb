@@ -9,6 +9,43 @@ module RailsAiContext
 
       desc "Install rails-ai-context: creates initializer, MCP config, and generates initial context files."
 
+      AI_TOOLS = {
+        "1" => { key: :claude,   name: "Claude Code",     files: "CLAUDE.md + .claude/rules/",                        format: :claude },
+        "2" => { key: :cursor,   name: "Cursor",          files: ".cursor/rules/",                                     format: :cursor },
+        "3" => { key: :copilot,  name: "GitHub Copilot",  files: ".github/copilot-instructions.md + .github/instructions/", format: :copilot },
+        "4" => { key: :windsurf, name: "Windsurf",        files: ".windsurfrules + .windsurf/rules/",                  format: :windsurf },
+        "5" => { key: :opencode, name: "OpenCode",        files: "AGENTS.md",                                          format: :opencode }
+      }.freeze
+
+      def select_ai_tools
+        say ""
+        say "Which AI tools do you use? (select all that apply)", :yellow
+        say ""
+        AI_TOOLS.each do |num, info|
+          say "  #{num}. #{info[:name].ljust(16)} → #{info[:files]}"
+        end
+        say "  a. All of the above"
+        say ""
+
+        input = ask("Enter numbers separated by commas (e.g. 1,2) or 'a' for all:").strip.downcase
+
+        @selected_formats = if input == "a" || input == "all"
+          AI_TOOLS.values.map { |t| t[:format] }
+        else
+          nums = input.split(/[\s,]+/)
+          nums.filter_map { |n| AI_TOOLS[n]&.dig(:format) }
+        end
+
+        if @selected_formats.empty?
+          say "No tools selected — defaulting to all.", :yellow
+          @selected_formats = AI_TOOLS.values.map { |t| t[:format] }
+        end
+
+        selected_names = AI_TOOLS.values.select { |t| @selected_formats.include?(t[:format]) }.map { |t| t[:name] }
+        say ""
+        say "Selected: #{selected_names.join(', ')}", :green
+      end
+
       def create_mcp_config
         mcp_path = Rails.root.join(".mcp.json")
         server_entry = {
@@ -104,13 +141,21 @@ module RailsAiContext
         say ""
         say "Generating AI context files...", :yellow
 
-        if Rails.application
-          require "rails_ai_context"
-          context = RailsAiContext.introspect
-          files = RailsAiContext.generate_context(format: :all)
-          files.each { |f| say "  Created #{f}", :green }
-        else
+        unless Rails.application
           say "  Skipped (Rails app not fully loaded). Run `rails ai:context` after install.", :yellow
+          return
+        end
+
+        require "rails_ai_context"
+
+        @selected_formats.each do |fmt|
+          begin
+            result = RailsAiContext.generate_context(format: fmt)
+            (result[:written] || []).each { |f| say "  ✅ #{f}", :green }
+            (result[:skipped] || []).each { |f| say "  ⏭️  #{f} (unchanged)", :yellow }
+          rescue => e
+            say "  ❌ #{fmt}: #{e.message}", :red
+          end
         end
       end
 
@@ -120,27 +165,26 @@ module RailsAiContext
         say " rails-ai-context installed!", :cyan
         say "=" * 50, :cyan
         say ""
-        say "Quick start:", :yellow
-        say "  rails ai:context         # Generate all context files"
-        say "  rails ai:context:claude   # Generate CLAUDE.md only"
-        say "  rails ai:context:cursor   # Generate .cursor/rules/ only"
-        say "  rails ai:serve           # Start MCP server (stdio)"
-        say "  rails ai:inspect         # Print introspection summary"
+        say "Your setup:", :yellow
+        AI_TOOLS.each_value do |info|
+          next unless @selected_formats.include?(info[:format])
+          say "  ✅ #{info[:name].ljust(16)} → #{info[:files]}"
+        end
         say ""
-        say "Generated files per AI tool:", :yellow
-        say "  Claude Code    → CLAUDE.md + .claude/rules/*.md"
-        say "  OpenCode       → AGENTS.md"
-        say "  Cursor         → .cursor/rules/*.mdc"
-        say "  Windsurf       → .windsurfrules + .windsurf/rules/*.md"
-        say "  GitHub Copilot → .github/copilot-instructions.md + .github/instructions/*.instructions.md"
+        say "Commands:", :yellow
+        say "  rails ai:context         # Regenerate context files"
+        say "  rails ai:serve           # Start MCP server (25 live tools)"
+        say "  rails ai:doctor          # Check AI readiness"
+        say "  rails ai:inspect         # Print introspection summary"
         say ""
         say "MCP auto-discovery:", :yellow
         say "  .mcp.json is auto-detected by Claude Code and Cursor."
-        say "  No manual MCP config needed — just open your project."
+        say "  No manual config needed — just open your project."
         say ""
-        say "Context modes:", :yellow
-        say "  rails ai:context         # compact mode (default, smart for any app size)"
-        say "  rails ai:context:full    # full dump (good for small apps)"
+        say "To add more AI tools later:", :yellow
+        say "  rails ai:context:cursor   # Generate for Cursor"
+        say "  rails ai:context:copilot  # Generate for Copilot"
+        say "  rails generate rails_ai_context:install  # Re-run to pick tools"
         say ""
         say "Commit context files and .mcp.json so your team benefits!", :green
       end
