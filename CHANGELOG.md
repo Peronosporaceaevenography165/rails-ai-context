@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2026-03-25
+
+### Changed
+
+- **Task-based MCP tool instructions** — all 6 serializers (Claude, Cursor, Copilot, Windsurf, OpenCode) rewritten from tool-first to task-first: "What are you trying to do?" → exact tool call. 7 task categories: understand a feature, trace a method, add a field, fix a controller, build a view, write tests, find code. Every AI agent now understands which tool to use for any task.
+- **Concern detail:"full" bug fix** — `\b` after `?`/`!` prevented 13 of 15 method bodies from being extracted. All methods now show source code.
+
 ## [2.0.4] - 2026-03-25
 
 ### Added
