@@ -250,7 +250,13 @@ module RailsAiContext
           "- `rails_get_config` | `rails_get_gems` | `rails_get_conventions` | `rails_security_scan`",
           "- `rails_get_concern` | `rails_get_callbacks` | `rails_get_helper_methods` | `rails_get_service_pattern`",
           "- `rails_get_job_pattern` | `rails_get_env` | `rails_get_partial_interface` | `rails_get_turbo_map`",
-          "- `rails_get_context(model:\"X\")` — composite cross-layer context in one call"
+          "- `rails_get_context(model:\"X\")` — composite cross-layer context in one call",
+          "",
+          "## Power Features",
+          "- `rails_search_code(pattern:\"method\", match_type:\"trace\")` — trace: definition + source + siblings + callers + tests",
+          "- `rails_get_concern(name:\"X\", detail:\"full\")` — concern methods with source code",
+          "- `rails_analyze_feature` — full-stack with inherited filters, route helpers, test gaps",
+          "- `rails_get_schema` — columns, indexes, defaults, encrypted hints, orphaned table warnings"
         ]
 
         lines.join("\n")
