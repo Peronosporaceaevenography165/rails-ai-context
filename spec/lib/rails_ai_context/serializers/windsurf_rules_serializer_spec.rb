@@ -23,7 +23,7 @@ RSpec.describe RailsAiContext::Serializers::WindsurfRulesSerializer do
       expect(content.length).to be <= 5800
 
       tools_content = File.read(File.join(dir, ".windsurf", "rules", "rails-mcp-tools.md"))
-      expect(tools_content).to include("Use These First")
+      expect(tools_content).to include("MANDATORY")
       expect(tools_content).to include("rails_get_schema")
       expect(tools_content.length).to be <= 5800
     end

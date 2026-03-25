@@ -72,7 +72,7 @@ RSpec.describe RailsAiContext::Serializers::CursorRulesSerializer do
       expect(tools_rule).to include("alwaysApply: true")
       expect(tools_rule).to include("MCP Tools (25)")
       expect(tools_rule).to include("rails_get_schema")
-      expect(tools_rule).to include('detail:"summary"')
+      expect(tools_rule).to include('MANDATORY')
       expect(tools_rule).to include("reference files")
     end
   end
