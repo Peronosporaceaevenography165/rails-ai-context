@@ -14,16 +14,6 @@ module RailsAiContext
         RailsAiContext.configuration.max_search_results
       end
 
-      # Non-code files excluded from all searches — lock files, docs, generated context, config meta
-      NON_CODE_GLOBS = %w[
-        *.lock package-lock.json yarn.lock pnpm-lock.yaml bun.lockb
-        *.md LICENSE* CHANGELOG* CONTRIBUTING*
-        CLAUDE.md AGENTS.md .cursorrules .cursor/ .claude/
-        Dockerfile* docker-compose*
-        .rubocop.yml .ruby-version .node-version .tool-versions
-        .github/ .circleci/ .gitlab-ci.yml
-      ].freeze
-
       input_schema(
         properties: {
           pattern: {
@@ -55,9 +45,9 @@ module RailsAiContext
             type: "boolean",
             description: "Group results by file with match counts. Default: false."
           },
-          max_results: {
+          offset: {
             type: "integer",
-            description: "Maximum number of results. Default: 30, max: 200."
+            description: "Skip this many results for pagination. Default: 0."
           },
           context_lines: {
             type: "integer",
@@ -69,7 +59,7 @@ module RailsAiContext
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
-      def self.call(pattern:, path: nil, file_type: nil, match_type: "any", exact_match: false, exclude_tests: false, group_by_file: false, max_results: 30, context_lines: 2, server_context: nil) # rubocop:disable Metrics
+      def self.call(pattern:, path: nil, file_type: nil, match_type: "any", exact_match: false, exclude_tests: false, group_by_file: false, offset: 0, context_lines: 2, server_context: nil) # rubocop:disable Metrics
         root = Rails.root.to_s
         original_pattern = pattern
 
@@ -90,7 +80,6 @@ module RailsAiContext
           cleaned = pattern.sub(/\A\s*(class|module)\s+/, "")
           "^\\s*(class|module)\\s+\\w*#{cleaned}"
         when "call"
-          # Search for the pattern but we'll filter out definitions after
           pattern
         else
           pattern
@@ -108,10 +97,8 @@ module RailsAiContext
           return text_response("Invalid file_type: must contain only alphanumeric characters.")
         end
 
-        # Cap max_results and context_lines
-        max_results = [ max_results.to_i, max_results_cap ].min
-        max_results = 30 if max_results < 1
         context_lines = [ [ context_lines.to_i, 0 ].max, 5 ].min
+        offset = [ offset.to_i, 0 ].max
 
         search_path = path ? File.join(root, path) : root
 
@@ -131,36 +118,52 @@ module RailsAiContext
           return text_response("Path not found: #{path}")
         end
 
-        # Fetch extra results to get total count
-        fetch_limit = max_results + 1
-        results = if ripgrep_available?
-          search_with_ripgrep(search_pattern, search_path, file_type, fetch_limit, root, context_lines, exclude_tests: exclude_tests)
+        # Fetch all results (capped at 200 for safety)
+        all_results = if ripgrep_available?
+          search_with_ripgrep(search_pattern, search_path, file_type, max_results_cap, root, context_lines, exclude_tests: exclude_tests)
         else
-          search_with_ruby(search_pattern, search_path, file_type, fetch_limit, root, exclude_tests: exclude_tests)
+          search_with_ruby(search_pattern, search_path, file_type, max_results_cap, root, exclude_tests: exclude_tests)
         end
 
         # Filter out definitions for match_type:"call"
-        if match_type == "call"
-          results.reject! { |r| r[:content].match?(/\A\s*def\s/) }
-        end
+        all_results.reject! { |r| r[:content].match?(/\A\s*def\s/) } if match_type == "call"
 
-        if results.empty?
+        if all_results.empty?
           return text_response("No results found for '#{original_pattern}' in #{path || 'app'}.")
         end
 
-        # Determine if there are more results
-        has_more = results.size > max_results
-        results = results.first(max_results)
+        # Smart result limiting:
+        # <10 total → show all, 10-100 → show half, >100 → cap at 100
+        total = all_results.size
+        show_count = if total <= 10 then total
+        elsif total <= 100 then (total / 2.0).ceil
+        else 100
+        end
 
-        # Format output
-        total_hint = has_more ? " (showing #{max_results}, more available — increase max_results)" : ""
-        header = "# Search: `#{original_pattern}`\n**#{results.size} results**#{" in #{path}" if path}#{total_hint}\n\n"
+        # Apply pagination
+        paginated = all_results.drop(offset).first(show_count)
+
+        if paginated.empty? && total > 0
+          return text_response("No results at offset #{offset}. Total: #{total}. Use `offset:0`.")
+        end
+
+        # Build header with total count and pagination info
+        showing = offset > 0 ? "#{offset + 1}-#{offset + paginated.size}" : "#{paginated.size}"
+        pagination = if offset + paginated.size < total
+          "\n_Showing #{showing} of #{total}. Use `offset:#{offset + paginated.size}` for more._"
+        elsif total > paginated.size
+          "\n_Showing #{showing} of #{total}._"
+        else
+          ""
+        end
+
+        header = "# Search: `#{original_pattern}`\n**#{total} total results**#{" in #{path}" if path}, showing #{showing}\n"
 
         if group_by_file
-          text_response(header + format_grouped(results))
+          text_response(header + "\n" + format_grouped(paginated) + pagination)
         else
-          output = results.map { |r| "#{r[:file]}:#{r[:line_number]}: #{r[:content].strip}" }.join("\n")
-          text_response("#{header}```\n#{output}\n```")
+          output = paginated.map { |r| "#{r[:file]}:#{r[:line_number]}: #{r[:content].strip}" }.join("\n")
+          text_response("#{header}\n```\n#{output}\n```#{pagination}")
         end
       end
 
@@ -185,9 +188,6 @@ module RailsAiContext
         RailsAiContext.configuration.sensitive_patterns.each do |p|
           cmd << "--glob=!#{p}"
         end
-
-        # Exclude non-code files that generate noise in search results
-        NON_CODE_GLOBS.each { |glob| cmd << "--glob=!#{glob}" }
 
         # Exclude test/spec directories if requested
         if exclude_tests

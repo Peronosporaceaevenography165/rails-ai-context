@@ -16,9 +16,10 @@ RSpec.describe RailsAiContext::Tools::SearchCode do
       expect(text).not_to include("Invalid file_type")
     end
 
-    it "caps max_results at 100" do
-      result = described_class.call(pattern: "class", max_results: 500)
-      # Should not error — just verify it runs
+    it "uses smart result limiting and shows total count" do
+      result = described_class.call(pattern: "class")
+      text = result.content.first[:text]
+      expect(text).to include("total results")
       expect(result).to be_a(MCP::Tool::Response)
     end
 
