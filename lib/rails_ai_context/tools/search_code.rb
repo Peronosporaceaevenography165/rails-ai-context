@@ -306,15 +306,18 @@ module RailsAiContext
         if def_results.any?
           lines << "## Definition"
           def_results.each do |r|
-            lines << "**#{r[:file]}:#{r[:line_number]}**"
-            # Extract the full method body
+            # Class/module context
+            class_context = extract_class_context(File.join(root, r[:file]), r[:line_number])
+            lines << "**#{r[:file]}:#{r[:line_number]}**#{class_context ? " in `#{class_context}`" : ""}"
+
+            # Full method body
             body = extract_method_body(File.join(root, r[:file]), r[:line_number])
             if body
               lines << "```ruby"
               lines << body
               lines << "```"
 
-              # 3. What does this method call? (extract method-like calls from body)
+              # What does this method call?
               internal_calls = body.scan(/\b([a-z_]\w*[!?]?)(?:\s*[\(])/).flatten.uniq
               internal_calls += body.scan(/\b([A-Z]\w+(?:::\w+)*)\.(new|call|perform_later|perform_async|find|where|create)/).map { |c| "#{c[0]}.#{c[1]}" }
               internal_calls.reject! { |c| %w[if else elsif unless return end def class module do begin rescue ensure raise puts print].include?(c) }
@@ -325,6 +328,14 @@ module RailsAiContext
                 internal_calls.first(15).each { |c| lines << "- `#{c}`" }
               end
             end
+
+            # Sibling methods in the same file
+            siblings = extract_sibling_methods(File.join(root, r[:file]), r[:line_number], cleaned)
+            if siblings.any?
+              lines << "" << "## Sibling methods (same file)"
+              siblings.first(10).each { |s| lines << "- `#{s}`" }
+            end
+
             lines << ""
           end
         else
@@ -346,28 +357,46 @@ module RailsAiContext
         callers.reject! { |r| def_locations.include?("#{r[:file]}:#{r[:line_number]}") }
 
         if callers.any?
-          lines << "## Called from (#{callers.size} sites)"
+          # Separate app code from tests
+          app_callers = callers.reject { |r| r[:file].match?(/\A(test|spec)\//) }
+          test_callers = callers.select { |r| r[:file].match?(/\A(test|spec)\//) }
 
-          # Group by file for readability
-          grouped = callers.group_by { |r| r[:file] }
-          grouped.each do |file, matches|
-            # Categorize the file
-            category = case file
-            when /controller/i then "Controller"
-            when /model/i then "Model"
-            when /view|\.erb/i then "View"
-            when /job/i then "Job"
-            when /service/i then "Service"
-            when /test|spec/i then "Test"
-            when /\.js$|\.ts$/i then "JavaScript"
-            else "Other"
-            end
+          if app_callers.any?
+            lines << "## Called from (#{app_callers.size} sites)"
+            grouped = app_callers.group_by { |r| r[:file] }
+            grouped.each do |file, matches|
+              category = case file
+              when /controller/i then "Controller"
+              when /model/i then "Model"
+              when /view|\.erb/i then "View"
+              when /job/i then "Job"
+              when /service/i then "Service"
+              when /\.js$|\.ts$/i then "JavaScript"
+              else "Other"
+              end
 
-            lines << "### #{file} (#{category})"
-            matches.first(5).each do |r|
-              lines << "  #{r[:line_number]}: #{r[:content].strip}"
+              # Route chain for controller callers
+              route_hint = ""
+              if category == "Controller" && file.match?(/app\/controllers\/(.+)_controller\.rb/)
+                ctrl_path = $1
+                route_actions = extract_controller_actions_from_matches(matches)
+                routes = find_routes_for_controller(ctrl_path, route_actions, root)
+                route_hint = " → #{routes}" if routes
+              end
+
+              lines << "### #{file} (#{category})#{route_hint}"
+              matches.first(5).each do |r|
+                lines << "  #{r[:line_number]}: #{r[:content].strip}"
+              end
+              lines << "  _(#{matches.size - 5} more)_" if matches.size > 5
             end
-            lines << "  _(#{matches.size - 5} more)_" if matches.size > 5
+          end
+
+          if test_callers.any?
+            lines << "" << "## Tested by (#{test_callers.size} references)"
+            test_callers.group_by { |r| r[:file] }.each do |file, matches|
+              lines << "- `#{file}` (#{matches.size} references)"
+            end
           end
         else
           lines << "## Called from"
@@ -386,6 +415,64 @@ module RailsAiContext
         else
           search_with_ruby(pattern, search_path, nil, limit, root, exclude_tests: exclude_tests)
         end
+      end
+
+      # Extract class/module context for a line
+      private_class_method def self.extract_class_context(file_path, line_num)
+        return nil unless File.exist?(file_path)
+        lines = File.readlines(file_path)
+        # Walk backwards from the method to find the enclosing class/module
+        (line_num - 2).downto(0) do |i|
+          if lines[i]&.match?(/\A\s*(class|module)\s+(\S+)/)
+            return lines[i].strip.sub(/\s*<.*/, "")
+          end
+        end
+        nil
+      rescue
+        nil
+      end
+
+      # Extract sibling methods in the same file (other public methods)
+      private_class_method def self.extract_sibling_methods(file_path, def_line, exclude_method)
+        return [] unless File.exist?(file_path)
+        return [] if File.size(file_path) > RailsAiContext.configuration.max_file_size
+        source = File.read(file_path, encoding: "UTF-8", invalid: :replace, undef: :replace)
+        methods = []
+        in_private = false
+        source.each_line do |line|
+          in_private = true if line.match?(/\A\s*private\s*$/)
+          next if in_private
+          if (m = line.match(/\A\s*def\s+((?:self\.)?\w+[?!]?)/))
+            name = m[1]
+            methods << name unless name == exclude_method || name.start_with?("initialize")
+          end
+        end
+        methods
+      rescue
+        []
+      end
+
+      # Extract which action a controller caller is in
+      private_class_method def self.extract_controller_actions_from_matches(matches)
+        actions = []
+        matches.each do |m|
+          # Look for the method name from indentation context
+          actions << $1 if m[:content].match?(/\b(create|index|show|new|edit|update|destroy|[a-z_]+)\b/)
+        end
+        actions.uniq.first(3)
+      end
+
+      # Find routes for a controller
+      private_class_method def self.find_routes_for_controller(ctrl_path, _actions, _root)
+        routes = cached_context[:routes]
+        return nil unless routes
+        by_controller = routes[:by_controller] || {}
+        ctrl_routes = by_controller[ctrl_path]
+        return nil unless ctrl_routes&.any?
+        # Show the first 2 routes as hints
+        ctrl_routes.first(2).map { |r| "`#{r[:verb]} #{r[:path]}`" }.join(", ")
+      rescue
+        nil
       end
 
       # Extract a method body from a file given the def line number
