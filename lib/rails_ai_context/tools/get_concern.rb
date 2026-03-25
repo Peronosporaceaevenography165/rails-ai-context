@@ -362,7 +362,8 @@ module RailsAiContext
         max_size = RailsAiContext.configuration.max_file_size
         # Build pattern: match `include ConcernName` or `include ModuleName::ConcernName`
         # Handle both simple and namespaced concern names
-        simple_name = concern_name.demodulize
+        # Classify to handle lowercase input: "plan_limitable" → "PlanLimitable"
+        simple_name = concern_name.demodulize.classify
         pattern = /^\s*include\s+(?:\w+::)*#{Regexp.escape(simple_name)}\b/
 
         search_dirs.each do |dir|

@@ -94,9 +94,9 @@ module RailsAiContext
           lines << view_text
         end
 
-        # Cross-reference: controller ivars vs view ivars
+        # Cross-reference: controller ivars vs the specific action's view ivars (not all views)
         ctrl_ivars = extract_ivars_from_text(ctrl_result.content.first[:text])
-        view_ivars = extract_ivars_from_view_text(view_text)
+        view_ivars = extract_ivars_from_view_text(view_text, action: action_name)
         ivar_check = cross_reference_ivars(ctrl_ivars, view_ivars)
         lines << "" << ivar_check if ivar_check
 
@@ -123,10 +123,16 @@ module RailsAiContext
         ivars
       end
 
-      private_class_method def self.extract_ivars_from_view_text(text)
+      private_class_method def self.extract_ivars_from_view_text(text, action: nil)
         # Extract from "ivars: foo, bar, baz" in view listing
+        # When action is specified, only extract from the matching template (e.g., "show.html.erb" for action "show")
         ivars = Set.new
         text.each_line do |line|
+          # Skip lines that don't match the action's template when filtering
+          if action
+            # Match: "cooks/show.html.erb" for action "show", "cooks/index.html.erb" for "index", etc.
+            next unless line.match?(/\/#{Regexp.escape(action)}\.html\.erb\b/)
+          end
           if (match = line.match(/ivars:\s*(.+?)(?:\s+turbo:|$)/))
             match[1].split(",").each { |v| ivars << v.strip }
           end
@@ -229,7 +235,7 @@ module RailsAiContext
       }.freeze
 
       private_class_method def self.append_includes(includes)
-        extra = ""
+        extra = +""
         includes.each do |key|
           handler = INCLUDE_MAP[key.to_s.downcase]
           next unless handler

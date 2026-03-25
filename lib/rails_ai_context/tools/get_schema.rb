@@ -54,6 +54,7 @@ module RailsAiContext
 
         total = tables.size
         offset = [ offset.to_i, 0 ].max
+        limit = [ limit.to_i, 0 ].max if limit && limit.to_i < 0
 
         # Single table — case-insensitive lookup
         if table

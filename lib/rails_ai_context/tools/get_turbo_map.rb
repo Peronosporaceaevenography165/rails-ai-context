@@ -71,19 +71,21 @@ module RailsAiContext
         # Detect mismatches
         warnings = detect_mismatches(model_broadcasts, rb_broadcasts, view_subscriptions)
 
+        filter_label = stream ? "stream:\"#{stream}\"" : controller ? "controller:\"#{controller}\"" : nil
+
         case detail
         when "summary"
-          format_summary(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings)
+          format_summary(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: filter_label)
         when "standard"
-          format_standard(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings)
+          format_standard(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: filter_label)
         when "full"
-          format_full(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings)
+          format_full(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: filter_label)
         else
           text_response("Unknown detail level: #{detail}. Use summary, standard, or full.")
         end
       end
 
-      private_class_method def self.format_summary(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings)
+      private_class_method def self.format_summary(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: nil)
         total_broadcasts = model_broadcasts.size + rb_broadcasts.size
         lines = [ "# Turbo Map", "" ]
         lines << "- **Model broadcasts:** #{model_broadcasts.size} (via `broadcasts`, `broadcasts_to`, etc.)"
@@ -101,7 +103,7 @@ module RailsAiContext
         text_response(lines.join("\n"))
       end
 
-      private_class_method def self.format_standard(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings)
+      private_class_method def self.format_standard(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: nil)
         lines = [ "# Turbo Map", "" ]
 
         # Model broadcasts
@@ -151,7 +153,11 @@ module RailsAiContext
         end
 
         if model_broadcasts.empty? && rb_broadcasts.empty? && view_subscriptions.empty? && view_frames.empty?
-          lines << "_No Turbo Streams or Frames detected in this app._"
+          if filter_label
+            lines << "_No Turbo usage matching #{filter_label}. Try without filter to see all Turbo Streams and Frames._"
+          else
+            lines << "_No Turbo Streams or Frames detected in this app._"
+          end
         else
           lines << "_Use `detail:\"full\"` for DOM IDs and inline templates, or `stream:\"name\"` to filter._"
         end
@@ -159,7 +165,7 @@ module RailsAiContext
         text_response(lines.join("\n"))
       end
 
-      private_class_method def self.format_full(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings)
+      private_class_method def self.format_full(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: nil)
         lines = [ "# Turbo Map (Full Detail)", "" ]
 
         # Model broadcasts with full context
@@ -241,7 +247,11 @@ module RailsAiContext
         end
 
         if model_broadcasts.empty? && rb_broadcasts.empty? && view_subscriptions.empty? && view_frames.empty?
-          lines << "_No Turbo Streams or Frames detected in this app._"
+          if filter_label
+            lines << "_No Turbo usage matching #{filter_label}. Try without filter to see all Turbo Streams and Frames._"
+          else
+            lines << "_No Turbo Streams or Frames detected in this app._"
+          end
         end
 
         text_response(lines.join("\n"))
@@ -408,8 +418,13 @@ module RailsAiContext
         interp_pattern = /#{Regexp.escape(method)}\s*\(?\s*["']([^"']*#\{[^}]+\}[^"']*)["']/
         interp_match = line.match(interp_pattern)
         if interp_match
-          # Normalize: "cook_#{cook.id}" → "cook_{id}"
-          return interp_match[1].gsub(/#\{[^}]*\.?(\w+)\}/, '{\1}')
+          # Normalize: "cook_#{cook.id}" → "cook_{id}", "cook_#{@cook.id}" → "cook_{id}"
+          return interp_match[1].gsub(/#\{(.+?)\}/) { |_|
+            expr = $1.strip
+            # Extract the last method call: "@cook.id" → "id", "cook.id" → "id", "id" → "id"
+            last_method = expr.split(".").last
+            "{#{last_method}}"
+          }
         end
 
         # Try symbol: :stream_name
@@ -452,7 +467,11 @@ module RailsAiContext
 
         # Handle string interpolation: "cook_#{@cook.id}" → "cook_{id}"
         if args.include?("#")
-          normalized = args.gsub(/["']/, "").gsub(/#\{[^}]*\.?(\w+)\}/, '{\1}')
+          normalized = args.gsub(/["']/, "").gsub(/#\{(.+?)\}/) { |_|
+            expr = $1.strip
+            last_method = expr.split(".").last
+            "{#{last_method}}"
+          }
           return normalized
         end
 

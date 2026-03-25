@@ -169,7 +169,9 @@ module RailsAiContext
 
       private_class_method def self.format_action_source(controller_name, info, action_name)
         actions = info[:actions] || []
-        unless actions.map(&:to_s).include?(action_name.to_s)
+        # Case-insensitive action lookup for consistency with other tools
+        action_name = actions.find { |a| a.to_s.downcase == action_name.to_s.downcase }&.to_s || action_name.to_s
+        unless actions.map(&:to_s).include?(action_name)
           return "Action '#{action_name}' not found in #{controller_name}. Available: #{actions.join(', ')}"
         end
 

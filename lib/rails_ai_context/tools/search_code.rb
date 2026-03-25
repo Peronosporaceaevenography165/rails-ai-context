@@ -14,6 +14,16 @@ module RailsAiContext
         RailsAiContext.configuration.max_search_results
       end
 
+      # Non-code files excluded from all searches — lock files, docs, generated context, config meta
+      NON_CODE_GLOBS = %w[
+        *.lock package-lock.json yarn.lock pnpm-lock.yaml bun.lockb
+        *.md LICENSE* CHANGELOG* CONTRIBUTING*
+        CLAUDE.md AGENTS.md .cursorrules .cursor/ .claude/
+        Dockerfile* docker-compose*
+        .rubocop.yml .ruby-version .node-version .tool-versions
+        .github/ .circleci/ .gitlab-ci.yml
+      ].freeze
+
       input_schema(
         properties: {
           pattern: {
@@ -146,6 +156,10 @@ module RailsAiContext
         RailsAiContext.configuration.sensitive_patterns.each do |p|
           cmd << "--glob=!#{p}"
         end
+
+        # Exclude non-code files that generate noise in search results
+        # (excluded_paths already handles node_modules, tmp, log, vendor, .git)
+        NON_CODE_GLOBS.each { |glob| cmd << "--glob=!#{glob}" }
 
         if file_type
           cmd.push("--type-add", "custom:*.#{file_type}", "--type", "custom")

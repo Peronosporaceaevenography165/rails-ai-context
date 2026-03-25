@@ -37,8 +37,9 @@ module RailsAiContext
         return text_response("Model introspection not available. Add :models to introspectors.") unless models
         return text_response("Model introspection failed: #{models[:error]}") if models[:error]
 
-        # Specific model — always full detail
+        # Specific model — always full detail (strip whitespace for fuzzy input)
         if model
+          model = model.strip
           key = models.keys.find { |k| k.downcase == model.downcase } || model
           data = models[key]
           unless data

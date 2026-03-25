@@ -22,6 +22,9 @@ module RailsAiContext
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
       def self.call(feature:, server_context: nil) # rubocop:disable Metrics
+        feature = feature.strip
+        return text_response("Please provide a feature keyword (e.g. 'cook', 'payment', 'authentication').") if feature.empty?
+
         ctx = cached_context
         pattern = feature.downcase
         root = rails_app.root.to_s

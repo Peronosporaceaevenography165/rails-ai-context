@@ -68,6 +68,12 @@ module RailsAiContext
         warnings = tracker.filtered_warnings
 
         if files&.any?
+          # Check if specified files exist
+          missing = files.select { |f| !File.exist?(Rails.root.join(f)) }
+          if missing.any? && missing.size == files.size
+            return text_response("File(s) not found: #{missing.join(', ')}. Provide paths relative to Rails root.")
+          end
+
           normalized = files.map { |f| f.delete_prefix("/") }
           warnings = warnings.select do |w|
             path = w.file.relative
