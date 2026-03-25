@@ -79,13 +79,13 @@ Tested on a real Rails 8 app (5 models, 19 controllers, 95 routes):
 
 | Task | Without gem | With gem | Saved |
 |------|-------------|----------|-------|
-| Add a field to Cook (13 files) | ~16,283 tokens | ~1,860 tokens | **88%** |
-| Check schema (all tables) | ~2,573 tokens | ~908 tokens | **65%** |
-| Trace `can_cook?` across codebase | ~9,080 tokens | ~198 tokens | **98%** |
+| Trace a method across the codebase | ~9,080 tokens (read 5 files) | ~198 tokens (1 MCP call) | **98%** |
+| Understand a feature (schema + model + controller) | ~5,200 tokens (read 3 files) | ~1,500 tokens (2 MCP calls) | **71%** |
+| Check all table columns | ~2,573 tokens (read schema.rb) | ~908 tokens (1 MCP call) | **65%** |
 
-"Without" = AI reads entire files. "With" = AI uses MCP tools that return only what's relevant.
+"Without" = AI reads files it would realistically need. "With" = MCP tools return only what's relevant.
 
-> Savings scale with app size. More models + more files = bigger savings.
+> Savings scale with app size. A 50-model app reads more files per task — MCP calls stay the same size.
 
 But tokens are the side effect. The real value:
 
