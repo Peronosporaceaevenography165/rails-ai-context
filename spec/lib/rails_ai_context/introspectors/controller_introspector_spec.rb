@@ -80,7 +80,6 @@ RSpec.describe RailsAiContext::Introspectors::ControllerIntrospector do
           class WidgetsController < ApplicationController
             rescue_from ActiveRecord::RecordNotFound, with: :not_found
             rescue_from ActionController::ParameterMissing, with: :bad_request
-            rate_limit to: 10, within: 1.minute
 
             def index
               @widgets = []
@@ -108,10 +107,29 @@ RSpec.describe RailsAiContext::Introspectors::ControllerIntrospector do
         not_found_entry = rescue_from.find { |r| r[:handler] == "not_found" }
         expect(not_found_entry).not_to be_nil
       end
+    end
 
-      it "extracts rate_limit macro" do
-        load fixture_ctrl
-        rate_limit = result[:controllers]["WidgetsController"][:rate_limit]
+    context "with a controller that has rate_limit (source parsing)" do
+      let(:fixture_ctrl) { File.join(Rails.root, "app/controllers/rate_limited_controller.rb") }
+
+      before do
+        # Write source file but do NOT load it — rate_limit is Rails 8+ only.
+        # The introspector extracts rate_limit via source parsing, not reflection.
+        File.write(fixture_ctrl, <<~RUBY)
+          class RateLimitedController < ApplicationController
+            rate_limit to: 10, within: 1.minute
+
+            def index
+              render plain: "ok"
+            end
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_f(fixture_ctrl) }
+
+      it "extracts rate_limit macro from source" do
+        rate_limit = result[:controllers]["RateLimitedController"][:rate_limit]
         expect(rate_limit).to include("10")
       end
     end
