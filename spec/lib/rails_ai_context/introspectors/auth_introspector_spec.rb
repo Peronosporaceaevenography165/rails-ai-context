@@ -101,5 +101,35 @@ RSpec.describe RailsAiContext::Introspectors::AuthIntrospector do
         expect(result[:security][:csp]).to be true
       end
     end
+
+    it "returns devise_modules_per_model as a hash" do
+      expect(result[:devise_modules_per_model]).to be_a(Hash)
+    end
+
+    context "with Devise modules in a model" do
+      let(:fixture_model) { File.join(Rails.root, "app/models/member.rb") }
+
+      before do
+        File.write(fixture_model, <<~RUBY)
+          class Member < ApplicationRecord
+            devise :database_authenticatable, :registerable, :recoverable,
+                   :rememberable, :validatable
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_f(fixture_model) }
+
+      it "extracts Devise modules per model" do
+        modules = result[:devise_modules_per_model]["Member"]
+        expect(modules).to include("database_authenticatable", "registerable", "recoverable", "rememberable", "validatable")
+      end
+    end
+
+    context "with no Devise models" do
+      it "returns empty hash for devise_modules_per_model" do
+        expect(result[:devise_modules_per_model]).to eq({})
+      end
+    end
   end
 end

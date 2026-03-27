@@ -250,6 +250,33 @@ module RailsAiContext
           lines.concat(macro_lines)
         end
 
+        # Encryption details (expanded from encrypts)
+        if data[:encryption_details]&.any?
+          lines << "" << "## Encryption Details"
+          data[:encryption_details].each do |ed|
+            detail_str = ed.is_a?(Hash) ? "**#{ed[:attribute]}** (#{ed.reject { |k, _| k == :attribute }.map { |k, v| "#{k}: #{v}" }.join(', ')})" : ed.to_s
+            lines << "- #{detail_str}"
+          end
+        end
+
+        # Normalizes details (expanded from normalizes)
+        if data[:normalizes_details]&.any?
+          lines << "" << "## Normalizes Details"
+          data[:normalizes_details].each do |nd|
+            detail_str = nd.is_a?(Hash) ? "**#{nd[:attribute]}** — #{nd[:with] || nd[:block]}" : nd.to_s
+            lines << "- #{detail_str}"
+          end
+        end
+
+        # Token generation details
+        if data[:token_generation]&.any?
+          lines << "" << "## Token Generation"
+          data[:token_generation].each do |tg|
+            detail_str = tg.is_a?(Hash) ? "**#{tg[:purpose]}** (expires_in: #{tg[:expires_in] || 'default'})" : tg.to_s
+            lines << "- #{detail_str}"
+          end
+        end
+
         # Delegations
         if data[:delegations]&.any?
           lines << "" << "## Delegations"

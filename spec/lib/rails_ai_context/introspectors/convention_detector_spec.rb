@@ -27,5 +27,59 @@ RSpec.describe RailsAiContext::Introspectors::ConventionDetector do
     it "returns config_files as an array" do
       expect(result[:config_files]).to be_an(Array)
     end
+
+    it "returns custom_directories as an array" do
+      expect(result[:custom_directories]).to be_an(Array)
+    end
+
+    context "with SolidQueue gem present" do
+      let(:gemfile_lock) { File.join(Rails.root, "Gemfile.lock") }
+
+      before do
+        File.write(gemfile_lock, <<~LOCK)
+          GEM
+            remote: https://rubygems.org/
+            specs:
+              solid_queue (1.0.0)
+        LOCK
+      end
+
+      after { FileUtils.rm_f(gemfile_lock) }
+
+      it "detects solid_queue in architecture" do
+        expect(result[:architecture]).to include("solid_queue")
+      end
+    end
+
+    context "with dry-rb gems present" do
+      let(:gemfile_lock) { File.join(Rails.root, "Gemfile.lock") }
+
+      before do
+        File.write(gemfile_lock, <<~LOCK)
+          GEM
+            remote: https://rubygems.org/
+            specs:
+              dry-validation (1.10.0)
+              dry-monads (1.6.0)
+        LOCK
+      end
+
+      after { FileUtils.rm_f(gemfile_lock) }
+
+      it "detects dry_rb in architecture" do
+        expect(result[:architecture]).to include("dry_rb")
+      end
+    end
+
+    context "with custom app directories" do
+      let(:custom_dir) { File.join(Rails.root, "app/services") }
+
+      before { FileUtils.mkdir_p(custom_dir) }
+      after { FileUtils.rm_rf(custom_dir) }
+
+      it "detects non-standard directories under app/" do
+        expect(result[:custom_directories]).to include("services")
+      end
+    end
   end
 end

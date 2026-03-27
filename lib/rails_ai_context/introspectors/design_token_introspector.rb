@@ -39,7 +39,10 @@ module RailsAiContext
         {
           framework: detect_framework(root),
           tokens: tokens,
-          categorized: categorize_tokens(tokens)
+          categorized: categorize_tokens(tokens),
+          font_loading: extract_font_loading(root),
+          css_layers: extract_css_layers(root),
+          postcss_plugins: extract_postcss_plugins(root)
         }
       rescue => e
         { error: e.message }
@@ -258,6 +261,72 @@ module RailsAiContext
             end
           end
         end
+      end
+
+      def extract_font_loading(root)
+        result = { font_face: 0, google_fonts: false, system_fonts: false }
+
+        # Scan CSS/SCSS files for @font-face
+        css_dirs = %w[app/assets/stylesheets app/assets/builds app/assets/tailwind]
+        css_dirs.each do |dir|
+          Dir.glob(File.join(root, dir, "**", "*.{css,scss,sass}")).each do |path|
+            content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
+            result[:font_face] += content.scan(/@font-face/).size
+            result[:google_fonts] = true if content.include?("fonts.googleapis.com")
+            result[:system_fonts] = true if content.match?(/system-ui|-apple-system/)
+          end
+        end
+
+        # Scan view files for Google Fonts links and system font references
+        views_dir = File.join(root, "app/views")
+        if Dir.exist?(views_dir)
+          Dir.glob(File.join(views_dir, "**", "*.{erb,haml,slim}")).each do |path|
+            content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
+            result[:google_fonts] = true if content.include?("fonts.googleapis.com")
+            result[:system_fonts] = true if content.match?(/system-ui|-apple-system/)
+          end
+        end
+
+        result
+      rescue
+        { font_face: 0, google_fonts: false, system_fonts: false }
+      end
+
+      def extract_css_layers(root)
+        layers = []
+        css_dirs = %w[app/assets/stylesheets app/assets/builds app/assets/tailwind]
+        css_dirs.each do |dir|
+          Dir.glob(File.join(root, dir, "**", "*.{css,scss}")).each do |path|
+            content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
+            content.scan(/@layer\s+([\w-]+)/).each do |match|
+              layers << match[0]
+            end
+          end
+        end
+        layers.uniq
+      rescue
+        []
+      end
+
+      def extract_postcss_plugins(root)
+        plugins = []
+        %w[postcss.config.js postcss.config.mjs postcss.config.cjs].each do |filename|
+          path = File.join(root, filename)
+          next unless File.exist?(path)
+
+          content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
+          # Match plugin names in various PostCSS config formats:
+          # require('plugin-name'), 'plugin-name': {}, "plugin-name", plugins: [require('name')]
+          content.scan(/require\s*\(\s*["']([^"']+)["']\)/).each { |m| plugins << m[0] }
+          content.scan(%r{["']([\w@/\-]+)["']\s*:}).each { |m| plugins << m[0] }
+          # Also match array-style: plugins: ['autoprefixer', 'postcss-import']
+          content.scan(/plugins\s*:\s*\[([^\]]+)\]/m).each do |match|
+            match[0].scan(%r{["']([\w@/\-]+)["']}).each { |m| plugins << m[0] }
+          end
+        end
+        plugins.uniq
+      rescue
+        []
       end
 
       # Helper: extract :root { --var: value } from CSS content

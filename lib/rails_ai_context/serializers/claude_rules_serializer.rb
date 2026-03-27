@@ -29,7 +29,9 @@ module RailsAiContext
           "rails-schema.md" => render_schema_reference,
           "rails-models.md" => render_models_reference,
           "rails-ui-patterns.md" => render_ui_patterns_reference,
-          "rails-mcp-tools.md" => render_mcp_tools_reference
+          "rails-mcp-tools.md" => render_mcp_tools_reference,
+          "rails-components.md" => render_components_reference,
+          "rails-accessibility.md" => render_accessibility_reference
         }
 
         files.each do |filename, content|
@@ -290,6 +292,66 @@ module RailsAiContext
             lines << names.join(", ")
           end
         end
+
+        lines.join("\n")
+      end
+
+      def render_components_reference
+        comp = context[:components]
+        return nil unless comp.is_a?(Hash) && !comp[:error]
+        components = comp[:components] || []
+        return nil if components.empty?
+
+        lines = [
+          "# Components (#{components.size})",
+          "",
+          "ViewComponent and Phlex components available for reuse.",
+          "Use `rails_get_component_catalog(component:\"Name\")` for full details.",
+          ""
+        ]
+
+        components.each do |c|
+          slots = (c[:slots] || []).map { |s| s[:name] }
+          props = (c[:props] || []).map { |p| p[:default] ? "#{p[:name]}:#{p[:default]}" : p[:name] }
+          lines << "- **#{c[:name]}** (#{c[:type]})"
+          lines << "  props: #{props.join(', ')}" if props.any?
+          lines << "  slots: #{slots.join(', ')}" if slots.any?
+        end
+
+        lines.join("\n")
+      end
+
+      def render_accessibility_reference
+        a11y = context[:accessibility]
+        return nil unless a11y.is_a?(Hash) && !a11y[:error]
+        summary = a11y[:summary]
+        return nil unless summary
+
+        lines = [
+          "# Accessibility Patterns",
+          "",
+          "Score: **#{summary[:score_label]}** (#{summary[:accessibility_score]}/5)",
+          "Files scanned: #{summary[:files_scanned]}",
+          ""
+        ]
+
+        if a11y[:semantic_elements]&.any?
+          lines << "## Semantic HTML"
+          a11y[:semantic_elements].each { |el, count| lines << "- `<#{el}>`: #{count}" }
+          lines << ""
+        end
+
+        if a11y[:roles]&.any?
+          lines << "## ARIA Roles"
+          a11y[:roles].first(10).each { |role, count| lines << "- `role=\"#{role}\"`: #{count}" }
+          lines << ""
+        end
+
+        lines << "## Rules"
+        lines << "- All interactive elements MUST have aria-label or visible label"
+        lines << "- All images MUST have alt text (empty alt=\"\" for decorative)"
+        lines << "- Use semantic HTML elements (nav, main, article) over generic divs"
+        lines << "- Include sr-only text for icon-only buttons"
 
         lines.join("\n")
       end

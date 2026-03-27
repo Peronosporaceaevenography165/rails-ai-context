@@ -131,5 +131,136 @@ RSpec.describe RailsAiContext::Introspectors::DesignTokenIntrospector do
         expect(result[:tokens].values).to include("#e67e22")
       end
     end
+
+    describe "font_loading" do
+      it "detects @font-face declarations in CSS" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/fonts.css"), <<~CSS)
+            :root { --x: 1; }
+            @font-face { font-family: 'CustomFont'; src: url('custom.woff2'); }
+            @font-face { font-family: 'AnotherFont'; src: url('another.woff2'); }
+          CSS
+          result = described_class.new(make_app(dir)).call
+          expect(result[:font_loading][:font_face]).to eq(2)
+        end
+      end
+
+      it "detects Google Fonts links in views" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          FileUtils.mkdir_p(File.join(dir, "app/views/layouts"))
+          File.write(File.join(dir, "app/assets/stylesheets/app.css"), ":root { --x: 1; }")
+          File.write(File.join(dir, "app/views/layouts/application.html.erb"), <<~ERB)
+            <link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet">
+          ERB
+          result = described_class.new(make_app(dir)).call
+          expect(result[:font_loading][:google_fonts]).to be true
+        end
+      end
+
+      it "detects system font stacks in CSS" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/base.css"), <<~CSS)
+            :root { --font-sans: system-ui, -apple-system, sans-serif; }
+          CSS
+          result = described_class.new(make_app(dir)).call
+          expect(result[:font_loading][:system_fonts]).to be true
+        end
+      end
+
+      it "returns defaults when no font loading detected" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/app.css"), ":root { --x: 1; }")
+          result = described_class.new(make_app(dir)).call
+          expect(result[:font_loading]).to eq({ font_face: 0, google_fonts: false, system_fonts: false })
+        end
+      end
+    end
+
+    describe "css_layers" do
+      it "extracts @layer declarations from CSS files" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/layers.css"), <<~CSS)
+            :root { --x: 1; }
+            @layer base { body { margin: 0; } }
+            @layer components { .btn { padding: 8px; } }
+            @layer utilities { .hidden { display: none; } }
+          CSS
+          result = described_class.new(make_app(dir)).call
+          expect(result[:css_layers]).to contain_exactly("base", "components", "utilities")
+        end
+      end
+
+      it "returns empty array when no layers found" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/app.css"), ":root { --x: 1; }")
+          result = described_class.new(make_app(dir)).call
+          expect(result[:css_layers]).to eq([])
+        end
+      end
+
+      it "deduplicates layer names" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/layers.css"), <<~CSS)
+            :root { --x: 1; }
+            @layer base { body { margin: 0; } }
+            @layer base { html { box-sizing: border-box; } }
+          CSS
+          result = described_class.new(make_app(dir)).call
+          expect(result[:css_layers]).to eq([ "base" ])
+        end
+      end
+    end
+
+    describe "postcss_plugins" do
+      it "extracts plugins from postcss.config.js with require syntax" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/app.css"), ":root { --x: 1; }")
+          File.write(File.join(dir, "postcss.config.js"), <<~JS)
+            module.exports = {
+              plugins: [
+                require('autoprefixer'),
+                require('postcss-import'),
+              ]
+            }
+          JS
+          result = described_class.new(make_app(dir)).call
+          expect(result[:postcss_plugins]).to include("autoprefixer", "postcss-import")
+        end
+      end
+
+      it "extracts plugins from object-style postcss config" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/app.css"), ":root { --x: 1; }")
+          File.write(File.join(dir, "postcss.config.js"), <<~JS)
+            module.exports = {
+              plugins: {
+                'tailwindcss': {},
+                'autoprefixer': {},
+              }
+            }
+          JS
+          result = described_class.new(make_app(dir)).call
+          expect(result[:postcss_plugins]).to include("tailwindcss", "autoprefixer")
+        end
+      end
+
+      it "returns empty array when no postcss config exists" do
+        Dir.mktmpdir do |dir|
+          FileUtils.mkdir_p(File.join(dir, "app/assets/stylesheets"))
+          File.write(File.join(dir, "app/assets/stylesheets/app.css"), ":root { --x: 1; }")
+          result = described_class.new(make_app(dir)).call
+          expect(result[:postcss_plugins]).to eq([])
+        end
+      end
+    end
   end
 end

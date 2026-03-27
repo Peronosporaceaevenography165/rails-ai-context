@@ -24,8 +24,10 @@ RSpec.describe RailsAiContext::Introspectors::TestIntrospector do
       expect(result[:test_helpers]).to be_an(Array)
     end
 
-    it "returns nil for factories when none exist" do
-      expect(result[:factories]).to be_nil
+    it "detects factories when they exist" do
+      expect(result[:factories]).to be_a(Hash)
+      expect(result[:factories][:location]).to eq("spec/factories")
+      expect(result[:factories][:count]).to be >= 2
     end
 
     it "returns nil for fixtures when none exist" do
@@ -45,12 +47,8 @@ RSpec.describe RailsAiContext::Introspectors::TestIntrospector do
     end
 
     context "with a spec directory" do
-      let(:spec_dir) { File.join(Rails.root, "spec") }
-
-      before { FileUtils.mkdir_p(spec_dir) }
-      after { FileUtils.rm_rf(spec_dir) }
-
       it "detects rspec framework" do
+        # spec/factories/ exists as permanent fixture, so spec/ dir is always present
         expect(result[:framework]).to eq("rspec")
       end
     end
@@ -70,19 +68,11 @@ RSpec.describe RailsAiContext::Introspectors::TestIntrospector do
     end
 
     context "with factories" do
-      let(:factories_dir) { File.join(Rails.root, "spec/factories") }
-
-      before do
-        FileUtils.mkdir_p(factories_dir)
-        File.write(File.join(factories_dir, "users.rb"), "FactoryBot.define {}")
-      end
-
-      after { FileUtils.rm_rf(File.join(Rails.root, "spec")) }
-
       it "detects factories with location and count" do
+        # Permanent factory fixtures exist in spec/factories/
         expect(result[:factories]).to be_a(Hash)
         expect(result[:factories][:location]).to eq("spec/factories")
-        expect(result[:factories][:count]).to eq(1)
+        expect(result[:factories][:count]).to be >= 2
       end
     end
 
@@ -90,8 +80,8 @@ RSpec.describe RailsAiContext::Introspectors::TestIntrospector do
       expect(result[:fixture_names]).to be_nil
     end
 
-    it "returns factory_names as nil when no factories exist" do
-      expect(result[:factory_names]).to be_nil
+    it "extracts factory names from existing factories" do
+      expect(result[:factory_names]).to be_a(Hash)
     end
 
     it "returns test_helper_setup as array" do
@@ -119,27 +109,36 @@ RSpec.describe RailsAiContext::Introspectors::TestIntrospector do
     end
 
     context "with factory files containing factory definitions" do
-      let(:factories_dir) { File.join(Rails.root, "spec/factories") }
+      it "extracts factory names from permanent factory files" do
+        # Permanent factory fixtures exist in spec/factories/
+        expect(result[:factory_names]).to be_a(Hash)
+        expect(result[:factory_names]["spec/factories/users.rb"]).to include("user")
+      end
+    end
+
+    it "returns factory_traits from existing factory files" do
+      # Permanent factory fixtures have traits defined
+      expect(result[:factory_traits]).to be_a(Hash)
+      expect(result[:factory_traits]["users.rb"]).to include("admin", "active", "inactive")
+    end
+
+    it "returns test_count_by_category as hash" do
+      expect(result[:test_count_by_category]).to be_a(Hash)
+    end
+
+    context "with test files in categorized directories" do
+      let(:models_spec_dir) { File.join(Rails.root, "spec/models") }
 
       before do
-        FileUtils.mkdir_p(factories_dir)
-        File.write(File.join(factories_dir, "users.rb"), <<~RUBY)
-          FactoryBot.define do
-            factory :user do
-              name { "Alice" }
-            end
-            factory :admin_user do
-              name { "Admin" }
-            end
-          end
-        RUBY
+        FileUtils.mkdir_p(models_spec_dir)
+        File.write(File.join(models_spec_dir, "user_spec.rb"), "# test")
+        File.write(File.join(models_spec_dir, "post_spec.rb"), "# test")
       end
 
-      after { FileUtils.rm_rf(File.join(Rails.root, "spec")) }
+      after { FileUtils.rm_rf(models_spec_dir) }
 
-      it "extracts factory names from ruby files" do
-        expect(result[:factory_names]).to be_a(Hash)
-        expect(result[:factory_names]["spec/factories/users.rb"]).to include("user", "admin_user")
+      it "counts test files by category" do
+        expect(result[:test_count_by_category]["models"]).to eq(2)
       end
     end
   end

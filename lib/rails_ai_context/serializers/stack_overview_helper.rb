@@ -76,6 +76,27 @@ module RailsAiContext
           lines << "- Databases: #{multi_db[:databases].size} (#{db_names.first(3).join(', ')})"
         end
 
+        components = ctx[:components]
+        if components.is_a?(Hash) && !components[:error] && components.dig(:summary, :total).to_i > 0
+          summary = components[:summary]
+          parts = [ "#{summary[:total]} components" ]
+          parts << "#{summary[:view_component]} ViewComponent" if summary[:view_component].to_i > 0
+          parts << "#{summary[:phlex]} Phlex" if summary[:phlex].to_i > 0
+          lines << "- Components: #{parts.join(', ')}"
+        end
+
+        a11y = ctx[:accessibility]
+        if a11y.is_a?(Hash) && !a11y[:error] && a11y[:summary]
+          score = a11y.dig(:summary, :score_label)
+          lines << "- Accessibility: #{score}" if score
+        end
+
+        perf = ctx[:performance]
+        if perf.is_a?(Hash) && !perf[:error] && perf[:summary]
+          total = perf.dig(:summary, :total_issues).to_i
+          lines << "- Performance: #{total} issues detected" if total > 0
+        end
+
         lines
       end
     end

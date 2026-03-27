@@ -17,6 +17,7 @@ module RailsAiContext
         "pundit"          => { category: :auth, note: "Authorization via Pundit policies in app/policies/." },
         "cancancan"       => { category: :auth, note: "Authorization via CanCanCan abilities." },
         "rodauth-rails"   => { category: :auth, note: "Authentication via Rodauth." },
+        "authentication-zero" => { category: :auth, note: "Zero-dependency authentication generator for Rails." },
         "doorkeeper"      => { category: :auth, note: "OAuth 2 provider via Doorkeeper." },
         "jwt"             => { category: :auth, note: "JWT token handling." },
 
@@ -28,6 +29,7 @@ module RailsAiContext
         "resque"          => { category: :jobs, note: "Background jobs via Resque (Redis-backed)." },
         "sneakers"        => { category: :jobs, note: "Background jobs via Sneakers (RabbitMQ)." },
         "shoryuken"       => { category: :jobs, note: "Background jobs via Shoryuken (AWS SQS)." },
+        "mission_control-jobs" => { category: :jobs, note: "Job dashboard for SolidQueue/Resque/etc." },
 
         # Frontend
         "turbo-rails"     => { category: :frontend, note: "Hotwire Turbo for SPA-like navigation. Check Turbo Streams and Frames." },
@@ -38,6 +40,10 @@ module RailsAiContext
         "tailwindcss-rails" => { category: :frontend, note: "Tailwind CSS integration." },
         "react-rails"     => { category: :frontend, note: "React components in Rails views." },
         "inertia_rails"   => { category: :frontend, note: "Inertia.js for SPA with Rails backend." },
+        "propshaft"       => { category: :frontend, note: "Asset pipeline via Propshaft (Rails 8 default)." },
+        "phlex-rails"     => { category: :frontend, note: "Phlex view components (Ruby-first HTML)." },
+        "view_component"  => { category: :frontend, note: "ViewComponent for encapsulated view components." },
+        "lookbook"        => { category: :frontend, note: "UI component preview and documentation via Lookbook." },
 
         # API
         "grape"           => { category: :api, note: "API framework via Grape. Check app/api/." },
@@ -46,13 +52,16 @@ module RailsAiContext
         "jbuilder"        => { category: :api, note: "JSON views via Jbuilder templates." },
         "alba"            => { category: :api, note: "Fast JSON serialization via Alba." },
         "blueprinter"     => { category: :api, note: "JSON serialization via Blueprinter." },
+        "oj"              => { category: :api, note: "Optimized JSON parser/generator." },
         "fast_jsonapi"    => { category: :api, note: "Fast JSON:API serialization (Netflix)." },
 
         # Database
         "pg"              => { category: :database, note: "PostgreSQL adapter." },
         "mysql2"          => { category: :database, note: "MySQL adapter." },
         "sqlite3"         => { category: :database, note: "SQLite adapter." },
+        "litestack"       => { category: :database, note: "All-in-one SQLite-based backend (cache, jobs, cable, search)." },
         "redis"           => { category: :database, note: "Redis client. Used for caching/sessions/Action Cable." },
+        "kredis"          => { category: :database, note: "Higher-level Redis data structures via Kredis." },
         "solid_cache"     => { category: :database, note: "Database-backed cache (Rails 8)." },
         "solid_cable"     => { category: :database, note: "Database-backed Action Cable (Rails 8)." },
 
@@ -73,6 +82,7 @@ module RailsAiContext
 
         # Deployment
         "kamal"           => { category: :deploy, note: "Deployment via Kamal. Check config/deploy.yml." },
+        "thruster"        => { category: :deploy, note: "HTTP/2 proxy for Rails via Thruster (Kamal companion)." },
         "capistrano"      => { category: :deploy, note: "Deployment via Capistrano. Check config/deploy/." },
 
         # Monitoring
@@ -87,6 +97,8 @@ module RailsAiContext
         "administrate"    => { category: :admin, note: "Admin dashboard via Administrate." },
         "avo"             => { category: :admin, note: "Admin panel via Avo." },
         "trestle"         => { category: :admin, note: "Admin framework via Trestle." },
+        "motor-admin"     => { category: :admin, note: "Low-code admin panel via Motor Admin." },
+        "madmin"          => { category: :admin, note: "Minimal admin interface via Madmin." },
 
         # Pagination
         "pagy"            => { category: :pagination, note: "Fast pagination via Pagy." },
@@ -102,6 +114,20 @@ module RailsAiContext
         # Forms
         "simple_form"     => { category: :forms, note: "Form builder via SimpleForm." },
         "cocoon"          => { category: :forms, note: "Nested form support via Cocoon." },
+
+        # Server
+        "puma"            => { category: :server, note: "Puma web server (Rails default)." },
+        "falcon"          => { category: :server, note: "Falcon async web server." },
+        "anycable"        => { category: :server, note: "AnyCable for high-performance WebSockets." },
+
+        # Notifications
+        "noticed"         => { category: :notifications, note: "Notification system via Noticed." },
+
+        # Validation / dry-rb
+        "dry-validation"  => { category: :validation, note: "Dry::Validation for complex validation schemas." },
+        "dry-types"       => { category: :validation, note: "Dry::Types for type coercion and constraints." },
+        "dry-struct"      => { category: :validation, note: "Dry::Struct for typed value objects." },
+        "dry-monads"      => { category: :validation, note: "Dry::Monads for monadic error handling (Result, Maybe)." },
 
         # Utilities
         "nokogiri"        => { category: :utilities, note: "HTML/XML parsing via Nokogiri." },

@@ -53,6 +53,14 @@ module RailsAiContext
           app_patterns.each { |section| lines << section }
         end
 
+        # Custom directories
+        if conventions[:custom_directories]&.any?
+          lines << "" << "## Custom Directories"
+          conventions[:custom_directories].each do |dir, desc|
+            lines << "- `#{dir}/` — #{desc}"
+          end
+        end
+
         # Config files — only show non-obvious ones (skip files every Rails app has)
         if conventions[:config_files]&.any?
           obvious = %w[
@@ -64,6 +72,17 @@ module RailsAiContext
             lines << "" << "## Notable config files"
             notable.each { |f| lines << "- `#{f}`" }
           end
+        end
+
+        # Convention Fingerprint — one-paragraph summary of the app's detected conventions
+        fingerprint_parts = []
+        fingerprint_parts << conventions[:architecture].map { |a| humanize_arch(a) }.join(", ") if conventions[:architecture]&.any?
+        fingerprint_parts << conventions[:patterns].map { |p| humanize_pattern(p) }.join(", ") if conventions[:patterns]&.any?
+        top_dirs = conventions[:directory_structure]&.sort_by { |_, v| -v }&.first(5)&.map { |k, _| k }
+        fingerprint_parts << "key dirs: #{top_dirs.join(', ')}" if top_dirs&.any?
+        if fingerprint_parts.any?
+          lines << "" << "## Convention Fingerprint"
+          lines << "This app uses #{fingerprint_parts.join('; ')}."
         end
 
         text_response(lines.join("\n"))

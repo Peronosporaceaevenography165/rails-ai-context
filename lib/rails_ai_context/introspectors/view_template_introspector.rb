@@ -121,7 +121,10 @@ module RailsAiContext
           interactive_states: extract_interactive_states(all_content),
           dark_mode: extract_dark_mode_patterns(all_content),
           icons: extract_icon_system(all_content),
-          animations: extract_animations(all_content)
+          animations: extract_animations(all_content),
+          form_builders: extract_form_builders(all_content),
+          semantic_html: extract_semantic_html(all_content),
+          accessibility_patterns: extract_accessibility_patterns(all_content)
         }
       end
 
@@ -545,6 +548,41 @@ module RailsAiContext
         animations[:easing] = eases.sort_by { |_, c| -c }.first(3).to_h unless eases.empty?
 
         animations.empty? ? nil : animations
+      end
+
+      def extract_form_builders(content)
+        builders = {}
+        builders[:form_with] = content.scan(/\bform_with\b/).size
+        builders[:form_for] = content.scan(/\bform_for\b/).size
+        builders[:simple_form_for] = content.scan(/\bsimple_form_for\b/).size
+        builders[:formtastic] = content.scan(/\bsemantic_form_for\b/).size
+        builders.reject { |_, v| v == 0 }
+      rescue
+        {}
+      end
+
+      def extract_semantic_html(content)
+        tags = {}
+        %w[nav main article section aside dialog details].each do |tag|
+          count = content.scan(/<#{tag}[\s>]/i).size
+          tags[tag.to_sym] = count if count > 0
+        end
+        tags
+      rescue
+        {}
+      end
+
+      def extract_accessibility_patterns(content)
+        patterns = {}
+        aria_count = content.scan(/aria-\w+/).size
+        patterns[:aria_attributes] = aria_count if aria_count > 0
+        role_count = content.scan(/role=["'][^"']+["']/).size
+        patterns[:roles] = role_count if role_count > 0
+        sr_only_count = content.scan(/\bsr-only\b/).size
+        patterns[:sr_only] = sr_only_count if sr_only_count > 0
+        patterns
+      rescue
+        {}
       end
 
       # Analyzes individual templates to find canonical examples of common page types.

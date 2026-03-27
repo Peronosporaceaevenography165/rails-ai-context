@@ -154,6 +154,9 @@ module RailsAiContext
                   lines << "- Filters: #{info[:filters].map { |f| "#{f[:kind]} #{f[:name]}" }.join(', ')}"
                 end
                 lines << "- Strong params: #{info[:strong_params].join(', ')}" if info[:strong_params]&.any?
+                lines << "- Rescue from: #{info[:rescue_from].join(', ')}" if info[:rescue_from]&.any?
+                lines << "- Rate limit: #{info[:rate_limit]}" if info[:rate_limit]
+                lines << "- Turbo Stream actions: #{info[:turbo_stream_actions].join(', ')}" if info[:turbo_stream_actions]&.any?
                 lines << ""
               end
             end
@@ -473,6 +476,21 @@ module RailsAiContext
         if info[:strong_params]&.any?
           lines << "" << "## Strong Params"
           lines << info[:strong_params].map { |p| "- `#{p}`" }.join("\n")
+        end
+
+        # Rescue handlers
+        if info[:rescue_from]&.any?
+          lines << "" << "## Rescue Handlers"
+          info[:rescue_from].each { |r| lines << "- `rescue_from` #{r}" }
+        end
+
+        # Rate limiting
+        lines << "" << "**Rate limit:** #{info[:rate_limit]}" if info[:rate_limit]
+
+        # Turbo Stream actions
+        if info[:turbo_stream_actions]&.any?
+          lines << "" << "## Turbo Stream Actions"
+          info[:turbo_stream_actions].each { |a| lines << "- `#{a}`" }
         end
 
         # Cross-reference hints

@@ -40,7 +40,7 @@ rails ai:context
 This creates:
 1. `config/initializers/rails_ai_context.rb` — configuration file
 2. `.mcp.json` — MCP auto-discovery for Claude Code and Cursor
-3. 25 context files — tailored for each AI assistant
+3. 29 context files — tailored for each AI assistant
 
 ### Existing project
 
@@ -124,7 +124,7 @@ end
 
 ## Generated Files
 
-`rails ai:context` generates **25 files** across all AI assistants:
+`rails ai:context` generates **29 files** across all AI assistants:
 
 ### Claude Code (6 files)
 
@@ -184,7 +184,7 @@ Commit **all files except `.ai-context.json`** (which is gitignored). This gives
 
 | Command | Mode | Format | Description |
 |---------|------|--------|-------------|
-| `rails ai:context` | compact | all | Generate all 25 context files |
+| `rails ai:context` | compact | all | Generate all 29 context files |
 | `rails ai:context:full` | full | all | Generate all files in full mode |
 | `rails ai:context:claude` | compact | Claude | CLAUDE.md + .claude/rules/ |
 | `rails ai:context:opencode` | compact | OpenCode | AGENTS.md + per-directory AGENTS.md |
@@ -252,7 +252,7 @@ rails ai:context:claude           # Use this instead (no quoting needed)
 
 ## CLI Tools
 
-All 25 MCP tools can be run directly from the terminal — no MCP server or AI client needed.
+All 29 MCP tools can be run directly from the terminal — no MCP server or AI client needed.
 
 ### Rake
 
@@ -316,7 +316,7 @@ The `tool_mode` is selected during `rails generate rails_ai_context:install`.
 
 ## MCP Tools — Full Reference
 
-All 25 tools are **read-only** and **idempotent** — they never modify your application or database.
+All 29 tools are **read-only** and **idempotent** — they never modify your application or database.
 
 ### rails_get_schema
 
@@ -996,7 +996,7 @@ All tools that support `detail` use these three levels. Default limits vary by t
 | Level | What it returns | Schema default limit | Best for |
 |-------|----------------|---------------------|----------|
 | `summary` | Names + counts | 50 | Getting the landscape, understanding what exists |
-| `standard` | Names + key details | 25 | Working context, column types, action names |
+| `standard` | Names + key details | 29 | Working context, column types, action names |
 | `full` | Everything | 10 | Deep inspection, indexes, FKs, constraints |
 
 Other tools default to higher limits (e.g. models/controllers/stimulus: 50 for all levels, routes: 100/200).
@@ -1117,7 +1117,7 @@ RailsAiContext.configure do |config|
 end
 ```
 
-Both transports are **read-only** — they expose the same 25 tools and never modify your app.
+Both transports are **read-only** — they expose the same 29 tools and never modify your app.
 
 ---
 
@@ -1128,7 +1128,7 @@ Both transports are **read-only** — they expose the same 25 tools and never mo
 RailsAiContext.configure do |config|
   # --- Introspectors ---
 
-  # Presets: :full (28 introspectors, default) or :standard (13 core)
+  # Presets: :full (31 introspectors, default) or :standard (14 core)
   config.preset = :full
 
   # Cherry-pick on top of a preset
@@ -1300,7 +1300,7 @@ All split rules include an app overview file, so no context is lost when root fi
 
 ## Introspectors — Full List
 
-### Standard preset (13 introspectors)
+### Standard preset (14 introspectors)
 
 Core Rails structure only. Use `config.preset = :standard` for a lighter footprint.
 
@@ -1319,8 +1319,9 @@ Core Rails structure only. Use `config.preset = :standard` for a lighter footpri
 | `stimulus` | Stimulus controllers with targets, values (with types), actions, outlets, classes. Extracted from JS/TS files. |
 | `view_templates` | View file contents, partial references, Stimulus data attributes, UI pattern extraction, model field usage in partials. |
 | `design_tokens` | Auto-detects CSS framework (Tailwind v3/v4, Bootstrap, Sass, plain CSS) and extracts design tokens from config files and built CSS. |
+| `components` | ViewComponent/Phlex components: props, slots, previews, sidecar assets, usage examples. |
 
-### Full preset (28 introspectors) — default
+### Full preset (31 introspectors) — default
 
 Includes all standard introspectors plus:
 
@@ -1341,6 +1342,8 @@ Includes all standard introspectors plus:
 | `middleware` | Custom Rack middleware in app/middleware/ with detected patterns (auth, rate limiting, tenant isolation, logging). Full middleware stack. |
 | `engines` | Mounted Rails engines from routes.rb with paths and descriptions for 23+ known engines (Sidekiq::Web, Flipper::UI, PgHero, ActiveAdmin, etc.). |
 | `multi_database` | Multiple databases, replicas, sharding config, model-specific `connects_to` declarations. database.yml parsing fallback. |
+| `accessibility` | ARIA attributes, semantic HTML elements, screen reader text, alt text coverage, landmark roles, accessibility score. |
+| `performance` | N+1 query risks, missing counter_cache, missing FK indexes, Model.all anti-patterns, eager load candidates. |
 | `database_stats` | PostgreSQL approximate row counts via `pg_stat_user_tables`. **Opt-in only** — not in any preset, add manually: `config.introspectors += [:database_stats]`. |
 
 ### Using the standard preset
@@ -1432,11 +1435,11 @@ OpenCode uses **per-directory lazy-loading**: when the agent reads a file, it wa
 
 | Setup | Coverage | Notes |
 |-------|----------|-------|
-| Rails full-stack (ERB + Hotwire) | 29/29 | All introspectors relevant |
-| Rails + Inertia.js (React/Vue) | ~22/29 | Views/Turbo partially useful, backend fully covered |
-| Rails API + React/Next.js SPA | ~20/29 | Schema, models, routes, API, auth, jobs — all covered |
-| Rails API + mobile app | ~20/29 | Same as SPA — backend introspection is identical |
-| Rails engine (mountable gem) | ~15/29 | Core introspectors (schema, models, routes, gems) work |
+| Rails full-stack (ERB + Hotwire) | 32/32 | All introspectors relevant |
+| Rails + Inertia.js (React/Vue) | ~25/32 | Views/Turbo partially useful, backend fully covered |
+| Rails API + React/Next.js SPA | ~23/32 | Schema, models, routes, API, auth, jobs — all covered |
+| Rails API + mobile app | ~23/32 | Same as SPA — backend introspection is identical |
+| Rails engine (mountable gem) | ~18/32 | Core introspectors (schema, models, routes, gems) work |
 
 Frontend introspectors (views, Turbo, Stimulus, assets) degrade gracefully — they report nothing when those features aren't present.
 

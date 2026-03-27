@@ -9,14 +9,14 @@
 
 **Works with:** Claude Code &bull; Cursor &bull; GitHub Copilot &bull; OpenCode &bull; Any terminal
 
-> Built by a Rails developer with 10+ years of production experience. AI assisted — the same way it assists me shipping features at work. I designed the architecture, made every decision, reviewed every line, and wrote 681 tests. This gem exists because I understand Rails deeply enough to know exactly what AI agents get wrong and what context they need to get it right.
+> Built by a Rails developer with 10+ years of production experience. AI assisted — the same way it assists me shipping features at work. I designed the architecture, made every decision, reviewed every line, and wrote 806 tests. This gem exists because I understand Rails deeply enough to know exactly what AI agents get wrong and what context they need to get it right.
 
 ```bash
 gem "rails-ai-context", group: :development
 rails generate rails_ai_context:install
 ```
 
-That's it. Your AI now has 25 tools that understand your entire Rails app — via MCP server or CLI. Zero config.
+That's it. Your AI now has 29 tools that understand your entire Rails app — via MCP server or CLI. Zero config.
 
 > **[Full Guide →](docs/GUIDE.md)** — every command, every parameter, every configuration option.
 
@@ -46,7 +46,7 @@ rails 'ai:tool[schema]' table=users
 rails 'ai:tool[analyze_feature]' feature=billing
 ```
 
-Same 25 tools. Same output. AI agents run these as shell commands. **Works in any terminal, any AI tool, any workflow.** No MCP client required.
+Same 29 tools. Same output. AI agents run these as shell commands. **Works in any terminal, any AI tool, any workflow.** No MCP client required.
 
 ---
 
@@ -170,7 +170,7 @@ Tested on a real Rails 8 app (5 models, 19 controllers, 95 routes):
 
 ---
 
-## 25 Tools
+## 29 Tools
 
 Every tool is **read-only** and returns structured, token-efficient data.
 
@@ -209,6 +209,11 @@ Every tool is **read-only** and returns structured, token-efficient data.
 | **Services & Jobs** | | | |
 | `get_service_pattern` | `rails_get_service_pattern` | `rails 'ai:tool[service_pattern]'` | Interface, dependencies, side effects, callers |
 | `get_job_pattern` | `rails_get_job_pattern` | `rails 'ai:tool[job_pattern]'` | Queue, retries, guard clauses, broadcasts, schedules |
+| **Components & Quality** | | | |
+| `get_component_catalog` | `rails_get_component_catalog` | `rails 'ai:tool[component_catalog]'` | ViewComponent/Phlex: props, slots, previews, sidecar assets, usage |
+| `performance_check` | `rails_performance_check` | `rails 'ai:tool[performance_check]'` | N+1 risks, missing indexes, counter_cache, eager load candidates |
+| `dependency_graph` | `rails_dependency_graph` | `rails 'ai:tool[dependency_graph]'` | Model/service dependency graph in Mermaid or text format |
+| `migration_advisor` | `rails_migration_advisor` | `rails 'ai:tool[migration_advisor]'` | Migration code generation with reversibility + affected models |
 
 > **[Full parameter docs →](docs/GUIDE.md)**
 
@@ -221,7 +226,7 @@ Every tool is **read-only** and returns structured, token-efficient data.
 │  Your Rails App                                          │
 │  models + schema + routes + controllers + views + jobs   │
 └────────────────────────┬────────────────────────────────┘
-                         │ introspects (29 introspectors)
+                         │ introspects (32 introspectors)
                          ▼
 ┌─────────────────────────────────────────────────────────┐
 │  rails-ai-context                                        │
@@ -231,7 +236,7 @@ Every tool is **read-only** and returns structured, token-efficient data.
          ▼                  ▼              ▼
 ┌──────────────────┐ ┌────────────┐ ┌────────────────────┐
 │  Static Files     │ │  MCP Server │ │  CLI Tools          │
-│  CLAUDE.md        │ │  25 tools   │ │  Same 25 tools      │
+│  CLAUDE.md        │ │  29 tools   │ │  Same 29 tools      │
 │  .cursor/rules/   │ │  stdio/HTTP │ │  No server needed   │
 │  .github/instr... │ │  .mcp.json  │ │  rails 'ai:tool[X]' │
 └──────────────────┘ └────────────┘ └────────────────────┘
@@ -267,7 +272,7 @@ MCP auto-discovery: `.mcp.json` is detected automatically by Claude Code and Cur
 | Command | What it does |
 |---------|-------------|
 | `rails ai:context` | Generate context files for your AI tools |
-| `rails 'ai:tool[NAME]'` | Run any of the 25 tools from the CLI |
+| `rails 'ai:tool[NAME]'` | Run any of the 29 tools from the CLI |
 | `rails ai:tool` | List all available tools with short names |
 | `rails ai:serve` | Start MCP server (stdio) |
 | `rails ai:doctor` | Diagnostics + AI readiness score |
@@ -287,7 +292,7 @@ RailsAiContext.configure do |config|
   # Tool mode: :mcp (default, MCP + CLI fallback) or :cli (CLI only)
   # config.tool_mode = :mcp
 
-  # Presets: :full (28 introspectors, default) or :standard (13 core)
+  # Presets: :full (31 introspectors, default) or :standard (14 core)
   # config.preset = :full
 
   # Exclude models from introspection
@@ -305,7 +310,7 @@ end
 |--------|---------|-------------|
 | **Presets & Introspectors** | | |
 | `preset` | `:full` | Introspector preset (`:full` or `:standard`) |
-| `introspectors` | 28 (full) | Array of introspector symbols |
+| `introspectors` | 31 (full) | Array of introspector symbols |
 | **Context Generation** | | |
 | `context_mode` | `:compact` | `:compact` (≤150 lines) or `:full` (dump everything) |
 | `claude_max_lines` | `150` | Max lines for CLAUDE.md in compact mode |
@@ -340,7 +345,7 @@ end
 ```bash
 git clone https://github.com/crisnahine/rails-ai-context.git
 cd rails-ai-context && bundle install
-bundle exec rspec       # 681 examples
+bundle exec rspec       # 806 examples
 bundle exec rubocop     # Lint
 ```
 

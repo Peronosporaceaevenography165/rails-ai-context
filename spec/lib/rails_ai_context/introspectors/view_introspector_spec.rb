@@ -68,23 +68,38 @@ RSpec.describe RailsAiContext::Introspectors::ViewIntrospector do
       expect(result[:template_engines]).to include("erb")
     end
 
-    it "returns view_components as empty when no components dir" do
-      expect(result[:view_components]).to eq([])
+    it "discovers view components from app/components" do
+      expect(result[:view_components]).to include("alert_component", "card_component")
     end
 
-    context "with view components" do
-      let(:components_dir) { File.join(Rails.root, "app/components") }
+    it "detects form builders used in views" do
+      expect(result[:form_builders_detected]).to be_a(Hash)
+      expect(result[:form_builders_detected]["form_with"]).to be >= 1
+    end
+
+    it "returns component_usage as array" do
+      expect(result[:component_usage]).to be_an(Array)
+    end
+
+    it "returns layout_mapping as array" do
+      expect(result[:layout_mapping]).to be_an(Array)
+      expect(result[:layout_mapping]).to include("application")
+    end
+
+    context "with component render calls in views" do
+      let(:fixture_view) { File.join(Rails.root, "app/views/posts/components_test.html.erb") }
 
       before do
-        FileUtils.mkdir_p(components_dir)
-        File.write(File.join(components_dir, "alert_component.rb"), "class AlertComponent; end")
-        File.write(File.join(components_dir, "badge_component.rb"), "class BadgeComponent; end")
+        File.write(fixture_view, <<~ERB)
+          <%= render AlertComponent.new(message: "Hello") %>
+          <%= render CardComponent.new(title: "World") %>
+        ERB
       end
 
-      after { FileUtils.rm_rf(components_dir) }
+      after { FileUtils.rm_f(fixture_view) }
 
-      it "discovers view components" do
-        expect(result[:view_components]).to contain_exactly("alert_component", "badge_component")
+      it "detects component usage from render calls" do
+        expect(result[:component_usage]).to include("AlertComponent", "CardComponent")
       end
     end
   end

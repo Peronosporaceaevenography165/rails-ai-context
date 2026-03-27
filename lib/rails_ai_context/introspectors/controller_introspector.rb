@@ -92,7 +92,10 @@ module RailsAiContext
           filters: extract_filters_from_source(source),
           concerns: extract_concerns_from_source(source),
           strong_params: extract_strong_params(source),
-          respond_to_formats: extract_respond_to(source)
+          respond_to_formats: extract_respond_to(source),
+          rescue_from: extract_rescue_from(source),
+          rate_limit: extract_rate_limit(source),
+          turbo_stream_actions: extract_turbo_stream_actions(source)
         }.compact
       rescue => e
         { error: e.message }
@@ -108,7 +111,10 @@ module RailsAiContext
           filters: extract_filters(ctrl, source),
           concerns: extract_concerns(ctrl),
           strong_params: extract_strong_params(source),
-          respond_to_formats: extract_respond_to(source)
+          respond_to_formats: extract_respond_to(source),
+          rescue_from: extract_rescue_from(source),
+          rate_limit: extract_rate_limit(source),
+          turbo_stream_actions: extract_turbo_stream_actions(source)
         }.compact
       end
 
@@ -316,6 +322,55 @@ module RailsAiContext
         return [] unless source.match?(/respond_to\s+do/)
 
         source.scan(/format\.(\w+)/).flatten.uniq.sort
+      end
+
+      def extract_rescue_from(source)
+        return [] if source.nil?
+
+        source.each_line.filter_map do |line|
+          next unless (match = line.match(/\A\s*rescue_from\s+(.+)/))
+          rest = match[1]
+          # Extract exception class(es) and handler
+          exception_part = rest.split(/,\s*with:/).first&.strip
+          handler_match = rest.match(/with:\s*:(\w+[?!]?)/)
+          handler = handler_match ? handler_match[1] : nil
+
+          exceptions = exception_part&.scan(/([A-Z][\w:]+)/)&.flatten || []
+          exceptions.map { |ex| { exception: ex, handler: handler }.compact }
+        end.flatten
+      rescue
+        []
+      end
+
+      def extract_rate_limit(source)
+        return nil if source.nil?
+
+        match = source.match(/^\s*rate_limit\s+(.+)$/)
+        return nil unless match
+
+        match[1].strip
+      rescue
+        nil
+      end
+
+      def extract_turbo_stream_actions(source)
+        return [] if source.nil?
+        return [] unless source.match?(/format\.turbo_stream|\.turbo_stream\.erb/)
+
+        actions = []
+        current_action = nil
+        source.each_line do |line|
+          if (action_match = line.match(/\A\s*def\s+(\w+)/))
+            current_action = action_match[1]
+          end
+          if current_action && line.match?(/format\.turbo_stream/)
+            actions << current_action
+            current_action = nil # avoid duplicates within same action
+          end
+        end
+        actions.uniq.sort
+      rescue
+        []
       end
 
       def read_source(ctrl)

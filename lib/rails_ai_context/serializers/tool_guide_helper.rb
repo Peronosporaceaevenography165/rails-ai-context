@@ -24,20 +24,20 @@ module RailsAiContext
       end
 
       def tools_header
-        "## Tools (25) — MANDATORY, Use Before Read"
+        "## Tools (29) — MANDATORY, Use Before Read"
       end
 
       def tools_intro
         case tool_mode
         when :cli
           [
-            "This project has 25 introspection tools. **MANDATORY — use these instead of reading files.**",
+            "This project has 29 introspection tools. **MANDATORY — use these instead of reading files.**",
             "They return only relevant, structured data and save tokens. Read files ONLY when you are about to Edit them.",
             ""
           ]
         else
           [
-            "This project has 25 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
+            "This project has 29 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
             "**MANDATORY — use these instead of reading files.** They return structured data and save tokens.",
             "Read files ONLY when you are about to Edit them.",
             "If MCP tools are not connected, use CLI fallback: `#{cli_cmd("TOOL_NAME", "param=value")}`",
@@ -60,6 +60,7 @@ module RailsAiContext
           "**Add a field or modify a model:**",
           tool_call("rails_get_schema(table:\"cooks\")", cli_cmd("schema", "table=cooks")),
           tool_call("rails_get_model_details(model:\"Cook\")", cli_cmd("model_details", "model=Cook")),
+          tool_call("rails_migration_advisor(action:\"add_column\", table:\"cooks\", column:\"rating\", type:\"integer\")", cli_cmd("migration_advisor", "action=add_column table=cooks column=rating type=integer")),
           "",
           "**Fix a controller bug:**",
           tool_call("rails_get_controllers(controller:\"CooksController\", action:\"create\")", cli_cmd("controllers", "controller=CooksController action=create")),
@@ -68,6 +69,7 @@ module RailsAiContext
           tool_call("rails_get_design_system(detail:\"standard\")", cli_cmd("design_system", "detail=standard")),
           tool_call("rails_get_view(controller:\"cooks\")", cli_cmd("view", "controller=cooks")),
           tool_call("rails_get_partial_interface(partial:\"shared/status_badge\")", cli_cmd("partial_interface", "partial=shared/status_badge")),
+          tool_call("rails_get_component_catalog(component:\"Alert\")", cli_cmd("component_catalog", "component=Alert")),
           "",
           "**Write tests:**",
           tool_call("rails_get_test_info(detail:\"standard\")", cli_cmd("test_info", "detail=standard")),
@@ -76,6 +78,12 @@ module RailsAiContext
           "**Find code:**",
           tool_call("rails_search_code(pattern:\"has_many\")", cli_cmd("search_code", "pattern=\"has_many\"")),
           tool_call("rails_search_code(pattern:\"create\", match_type:\"definition\")", cli_cmd("search_code", "pattern=create match_type=definition")),
+          "",
+          "**Check performance:**",
+          tool_call("rails_performance_check(model:\"Cook\")", cli_cmd("performance_check", "model=Cook")),
+          "",
+          "**Understand dependencies:**",
+          tool_call("rails_dependency_graph(model:\"Cook\", format:\"mermaid\")", cli_cmd("dependency_graph", "model=Cook format=mermaid")),
           "",
           "**After editing (EVERY time):**",
           tool_call("rails_validate(files:[\"app/models/cook.rb\"], level:\"rails\")", cli_cmd("validate", "files=app/models/cook.rb level=rails")),
@@ -112,7 +120,7 @@ module RailsAiContext
       end
 
       def tools_table # rubocop:disable Metrics/MethodLength
-        lines = [ "### All 25 Tools", "" ]
+        lines = [ "### All 29 Tools", "" ]
 
         if tool_mode == :cli
           lines.concat(tools_table_cli)
@@ -152,7 +160,11 @@ module RailsAiContext
           "| `rails_get_config` | `#{cli_cmd("config")}` | Database adapter, auth, assets, cache, queue, Action Cable |",
           "| `rails_get_gems` | `#{cli_cmd("gems")}` | Notable gems with versions, categories, config file locations |",
           "| `rails_get_conventions` | `#{cli_cmd("conventions")}` | App patterns: auth checks, flash messages, test patterns |",
-          "| `rails_security_scan` | `#{cli_cmd("security_scan")}` | Brakeman static analysis: SQL injection, XSS, mass assignment |"
+          "| `rails_security_scan` | `#{cli_cmd("security_scan")}` | Brakeman static analysis: SQL injection, XSS, mass assignment |",
+          "| `rails_get_component_catalog(component:\"X\")` | `#{cli_cmd("component_catalog", "component=X")}` | ViewComponent/Phlex: props, slots, previews, usage |",
+          "| `rails_performance_check(model:\"X\")` | `#{cli_cmd("performance_check", "model=X")}` | N+1 risks, missing indexes, Model.all anti-patterns |",
+          "| `rails_dependency_graph(model:\"X\")` | `#{cli_cmd("dependency_graph", "model=X")}` | Model association graph as Mermaid diagram |",
+          "| `rails_migration_advisor(action:\"X\", table:\"Y\")` | `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |"
         ]
       end
 
@@ -185,7 +197,11 @@ module RailsAiContext
           "| `#{cli_cmd("config")}` | Database adapter, auth, assets, cache, queue, Action Cable |",
           "| `#{cli_cmd("gems")}` | Notable gems with versions, categories, config file locations |",
           "| `#{cli_cmd("conventions")}` | App patterns: auth checks, flash messages, test patterns |",
-          "| `#{cli_cmd("security_scan")}` | Brakeman static analysis: SQL injection, XSS, mass assignment |"
+          "| `#{cli_cmd("security_scan")}` | Brakeman static analysis: SQL injection, XSS, mass assignment |",
+          "| `#{cli_cmd("component_catalog", "component=X")}` | ViewComponent/Phlex: props, slots, previews, usage |",
+          "| `#{cli_cmd("performance_check", "model=X")}` | N+1 risks, missing indexes, Model.all anti-patterns |",
+          "| `#{cli_cmd("dependency_graph", "model=X")}` | Model association graph as Mermaid diagram |",
+          "| `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |"
         ]
       end
 

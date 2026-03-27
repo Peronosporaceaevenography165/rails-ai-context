@@ -98,12 +98,29 @@ module RailsAiContext
             lines << "## #{ctrl[:name]}"
             lines << "- Targets: #{(ctrl[:targets] || []).join(', ')}" if ctrl[:targets]&.any?
             lines << "- Actions: #{(ctrl[:actions] || []).join(', ')}" if ctrl[:actions]&.any?
+            if ctrl[:complexity].is_a?(Hash)
+              parts = []
+              parts << "#{ctrl[:complexity][:loc]} LOC" if ctrl[:complexity][:loc]
+              parts << "#{ctrl[:complexity][:method_count]} methods" if ctrl[:complexity][:method_count]
+              lines << "- Complexity: #{parts.join(', ')}" if parts.any?
+            end
+            lines << "- Imports: #{ctrl[:import_graph].join(', ')}" if ctrl[:import_graph]&.any?
+            lines << "- Turbo events: #{ctrl[:turbo_event_listeners].join(', ')}" if ctrl[:turbo_event_listeners]&.any?
             lines << ""
           end
           if empty.any?
             names = empty.map { |c| c[:name] }.join(", ")
             lines << "_Lifecycle only (no targets/actions): #{names}_"
           end
+
+          # Cross-controller composition
+          if data[:cross_controller_composition]&.any?
+            lines << "" << "## Cross-Controller Composition"
+            data[:cross_controller_composition].first(10).each do |comp|
+              lines << "- #{comp}"
+            end
+          end
+
           lines << pagination_hint unless pagination_hint.empty?
           text_response(lines.join("\n"))
 
@@ -113,6 +130,16 @@ module RailsAiContext
           controllers.each do |ctrl|
             lines << format_controller_full(ctrl) << ""
           end
+
+          # Cross-controller composition
+          if data[:cross_controller_composition]&.any?
+            lines << "## Cross-Controller Composition"
+            data[:cross_controller_composition].first(10).each do |comp|
+              lines << "- #{comp}"
+            end
+            lines << ""
+          end
+
           text_response(lines.join("\n"))
 
         else
@@ -127,6 +154,20 @@ module RailsAiContext
         lines << "- **Values:** #{ctrl[:values].map { |k, v| "#{k}:#{v}" }.join(', ')}" if ctrl[:values]&.any?
         lines << "- **Outlets:** #{ctrl[:outlets].join(', ')}" if ctrl[:outlets]&.any?
         lines << "- **Classes:** #{ctrl[:classes].join(', ')}" if ctrl[:classes]&.any?
+
+        # Complexity metrics
+        if ctrl[:complexity].is_a?(Hash)
+          parts = []
+          parts << "#{ctrl[:complexity][:loc]} LOC" if ctrl[:complexity][:loc]
+          parts << "#{ctrl[:complexity][:method_count]} methods" if ctrl[:complexity][:method_count]
+          lines << "- **Complexity:** #{parts.join(', ')}" if parts.any?
+        end
+
+        # Import graph
+        lines << "- **Imports:** #{ctrl[:import_graph].join(', ')}" if ctrl[:import_graph]&.any?
+
+        # Turbo event listeners
+        lines << "- **Turbo events:** #{ctrl[:turbo_event_listeners].join(', ')}" if ctrl[:turbo_event_listeners]&.any?
 
         # Detect lifecycle methods from source
         lifecycle = detect_lifecycle(ctrl[:file])

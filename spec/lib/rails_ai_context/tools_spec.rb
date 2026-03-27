@@ -28,7 +28,7 @@ RSpec.describe "MCP Tool Integration" do
     let(:server) { RailsAiContext::Server.new(Rails.application).build }
 
     it "builds with all tools registered" do
-      expect(server.tools.size).to eq(25)
+      expect(server.tools.size).to eq(29)
       expect(server.tools.keys).to contain_exactly(
         "rails_get_schema",
         "rails_get_routes",
@@ -54,7 +54,11 @@ RSpec.describe "MCP Tool Integration" do
         "rails_get_env",
         "rails_get_partial_interface",
         "rails_get_turbo_map",
-        "rails_get_context"
+        "rails_get_context",
+        "rails_get_component_catalog",
+        "rails_performance_check",
+        "rails_dependency_graph",
+        "rails_migration_advisor"
       )
     end
 
@@ -94,7 +98,7 @@ RSpec.describe "MCP Tool Integration" do
       server = RailsAiContext::Server.new(Rails.application).build
 
       expect(server.tools.keys).to include("my_custom_tool")
-      expect(server.tools.size).to eq(26)
+      expect(server.tools.size).to eq(30)
     ensure
       RailsAiContext.configuration.custom_tools = []
     end
@@ -102,7 +106,7 @@ RSpec.describe "MCP Tool Integration" do
     it "defaults to no custom tools" do
       server = RailsAiContext::Server.new(Rails.application).build
 
-      expect(server.tools.size).to eq(25)
+      expect(server.tools.size).to eq(29)
     end
   end
 
@@ -116,13 +120,13 @@ RSpec.describe "MCP Tool Integration" do
 
       expect(server.tools.keys).not_to include("rails_security_scan")
       expect(server.tools.keys).not_to include("rails_get_design_system")
-      expect(server.tools.size).to eq(23)
+      expect(server.tools.size).to eq(27)
     end
 
     it "defaults to no skipped tools" do
       server = RailsAiContext::Server.new(Rails.application).build
 
-      expect(server.tools.size).to eq(25)
+      expect(server.tools.size).to eq(29)
     end
   end
 

@@ -253,6 +253,32 @@ module RailsAiContext
           end
         end
 
+        # Check constraints (full detail)
+        if data[:check_constraints]&.any?
+          lines << "" << "### Check Constraints"
+          data[:check_constraints].each do |cc|
+            label = cc[:name] ? "`#{cc[:name]}`" : ""
+            lines << "- #{label} #{cc[:expression]}"
+          end
+        end
+
+        # Enum types (full detail)
+        if data[:enum_types]&.any?
+          lines << "" << "### Enum Types"
+          data[:enum_types].each do |et|
+            values = et[:values]&.join(", ") || ""
+            lines << "- `#{et[:name]}`: #{values}"
+          end
+        end
+
+        # Generated columns (full detail)
+        if data[:generated_columns]&.any?
+          lines << "" << "### Generated Columns"
+          data[:generated_columns].each do |gc|
+            lines << "- `#{gc[:name]}` — #{gc[:expression]}"
+          end
+        end
+
         lines.join("\n")
       end
 

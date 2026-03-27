@@ -15,7 +15,8 @@ module RailsAiContext
         {
           authentication: detect_authentication,
           authorization: detect_authorization,
-          security: detect_security
+          security: detect_security,
+          devise_modules_per_model: detect_devise_modules_per_model
         }
       rescue => e
         { error: e.message }
@@ -79,6 +80,30 @@ module RailsAiContext
         security[:csp] = true if File.exist?(csp_init)
 
         security
+      end
+
+      def detect_devise_modules_per_model
+        models_dir = File.join(root, "app/models")
+        return {} unless Dir.exist?(models_dir)
+
+        result = {}
+        Dir.glob(File.join(models_dir, "**/*.rb")).each do |path|
+          content = File.read(path) rescue next
+          next unless content.match?(/\bdevise\b/)
+
+          model_name = File.basename(path, ".rb").camelize
+          # Extract devise modules, handling multiline declarations with trailing commas
+          # Join continuation lines (lines starting with whitespace + colon after a line ending with comma)
+          devise_block = content.scan(/devise\s+((?:.*,\s*\n)*.*?)$/m).flatten.first
+          next unless devise_block
+
+          modules = devise_block.scan(/:(\w+)/).flatten
+          result[model_name] = modules if modules.any?
+        end
+
+        result
+      rescue
+        {}
       end
 
       def scan_models_for(pattern)

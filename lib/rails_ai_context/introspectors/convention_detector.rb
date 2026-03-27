@@ -17,7 +17,8 @@ module RailsAiContext
           architecture: detect_architecture,
           patterns: detect_patterns,
           directory_structure: scan_directory_structure,
-          config_files: detect_config_files
+          config_files: detect_config_files,
+          custom_directories: detect_custom_directories
         }
       end
 
@@ -51,7 +52,13 @@ module RailsAiContext
         arch << "docker" if file_exists?("Dockerfile") || file_exists?("docker-compose.yml")
         arch << "kamal" if file_exists?("config/deploy.yml")
         arch << "ci_github_actions" if dir_exists?(".github/workflows")
-        arch
+        arch << "solid_queue" if gem_present?("solid_queue")
+        arch << "solid_cache" if gem_present?("solid_cache")
+        arch << "solid_cable" if gem_present?("solid_cable")
+        %w[dry-validation dry-types dry-struct dry-monads].each do |gem|
+          arch << "dry_rb" if gem_present?(gem)
+        end
+        arch.uniq
       end
 
       def detect_patterns
@@ -61,7 +68,7 @@ module RailsAiContext
         model_dir = File.join(root, "app/models")
         if Dir.exist?(model_dir)
           model_files = Dir.glob(File.join(model_dir, "**/*.rb"))
-          content = model_files.first(50).map { |f| File.read(f) rescue "" }.join("\n")
+          content = model_files.first(500).map { |f| File.read(f) rescue "" }.join("\n")
 
           patterns << "sti" if content.match?(/self\.inheritance_column|type.*string/)
           patterns << "polymorphic" if content.match?(/polymorphic:\s*true/)
@@ -124,6 +131,23 @@ module RailsAiContext
         ]
 
         configs.select { |f| file_exists?(f) }
+      end
+
+      STANDARD_APP_DIRS = %w[
+        models controllers views helpers jobs mailers channels components
+        assets javascript
+      ].to_set.freeze
+
+      def detect_custom_directories
+        app_dir = File.join(root, "app")
+        return [] unless Dir.exist?(app_dir)
+
+        Dir.children(app_dir)
+          .select { |d| File.directory?(File.join(app_dir, d)) }
+          .reject { |d| STANDARD_APP_DIRS.include?(d) }
+          .sort
+      rescue
+        []
       end
 
       def dir_exists?(relative_path)

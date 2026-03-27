@@ -15,11 +15,16 @@ module RailsAiContext
       def call
         return static_schema_parse unless active_record_connected?
 
+        schema_content = File.exist?(schema_file_path) ? File.read(schema_file_path) : ""
+
         {
           adapter: adapter_name,
           tables: extract_tables,
           total_tables: table_names.size,
-          schema_version: current_schema_version
+          schema_version: current_schema_version,
+          check_constraints: parse_check_constraints(schema_content),
+          enum_types: parse_enum_types(schema_content),
+          generated_columns: parse_generated_columns(schema_content)
         }
       end
 
@@ -224,6 +229,9 @@ module RailsAiContext
           adapter: "static_parse",
           tables: tables,
           total_tables: tables.size,
+          check_constraints: parse_check_constraints(content),
+          enum_types: parse_enum_types(content),
+          generated_columns: parse_generated_columns(content),
           note: "Parsed from db/schema.rb (no DB connection)"
         }
       end
@@ -279,6 +287,86 @@ module RailsAiContext
           end
         end
         columns
+      end
+
+      # Parse check constraints from schema.rb content
+      # Matches t.check_constraint "expression" and add_check_constraint "table", "expression"
+      def parse_check_constraints(content)
+        return [] if content.nil? || content.empty?
+
+        constraints = []
+        current_table = nil
+
+        content.each_line do |line|
+          if (table_match = line.match(/create_table\s+"(\w+)"/))
+            current_table = table_match[1]
+          elsif line.match?(/\A\s*end\b/) && current_table
+            current_table = nil
+          end
+
+          # t.check_constraint "expression", name: "..."
+          if current_table && (match = line.match(/t\.check_constraint\s+"([^"]+)"/))
+            constraints << { table: current_table, expression: match[1] }
+          end
+
+          # add_check_constraint "table", "expression"
+          if (match = line.match(/add_check_constraint\s+"(\w+)",\s+"([^"]+)"/))
+            constraints << { table: match[1], expression: match[2] }
+          end
+        end
+
+        constraints
+      rescue
+        []
+      end
+
+      # Parse create_enum statements from schema.rb
+      # Matches create_enum "name", ["value1", "value2"]
+      def parse_enum_types(content)
+        return [] if content.nil? || content.empty?
+
+        enums = []
+        content.each_line do |line|
+          if (match = line.match(/create_enum\s+"(\w+)",\s*\[([^\]]+)\]/))
+            name = match[1]
+            values = match[2].scan(/"([^"]+)"/).flatten
+            enums << { name: name, values: values }
+          end
+        end
+
+        enums
+      rescue
+        []
+      end
+
+      # Parse generated/virtual columns from schema.rb
+      # Detects virtual: true or stored: true column options
+      def parse_generated_columns(content)
+        return [] if content.nil? || content.empty?
+
+        columns = []
+        current_table = nil
+
+        content.each_line do |line|
+          if (table_match = line.match(/create_table\s+"(\w+)"/))
+            current_table = table_match[1]
+          elsif line.match?(/\A\s*end\b/) && current_table
+            current_table = nil
+          end
+
+          next unless current_table
+
+          if line.match?(/virtual:\s*true/) || line.match?(/stored:\s*true/)
+            col_match = line.match(/t\.\w+\s+"(\w+)"/)
+            next unless col_match
+            stored = line.match?(/stored:\s*true/)
+            columns << { table: current_table, column: col_match[1], stored: stored }
+          end
+        end
+
+        columns
+      rescue
+        []
       end
 
       def normalize_sql_type(type)

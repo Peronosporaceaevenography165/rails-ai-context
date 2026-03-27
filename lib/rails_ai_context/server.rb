@@ -33,7 +33,11 @@ module RailsAiContext
       Tools::GetEnv,
       Tools::GetPartialInterface,
       Tools::GetTurboMap,
-      Tools::GetContext
+      Tools::GetContext,
+      Tools::GetComponentCatalog,
+      Tools::PerformanceCheck,
+      Tools::DependencyGraph,
+      Tools::MigrationAdvisor
     ].freeze
 
     def initialize(app, transport: :stdio)

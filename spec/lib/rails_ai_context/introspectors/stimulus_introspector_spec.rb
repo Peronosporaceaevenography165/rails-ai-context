@@ -6,147 +6,128 @@ RSpec.describe RailsAiContext::Introspectors::StimulusIntrospector do
   let(:introspector) { described_class.new(Rails.application) }
 
   describe "#call" do
-    context "when no Stimulus controllers directory exists" do
-      it "returns empty controllers array" do
+    context "with permanent Stimulus controller fixtures" do
+      it "discovers all controllers" do
         result = introspector.call
-        expect(result[:controllers]).to eq([])
-      end
-    end
-
-    context "with Stimulus controllers" do
-      let(:controllers_dir) { File.join(Rails.root, "app/javascript/controllers") }
-
-      before do
-        FileUtils.mkdir_p(controllers_dir)
-        File.write(File.join(controllers_dir, "hello_controller.js"), <<~JS)
-          import { Controller } from "@hotwired/stimulus"
-
-          export default class extends Controller {
-            static targets = ["name", "output"]
-            static values = { greeting: String, count: Number }
-            static outlets = ["search", "results"]
-            static classes = ["active", "loading"]
-
-            greet() {
-              this.outputTarget.textContent = `${this.greetingValue}, ${this.nameTarget.value}!`
-            }
-
-            reset() {
-              this.nameTarget.value = ""
-            }
-          }
-        JS
+        names = result[:controllers].map { |c| c[:name] }
+        expect(names).to include("hello", "search", "tabs")
       end
 
-      after do
-        FileUtils.rm_rf(File.join(Rails.root, "app/javascript"))
-      end
-
-      it "discovers controllers" do
+      it "extracts targets from hello controller" do
         result = introspector.call
-        expect(result[:controllers].size).to eq(1)
-        expect(result[:controllers].first[:name]).to eq("hello")
-        expect(result[:controllers].first[:file]).to eq("hello_controller.js")
+        hello = result[:controllers].find { |c| c[:name] == "hello" }
+        expect(hello[:targets]).to contain_exactly("output", "input", "counter")
       end
 
-      it "extracts targets" do
+      it "extracts complex values with defaults" do
         result = introspector.call
-        expect(result[:controllers].first[:targets]).to contain_exactly("name", "output")
-      end
-
-      it "extracts values with types" do
-        result = introspector.call
-        expect(result[:controllers].first[:values]).to eq("greeting" => "String", "count" => "Number")
+        hello = result[:controllers].find { |c| c[:name] == "hello" }
+        expect(hello[:values]["greeting"]).to include("String")
+        expect(hello[:values]["greeting"]).to include("Hello")
+        expect(hello[:values]["count"]).to eq("Number")
       end
 
       it "extracts actions" do
         result = introspector.call
-        expect(result[:controllers].first[:actions]).to include("greet", "reset")
+        hello = result[:controllers].find { |c| c[:name] == "hello" }
+        expect(hello[:actions]).to include("greet", "clear", "toggle")
       end
 
       it "extracts outlets" do
         result = introspector.call
-        expect(result[:controllers].first[:outlets]).to contain_exactly("search", "results")
+        hello = result[:controllers].find { |c| c[:name] == "hello" }
+        expect(hello[:outlets]).to contain_exactly("search", "results")
       end
 
       it "extracts classes" do
         result = introspector.call
-        expect(result[:controllers].first[:classes]).to contain_exactly("active", "loading")
-      end
-    end
-
-    context "with complex nested values on a single line" do
-      let(:controllers_dir) { File.join(Rails.root, "app/javascript/controllers") }
-
-      before do
-        FileUtils.mkdir_p(controllers_dir)
-        File.write(File.join(controllers_dir, "tabs_controller.js"), <<~JS)
-          import { Controller } from "@hotwired/stimulus"
-
-          export default class extends Controller {
-            static values = { active: { type: String, default: "overview" }, count: Number, visible: { type: Boolean, default: true } }
-
-            switch(event) {
-              this.activeValue = event.target.dataset.tab
-            }
-          }
-        JS
-      end
-
-      after do
-        FileUtils.rm_rf(File.join(Rails.root, "app/javascript"))
-      end
-
-      it "extracts complex values with defaults from single-line definition" do
-        result = introspector.call
-        values = result[:controllers].first[:values]
-        expect(values["active"]).to include("String")
-        expect(values["active"]).to include("overview")
-        expect(values["count"]).to eq("Number")
-        expect(values["visible"]).to include("Boolean")
-        expect(values["visible"]).to include("true")
-      end
-    end
-
-    context "with a controller containing async methods and control flow" do
-      let(:controllers_dir) { File.join(Rails.root, "app/javascript/controllers") }
-
-      before do
-        FileUtils.mkdir_p(controllers_dir)
-        File.write(File.join(controllers_dir, "search_controller.js"), <<~JS)
-          import { Controller } from "@hotwired/stimulus"
-
-          export default class extends Controller {
-            static targets = ["query"]
-
-            async search() {
-              const response = await fetch("/search")
-              if (response.ok) {
-                this.render(await response.json())
-              }
-            }
-
-            render(data) {
-              this.queryTarget.value = data.query
-            }
-          }
-        JS
-      end
-
-      after do
-        FileUtils.rm_rf(File.join(Rails.root, "app/javascript"))
+        hello = result[:controllers].find { |c| c[:name] == "hello" }
+        expect(hello[:classes]).to contain_exactly("active", "hidden")
       end
 
       it "extracts async methods as actions" do
         result = introspector.call
-        actions = result[:controllers].first[:actions]
-        expect(actions).to include("search", "render")
+        search = result[:controllers].find { |c| c[:name] == "search" }
+        expect(search[:actions]).to include("search", "clear")
       end
 
       it "does not include control flow keywords" do
         result = introspector.call
-        actions = result[:controllers].first[:actions]
-        expect(actions).not_to include("if", "for", "while")
+        search = result[:controllers].find { |c| c[:name] == "search" }
+        expect(search[:actions]).not_to include("if", "for", "while")
+      end
+
+      it "extracts outlets from search controller" do
+        result = introspector.call
+        search = result[:controllers].find { |c| c[:name] == "search" }
+        expect(search[:outlets]).to contain_exactly("filter-form", "results-list")
+      end
+
+      it "extracts values from tabs controller" do
+        result = introspector.call
+        tabs = result[:controllers].find { |c| c[:name] == "tabs" }
+        expect(tabs[:values]["activeIndex"]).to include("Number")
+      end
+
+      describe "import_graph" do
+        it "extracts imports from hello controller" do
+          result = introspector.call
+          hello = result[:controllers].find { |c| c[:name] == "hello" }
+          expect(hello[:import_graph]).to include("@hotwired/stimulus")
+        end
+
+        it "extracts multiple imports from search controller" do
+          result = introspector.call
+          search = result[:controllers].find { |c| c[:name] == "search" }
+          expect(search[:import_graph]).to include("@hotwired/stimulus", "lodash/debounce")
+        end
+      end
+
+      describe "complexity" do
+        it "returns loc and method_count for hello controller" do
+          result = introspector.call
+          hello = result[:controllers].find { |c| c[:name] == "hello" }
+          expect(hello[:complexity]).to be_a(Hash)
+          expect(hello[:complexity][:loc]).to be > 0
+          expect(hello[:complexity][:method_count]).to eq(4)
+        end
+
+        it "returns loc and method_count for search controller" do
+          result = introspector.call
+          search = result[:controllers].find { |c| c[:name] == "search" }
+          expect(search[:complexity][:method_count]).to eq(4)
+        end
+      end
+
+      describe "turbo_event_listeners" do
+        it "detects turbo event listeners in tabs controller" do
+          result = introspector.call
+          tabs = result[:controllers].find { |c| c[:name] == "tabs" }
+          expect(tabs[:turbo_event_listeners]).to include("turbo:before-fetch-request")
+        end
+
+        it "returns empty array for controllers without turbo events" do
+          result = introspector.call
+          hello = result[:controllers].find { |c| c[:name] == "hello" }
+          expect(hello[:turbo_event_listeners]).to eq([])
+        end
+      end
+
+      describe "cross_controller_composition" do
+        it "detects multi-controller elements in views" do
+          result = introspector.call
+          compositions = result[:cross_controller_composition]
+          expect(compositions).to be_an(Array)
+          multi = compositions.find { |c| c[:controllers].include?("search") && c[:controllers].include?("tabs") }
+          expect(multi).not_to be_nil
+        end
+
+        it "includes file path for multi-controller elements" do
+          result = introspector.call
+          compositions = result[:cross_controller_composition]
+          multi = compositions.find { |c| c[:controllers].size > 1 }
+          expect(multi[:file]).to be_a(String)
+        end
       end
     end
   end

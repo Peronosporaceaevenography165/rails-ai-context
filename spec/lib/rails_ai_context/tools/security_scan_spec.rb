@@ -133,10 +133,17 @@ RSpec.describe RailsAiContext::Tools::SecurityScan do
         expect(Brakeman).to have_received(:run).with(hash_including(min_confidence: 0))
       end
 
-      it "passes specific checks to Brakeman" do
-        described_class.call(checks: [ "CheckSQL", "CheckXSS" ])
+      it "passes specific checks to Brakeman with alias resolution" do
+        described_class.call(checks: [ "sql", "CheckXSS" ])
         expect(Brakeman).to have_received(:run).with(
-          hash_including(run_checks: Set.new([ "CheckSQL", "CheckXSS" ]))
+          hash_including(run_checks: Set.new([ "CheckSQL", "CheckCrossSiteScripting" ]))
+        )
+      end
+
+      it "passes through full Brakeman check names unchanged" do
+        described_class.call(checks: [ "CheckSQL" ])
+        expect(Brakeman).to have_received(:run).with(
+          hash_including(run_checks: Set.new([ "CheckSQL" ]))
         )
       end
 

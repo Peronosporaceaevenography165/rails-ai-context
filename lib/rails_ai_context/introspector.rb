@@ -76,6 +76,9 @@ module RailsAiContext
       when :middleware       then Introspectors::MiddlewareIntrospector.new(app)
       when :engines         then Introspectors::EngineIntrospector.new(app)
       when :multi_database  then Introspectors::MultiDatabaseIntrospector.new(app)
+      when :components      then Introspectors::ComponentIntrospector.new(app)
+      when :accessibility   then Introspectors::AccessibilityIntrospector.new(app)
+      when :performance     then Introspectors::PerformanceIntrospector.new(app)
       else
         raise ConfigurationError, "Unknown introspector: #{name}"
       end

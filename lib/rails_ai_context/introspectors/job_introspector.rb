@@ -13,8 +13,12 @@ module RailsAiContext
 
       # @return [Hash] async workers, mailers, and channels
       def call
+        jobs = extract_jobs
+        # Source parsing fallback when runtime reflection yields no results
+        jobs = extract_jobs_from_source if jobs.empty?
+
         {
-          jobs: extract_jobs,
+          jobs: jobs,
           mailers: extract_mailers,
           channels: extract_channels
         }
@@ -37,6 +41,44 @@ module RailsAiContext
             queue: queue.to_s,
             priority: job.priority
           }.compact
+        end.sort_by { |j| j[:name] }
+      rescue
+        []
+      end
+
+      def extract_jobs_from_source
+        jobs_dir = File.join(app.root, "app", "jobs")
+        return [] unless Dir.exist?(jobs_dir)
+
+        Dir.glob(File.join(jobs_dir, "**/*.rb")).filter_map do |path|
+          source = File.read(path) rescue next
+
+          # Extract class name
+          class_match = source.match(/class\s+(\S+)\s*</)
+          next unless class_match
+          name = class_match[1]
+          next if name == "ApplicationJob"
+
+          # Extract queue_as
+          queue_match = source.match(/queue_as\s+:(\w+)/)
+          queue = queue_match ? queue_match[1] : nil
+
+          # Extract retry_on declarations
+          retry_on = source.scan(/retry_on\s+(.+?)$/).map { |m| m[0].strip }
+
+          # Extract discard_on declarations
+          discard_on = source.scan(/discard_on\s+(.+?)$/).map { |m| m[0].strip }
+
+          # Extract perform method signature
+          perform_match = source.match(/def\s+perform\s*\(([^)]*)\)/)
+          perform_signature = perform_match ? perform_match[1].strip : nil
+
+          job = { name: name }
+          job[:queue] = queue if queue
+          job[:retry_on] = retry_on if retry_on.any?
+          job[:discard_on] = discard_on if discard_on.any?
+          job[:perform_signature] = perform_signature if perform_signature
+          job
         end.sort_by { |j| j[:name] }
       rescue
         []

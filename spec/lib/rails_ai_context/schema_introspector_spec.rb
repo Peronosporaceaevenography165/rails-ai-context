@@ -221,6 +221,96 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
       end
     end
 
+    context "with check_constraints in schema.rb" do
+      before do
+        allow(introspector).to receive(:active_record_connected?).and_return(false)
+
+        db_dir = File.join(fixture_path, "db")
+        FileUtils.mkdir_p(db_dir)
+        File.write(File.join(db_dir, "schema.rb"), <<~RUBY)
+          ActiveRecord::Schema[7.1].define(version: 2024_01_15_000000) do
+            create_table "orders" do |t|
+              t.integer "quantity"
+              t.check_constraint "quantity > 0", name: "quantity_positive"
+            end
+
+            add_check_constraint "users", "age >= 18", name: "age_check"
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_rf(File.join(fixture_path, "db")) }
+
+      it "parses check_constraints from schema.rb" do
+        result = introspector.call
+        expect(result[:check_constraints]).to be_an(Array)
+        expect(result[:check_constraints]).to include(a_hash_including(table: "orders", expression: "quantity > 0"))
+        expect(result[:check_constraints]).to include(a_hash_including(table: "users", expression: "age >= 18"))
+      end
+    end
+
+    context "with enum types in schema.rb" do
+      before do
+        allow(introspector).to receive(:active_record_connected?).and_return(false)
+
+        db_dir = File.join(fixture_path, "db")
+        FileUtils.mkdir_p(db_dir)
+        File.write(File.join(db_dir, "schema.rb"), <<~RUBY)
+          ActiveRecord::Schema[7.1].define(version: 2024_01_15_000000) do
+            create_enum "status", ["pending", "active", "archived"]
+
+            create_table "users" do |t|
+              t.string "email"
+            end
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_rf(File.join(fixture_path, "db")) }
+
+      it "parses enum types from schema.rb" do
+        result = introspector.call
+        expect(result[:enum_types]).to be_an(Array)
+        expect(result[:enum_types]).to include(a_hash_including(name: "status", values: [ "pending", "active", "archived" ]))
+      end
+    end
+
+    context "with generated columns in schema.rb" do
+      before do
+        allow(introspector).to receive(:active_record_connected?).and_return(false)
+
+        db_dir = File.join(fixture_path, "db")
+        FileUtils.mkdir_p(db_dir)
+        File.write(File.join(db_dir, "schema.rb"), <<~RUBY)
+          ActiveRecord::Schema[7.1].define(version: 2024_01_15_000000) do
+            create_table "products" do |t|
+              t.decimal "price"
+              t.decimal "tax"
+              t.virtual "total", type: :decimal, as: "price + tax", stored: true
+              t.virtual "display_name", type: :string, as: "name || ' ' || sku", virtual: true
+            end
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_rf(File.join(fixture_path, "db")) }
+
+      it "detects generated columns with stored flag" do
+        result = introspector.call
+        expect(result[:generated_columns]).to be_an(Array)
+        total_col = result[:generated_columns].find { |c| c[:column] == "total" }
+        expect(total_col).not_to be_nil
+        expect(total_col[:stored]).to be true
+      end
+
+      it "detects virtual columns" do
+        result = introspector.call
+        display_col = result[:generated_columns].find { |c| c[:column] == "display_name" }
+        expect(display_col).not_to be_nil
+        expect(display_col[:stored]).to be false
+      end
+    end
+
     context "schema version parsing" do
       before do
         allow(introspector).to receive(:active_record_connected?).and_return(true)

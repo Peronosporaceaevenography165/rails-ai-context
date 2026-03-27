@@ -80,6 +80,38 @@ module RailsAiContext
 
           # Design tokens
           lines.concat(render_tokens(dt))
+
+          # Font loading
+          if dt.is_a?(Hash) && dt[:font_loading].is_a?(Hash) && dt[:font_loading].any?
+            lines << "## Font Loading" << ""
+            dt[:font_loading].each { |key, val| lines << "- **#{key}:** #{val}" }
+            lines << ""
+          end
+        end
+
+        # ViewComponents
+        if cached_context[:components].is_a?(Hash) && !cached_context[:components][:error] && cached_context[:components][:components]&.any?
+          comp_data = cached_context[:components][:components]
+          lines << "## Components" << ""
+          comp_data.first(15).each do |c|
+            slots = c[:slots]&.size || 0
+            slot_info = slots > 0 ? " (#{slots} slots)" : ""
+            lines << "- **#{c[:name]}**#{slot_info}"
+          end
+          lines << ""
+        end
+
+        # Accessibility
+        if cached_context[:accessibility].is_a?(Hash) && !cached_context[:accessibility][:error]
+          a11y = cached_context[:accessibility]
+          if a11y[:score] || a11y[:aria_usage]&.any? || a11y[:landmarks]&.any?
+            lines << "## Accessibility" << ""
+            lines << "- **Score:** #{a11y[:score]}" if a11y[:score]
+            lines << "- **ARIA usage:** #{a11y[:aria_usage].first(5).join(', ')}" if a11y[:aria_usage]&.any?
+            lines << "- **Landmarks:** #{a11y[:landmarks].first(5).join(', ')}" if a11y[:landmarks]&.any?
+            lines << "- **Alt text coverage:** #{a11y[:alt_text_coverage]}" if a11y[:alt_text_coverage]
+            lines << ""
+          end
         end
 
         text_response(lines.join("\n"))

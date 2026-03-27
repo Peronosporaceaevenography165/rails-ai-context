@@ -13,13 +13,16 @@ module RailsAiContext
       def call
         root = app.root.to_s
         controllers_dir = File.join(root, "app/javascript/controllers")
-        return { controllers: [] } unless Dir.exist?(controllers_dir)
+        return { controllers: [], cross_controller_composition: [] } unless Dir.exist?(controllers_dir)
 
         controllers = Dir.glob(File.join(controllers_dir, "**/*_controller.{js,ts}")).sort.filter_map do |path|
           parse_controller(path, controllers_dir)
         end
 
-        { controllers: controllers }
+        {
+          controllers: controllers,
+          cross_controller_composition: extract_cross_controller_composition(root)
+        }
       rescue => e
         { error: e.message }
       end
@@ -38,7 +41,10 @@ module RailsAiContext
           values: extract_values(content),
           actions: extract_actions(content),
           outlets: extract_outlets(content),
-          classes: extract_classes(content)
+          classes: extract_classes(content),
+          import_graph: extract_import_graph(content),
+          complexity: extract_complexity(content),
+          turbo_event_listeners: extract_turbo_event_listeners(content)
         }
       rescue => e
         { name: File.basename(path), error: e.message }
@@ -109,6 +115,59 @@ module RailsAiContext
         return [] unless match
 
         match[1].scan(/["']([^"']+)["']/).flatten
+      end
+
+      def extract_import_graph(content)
+        imports = []
+        content.each_line do |line|
+          if (match = line.match(/import\s+.*?from\s+["']([^"']+)["']/))
+            imports << match[1]
+          elsif (match = line.match(/import\s+["']([^"']+)["']/))
+            imports << match[1]
+          end
+        end
+        imports
+      rescue
+        []
+      end
+
+      JS_KEYWORDS = %w[if else for while switch catch function].freeze
+
+      def extract_complexity(content)
+        loc = content.lines.count { |line| line.strip.length > 0 }
+        methods = content.scan(/^\s+(?:async\s+)?(\w+)\s*\([^)]*\)\s*\{/).flatten
+        method_count = methods.count { |m| !JS_KEYWORDS.include?(m) }
+        { loc: loc, method_count: method_count }
+      rescue
+        { loc: 0, method_count: 0 }
+      end
+
+      def extract_turbo_event_listeners(content)
+        events = content.scan(/["']turbo:([\w:-]+)["']/).flatten.uniq
+        events.map { |e| "turbo:#{e}" }
+      rescue
+        []
+      end
+
+      def extract_cross_controller_composition(root)
+        views_dir = File.join(root, "app/views")
+        return [] unless Dir.exist?(views_dir)
+
+        compositions = []
+        Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}")).each do |path|
+          content = File.read(path) rescue next
+          relative = path.sub("#{views_dir}/", "")
+
+          content.scan(/data-controller=["']([^"']+)["']/).each do |match|
+            controllers = match[0].split
+            next unless controllers.size > 1
+            compositions << { file: relative, controllers: controllers }
+          end
+        end
+
+        compositions.uniq
+      rescue
+        []
       end
     end
   end

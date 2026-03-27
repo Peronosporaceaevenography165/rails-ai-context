@@ -27,6 +27,50 @@ RSpec.describe RailsAiContext::Introspectors::TurboIntrospector do
       expect(result[:model_broadcasts]).to eq([])
     end
 
+    describe "morph_meta" do
+      it "detects turbo-refresh-method morph meta tag in layouts" do
+        expect(result[:morph_meta]).to be true
+      end
+    end
+
+    describe "permanent_elements" do
+      it "returns an array of elements with data-turbo-permanent" do
+        expect(result[:permanent_elements]).to be_an(Array)
+        expect(result[:permanent_elements].size).to be >= 2
+      end
+
+      it "extracts id from permanent elements" do
+        element_with_id = result[:permanent_elements].find { |e| e[:id] == "main-content" }
+        expect(element_with_id).not_to be_nil
+      end
+
+      it "includes permanent elements from view templates" do
+        show_element = result[:permanent_elements].find { |e| e[:file] == "posts/show.html.erb" }
+        expect(show_element).not_to be_nil
+      end
+    end
+
+    describe "turbo_drive_settings" do
+      it "returns a hash of turbo drive attribute counts" do
+        expect(result[:turbo_drive_settings]).to be_a(Hash)
+      end
+
+      it "counts data-turbo-action occurrences" do
+        expect(result[:turbo_drive_settings][:"data-turbo-action"]).to be >= 1
+      end
+    end
+
+    describe "turbo_stream_responses" do
+      it "returns an array of controller actions with turbo_stream responses" do
+        expect(result[:turbo_stream_responses]).to be_an(Array)
+      end
+
+      it "detects format.turbo_stream in PostsController#create" do
+        response = result[:turbo_stream_responses].find { |r| r[:controller] == "PostsController" && r[:action] == "create" }
+        expect(response).not_to be_nil
+      end
+    end
+
     context "with a model that uses broadcasts" do
       let(:fixture_model) { File.join(Rails.root, "app/models/message.rb") }
 

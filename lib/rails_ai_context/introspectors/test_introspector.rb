@@ -24,7 +24,9 @@ module RailsAiContext
           test_files: detect_test_files,
           vcr_cassettes: detect_vcr,
           ci_config: detect_ci,
-          coverage: detect_coverage
+          coverage: detect_coverage,
+          factory_traits: detect_factory_traits,
+          test_count_by_category: detect_test_count_by_category
         }
       rescue => e
         { error: e.message }
@@ -200,6 +202,40 @@ module RailsAiContext
         nil
       rescue
         nil
+      end
+
+      def detect_factory_traits
+        %w[spec/factories test/factories].each do |dir_rel|
+          dir = File.join(root, dir_rel)
+          next unless Dir.exist?(dir)
+
+          traits = {}
+          Dir.glob(File.join(dir, "**/*.rb")).each do |path|
+            file = File.basename(path)
+            content = File.read(path) rescue next
+            found_traits = content.scan(/\btrait\s+:(\w+)/).flatten
+            traits[file] = found_traits if found_traits.any?
+          end
+          return traits if traits.any?
+        end
+        nil
+      rescue
+        nil
+      end
+
+      def detect_test_count_by_category
+        counts = {}
+        %w[models controllers requests system services integration features helpers views jobs mailers channels].each do |cat|
+          %w[spec test].each do |base|
+            dir = File.join(root, base, cat)
+            next unless Dir.exist?(dir)
+            count = Dir.glob(File.join(dir, "**/*.rb")).size
+            counts[cat] = (counts[cat] || 0) + count if count > 0
+          end
+        end
+        counts
+      rescue
+        {}
       end
     end
   end

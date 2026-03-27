@@ -94,6 +94,10 @@ module RailsAiContext
         macros = extract_source_macros(model)
         details.merge!(macros)
 
+        # Detailed macro extractions (field + options)
+        detailed = extract_detailed_macros(model)
+        details.merge!(detailed)
+
         details.compact
       end
 
@@ -386,6 +390,59 @@ module RailsAiContext
 
         # Remove empty arrays
         macros.reject { |_, v| v.is_a?(Array) && v.empty? }
+      rescue
+        {}
+      end
+
+      def extract_detailed_macros(model)
+        path = model_source_path(model)
+        return {} unless path && File.exist?(path)
+
+        source = File.read(path)
+        macros = {}
+
+        # encryption_details: encrypts :field, deterministic: true, downcase: true
+        encryption = []
+        source.each_line do |line|
+          next unless line.match?(/\bencrypts\s+:/)
+          fields = line.scan(/:(\w+)/).flatten
+          opts_str = line.sub(/\bencrypts\s+/, "")
+          options = {}
+          options[:deterministic] = true if opts_str.match?(/deterministic:\s*true/)
+          options[:downcase] = true if opts_str.match?(/downcase:\s*true/)
+          fields.each do |field|
+            # Skip option keywords that look like fields
+            next if %w[deterministic downcase].include?(field)
+            encryption << { field: field, options: options }
+          end
+        end
+        macros[:encryption_details] = encryption if encryption.any?
+
+        # normalizes_details: normalizes :field, with: -> { ... }
+        normalizations = []
+        source.each_line do |line|
+          next unless line.match?(/\bnormalizes\s+:/)
+          fields = line.scan(/:(\w+)/).flatten.reject { |f| f == "with" }
+          transform_match = line.match(/with:\s*(->.+)$/)
+          transformation = transform_match ? transform_match[1].strip : nil
+          fields.each do |field|
+            normalizations << { field: field, transformation: transformation }.compact
+          end
+        end
+        macros[:normalizes_details] = normalizations if normalizations.any?
+
+        # token_generation: generates_token_for :purpose, expires_in: 2.hours
+        tokens = []
+        source.each_line do |line|
+          next unless line.match?(/\bgenerates_token_for\s+:/)
+          purpose_match = line.match(/generates_token_for\s+:(\w+)/)
+          next unless purpose_match
+          expires_match = line.match(/expires_in:\s*([^\s,}]+(?:\.\w+)?)/)
+          tokens << { purpose: purpose_match[1], expires_in: expires_match&.[](1) }.compact
+        end
+        macros[:token_generation] = tokens if tokens.any?
+
+        macros
       rescue
         {}
       end

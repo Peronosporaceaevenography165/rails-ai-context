@@ -97,6 +97,17 @@ module RailsAiContext
         when "standard"
           all_dirs = (templates.keys + partials.keys).map { |k| k.split("/").first }.uniq.sort
           lines = [ "# Views (#{templates.size} templates, #{partials.size} partials)", "" ]
+
+          # Form builders and component usage from views introspector
+          form_builders = data[:form_builders_detected]
+          component_usage = data[:component_usage]
+          if form_builders&.any?
+            lines << "**Form builders:** #{form_builders.join(', ')}" << ""
+          end
+          if component_usage&.any?
+            lines << "**ViewComponents:** #{component_usage.first(10).join(', ')}" << ""
+          end
+
           all_dirs.each do |ctrl|
             ctrl_templates = templates.select { |k, _| k.start_with?("#{ctrl}/") }
             ctrl_partials = partials.select { |k, _| k.start_with?("#{ctrl}/") }

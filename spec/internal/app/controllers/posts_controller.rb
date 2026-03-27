@@ -19,6 +19,7 @@ class PostsController < ApplicationController
     respond_to do |format|
       if @post.save
         format.html { redirect_to @post }
+        format.turbo_stream
         format.json { render json: @post, status: :created }
       else
         format.html { render :new }

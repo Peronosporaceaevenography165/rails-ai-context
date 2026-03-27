@@ -45,6 +45,8 @@ module RailsAiContext
         discover_mailers(root, pattern, lines)
         discover_env_dependencies(root, pattern, matched_models, lines)
         discover_test_gaps(root, pattern, matched_models, ctx, test_files || [], lines)
+        discover_accessibility(ctx, pattern, lines)
+        discover_components(ctx, pattern, lines)
 
         text_response(lines.join("\n"))
       end
@@ -472,6 +474,48 @@ module RailsAiContext
             source = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
             methods = source.scan(/\A\s*def (\w+)/m).flatten.reject { |m| m == "initialize" }
             lines << "- `#{relative}` — #{methods.join(', ')}" if methods.any?
+          end
+          lines << ""
+        rescue
+          nil
+        end
+
+        # --- Accessibility summary for feature views ---
+        def discover_accessibility(ctx, pattern, lines)
+          a11y = ctx[:accessibility]
+          return unless a11y.is_a?(Hash) && !a11y[:error]
+
+          # Filter accessibility findings related to the feature's views
+          findings = a11y[:view_findings]&.select { |f| f[:file]&.downcase&.include?(pattern) }
+          return if findings.nil? || findings.empty?
+
+          lines << "## Accessibility"
+          findings.first(10).each do |f|
+            lines << "- `#{f[:file]}`: #{f[:issue]}"
+          end
+          lines << ""
+        rescue
+          nil
+        end
+
+        # --- Component usage in feature views ---
+        def discover_components(ctx, pattern, lines)
+          comp = ctx[:components]
+          return unless comp.is_a?(Hash) && !comp[:error] && comp[:components]&.any?
+
+          # Find components whose usage includes views matching the pattern
+          matched = comp[:components].select do |c|
+            c[:name]&.downcase&.include?(pattern) ||
+              c[:used_in]&.any? { |v| v.downcase.include?(pattern) }
+          end
+          return if matched.empty?
+
+          lines << "## ViewComponents (#{matched.size})"
+          matched.first(10).each do |c|
+            slots = c[:slots]&.size || 0
+            slot_info = slots > 0 ? " (#{slots} slots)" : ""
+            used_in = c[:used_in]&.any? ? " — used in: #{c[:used_in].first(5).join(', ')}" : ""
+            lines << "- **#{c[:name]}**#{slot_info}#{used_in}"
           end
           lines << ""
         rescue

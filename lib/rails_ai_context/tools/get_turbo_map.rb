@@ -56,16 +56,34 @@ module RailsAiContext
         # Apply filters
         if stream
           stream_lower = stream.downcase
-          model_broadcasts = model_broadcasts.select { |b| b[:stream]&.downcase&.include?(stream_lower) }
-          rb_broadcasts = rb_broadcasts.select { |b| b[:stream]&.downcase&.include?(stream_lower) }
-          view_subscriptions = view_subscriptions.select { |s| s[:stream]&.downcase&.include?(stream_lower) }
+          model_broadcasts = model_broadcasts.select { |b|
+            b[:stream]&.downcase&.include?(stream_lower) ||
+            b[:snippet]&.downcase&.include?(stream_lower)
+          }
+          rb_broadcasts = rb_broadcasts.select { |b|
+            b[:stream]&.downcase&.include?(stream_lower) ||
+            b[:snippet]&.downcase&.include?(stream_lower)
+          }
+          view_subscriptions = view_subscriptions.select { |s|
+            s[:stream]&.downcase&.include?(stream_lower) ||
+            s[:snippet]&.downcase&.include?(stream_lower)
+          }
         end
 
         if controller
           ctrl_lower = controller.downcase
-          rb_broadcasts = rb_broadcasts.select { |b| b[:file]&.downcase&.include?(ctrl_lower) }
+          # Filter subscriptions and frames by controller path
           view_subscriptions = view_subscriptions.select { |s| s[:file]&.downcase&.include?(ctrl_lower) }
           view_frames = view_frames.select { |f| f[:file]&.downcase&.include?(ctrl_lower) }
+
+          # For broadcasts: include those in the controller path OR those whose
+          # stream matches any subscription that survived the filter (e.g. jobs
+          # broadcasting to streams that the controller's views subscribe to)
+          matched_streams = view_subscriptions.map { |s| s[:stream] }.compact
+          rb_broadcasts = rb_broadcasts.select { |b|
+            b[:file]&.downcase&.include?(ctrl_lower) ||
+              (b[:stream] && matched_streams.any? { |ss| streams_match?(b[:stream], ss) })
+          }
         end
 
         # Detect mismatches
@@ -105,6 +123,31 @@ module RailsAiContext
 
       private_class_method def self.format_standard(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: nil)
         lines = [ "# Turbo Map", "" ]
+
+        # Turbo Drive Configuration
+        turbo_data = cached_context[:turbo]
+        if turbo_data.is_a?(Hash) && !turbo_data[:error]
+          drive_parts = []
+          drive_parts << "morph: #{turbo_data[:morph_meta] ? 'yes' : 'no'}" unless turbo_data[:morph_meta].nil?
+          drive_parts << "permanent elements: #{turbo_data[:permanent_elements].size}" if turbo_data[:permanent_elements]&.any?
+          if turbo_data[:turbo_drive_settings].is_a?(Hash) && turbo_data[:turbo_drive_settings].any?
+            turbo_data[:turbo_drive_settings].each { |k, v| drive_parts << "#{k}: #{v}" }
+          end
+          if drive_parts.any?
+            lines << "## Turbo Drive Configuration"
+            drive_parts.each { |p| lines << "- #{p}" }
+            lines << ""
+          end
+
+          # Turbo Stream responses
+          if turbo_data[:turbo_stream_responses]&.any?
+            lines << "## Turbo Stream Responses"
+            turbo_data[:turbo_stream_responses].first(15).each do |resp|
+              lines << "- `#{resp}`"
+            end
+            lines << ""
+          end
+        end
 
         # Model broadcasts
         if model_broadcasts.any?
@@ -292,6 +335,7 @@ module RailsAiContext
       end
 
       # Scan all .rb files for explicit broadcast_*_to calls
+      # Handles multi-line calls by joining the method line with subsequent lines
       private_class_method def self.scan_rb_broadcasts(root)
         results = []
         search_dirs = %w[app/controllers app/models app/services app/jobs app/workers app/channels].map { |d| File.join(root, d) }
@@ -305,14 +349,19 @@ module RailsAiContext
             next unless source
 
             relative = file.sub("#{root}/", "")
+            lines = source.lines
 
-            source.each_line.with_index(1) do |line, line_num|
+            lines.each_with_index do |line, idx|
+              line_num = idx + 1
               BROADCAST_METHODS.each do |method|
                 next unless line.include?(method)
 
-                stream = extract_stream_from_broadcast(line, method)
-                target = extract_target_from_broadcast(line)
-                partial = extract_partial_from_broadcast(line)
+                # Join up to 3 subsequent lines for multi-line calls
+                context_lines = lines[idx, 4].map(&:chomp).join(" ")
+
+                stream = extract_stream_from_broadcast(context_lines, method)
+                target = extract_target_from_broadcast(context_lines)
+                partial = extract_partial_from_broadcast(context_lines)
 
                 results << {
                   method: method,
@@ -321,7 +370,7 @@ module RailsAiContext
                   partial: partial,
                   file: relative,
                   line: line_num,
-                  snippet: line.strip
+                  snippet: context_lines.squeeze(" ").strip[0, 200]
                 }
               end
             end
@@ -513,8 +562,10 @@ module RailsAiContext
         subscription_streams = Set.new
         view_subscriptions.each { |s| subscription_streams << s[:stream] if s[:stream] && !s[:stream].include?("dynamic") }
 
-        # Broadcasts without subscribers
-        orphan_broadcasts = broadcast_streams - subscription_streams
+        # Broadcasts without subscribers — use fuzzy matching for dynamic streams
+        orphan_broadcasts = broadcast_streams.reject { |bs|
+          subscription_streams.any? { |ss| streams_match?(bs, ss) }
+        }
         orphan_broadcasts.each do |stream|
           source = rb_broadcasts.find { |b| b[:stream] == stream }
           source ||= model_broadcasts.find { |b| b[:stream] == stream }
@@ -522,10 +573,11 @@ module RailsAiContext
           warnings << "Broadcast to `#{stream}` has no matching `turbo_stream_from`#{file_ref}"
         end
 
-        # Subscriptions without broadcasters
-        orphan_subscriptions = subscription_streams - broadcast_streams
+        # Subscriptions without broadcasters — use fuzzy matching
+        orphan_subscriptions = subscription_streams.reject { |ss|
+          broadcast_streams.any? { |bs| streams_match?(bs, ss) }
+        }
         orphan_subscriptions.each do |stream|
-          # Skip dynamic/complex stream names
           next if stream.include?(",") || stream.include?("@")
           source = view_subscriptions.find { |s| s[:stream] == stream }
           file_ref = source ? " (#{source[:file]}:#{source[:line]})" : ""
@@ -535,6 +587,21 @@ module RailsAiContext
         warnings.sort
       rescue
         []
+      end
+
+      # Fuzzy-match stream names: "cook_{id}" matches "cook_{id}",
+      # and static prefixes match (e.g., "cook_" prefix in both)
+      private_class_method def self.streams_match?(a, b)
+        return true if a == b
+
+        # Compare static prefixes for dynamic streams (containing {})
+        if a.include?("{") || b.include?("{")
+          prefix_a = a.split("{").first.to_s
+          prefix_b = b.split("{").first.to_s
+          return true if prefix_a == prefix_b && prefix_a.length > 0
+        end
+
+        false
       end
 
       # Build a wiring map: stream name → { broadcasters: [...], subscribers: [...] }

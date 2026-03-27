@@ -430,6 +430,9 @@ module RailsAiContext
           warnings.concat(check_memory_loading(file, content)) if file.start_with?("app/controllers/")
         end
 
+        # Performance checks from performance introspector
+        warnings.concat(check_performance_warnings(file, context))
+
         warnings
       end
 
@@ -973,6 +976,35 @@ module RailsAiContext
           end
         end
         warnings.first(3) # cap at 3 to avoid noise
+      rescue
+        []
+      end
+
+      # ── CHECK 13+14: Performance warnings from introspector ────────
+
+      private_class_method def self.check_performance_warnings(file, context)
+        warnings = []
+        perf = context[:performance]
+        return warnings unless perf.is_a?(Hash) && !perf[:error]
+
+        # Check 13: Model.all in controllers
+        if file.start_with?("app/controllers/") && perf[:model_all_in_controllers]&.any?
+          perf[:model_all_in_controllers].each do |finding|
+            next unless finding.is_a?(Hash) && finding[:file]&.end_with?(File.basename(file))
+            warnings << "#{finding[:model]}.all loaded in controller — consider pagination or scoping (line #{finding[:line]})"
+          end
+        end
+
+        # Check 14: Missing FK indexes on tables referenced in validated files
+        if file.start_with?("app/models/") && perf[:missing_fk_indexes]&.any?
+          model_name = file.sub("app/models/", "").sub(/\.rb$/, "").tr("/", "::").camelize
+          perf[:missing_fk_indexes].each do |finding|
+            next unless finding.is_a?(Hash) && finding[:model] == model_name
+            warnings << "#{finding[:column]} on #{finding[:table]} — missing index on foreign key (performance)"
+          end
+        end
+
+        warnings.first(5)
       rescue
         []
       end

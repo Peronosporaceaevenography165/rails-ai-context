@@ -44,16 +44,15 @@ RSpec.describe RailsAiContext::Fingerprinter do
     end
 
     it "detects changes to .js stimulus controllers" do
-      controllers_dir = File.join(Rails.root, "app/javascript/controllers")
-      FileUtils.mkdir_p(controllers_dir)
-      js_file = File.join(controllers_dir, "test_controller.js")
-      File.write(js_file, "// test")
+      # Use permanent hello_controller.js fixture
+      js_file = File.join(Rails.root, "app/javascript/controllers/hello_controller.js")
+      original_mtime = File.mtime(js_file)
 
       before = described_class.compute(Rails.application)
       FileUtils.touch(js_file)
       after = described_class.compute(Rails.application)
 
-      FileUtils.rm_rf(File.join(Rails.root, "app/javascript"))
+      File.utime(original_mtime, original_mtime, js_file)
 
       expect(before).not_to eq(after)
     end

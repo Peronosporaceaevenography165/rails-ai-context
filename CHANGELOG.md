@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] — 2026-03-26
+
+### Added
+
+- 4 new MCP tools: `rails_get_component_catalog`, `rails_performance_check`, `rails_dependency_graph`, `rails_migration_advisor`
+- 3 new introspectors: ComponentIntrospector (ViewComponent/Phlex), AccessibilityIntrospector (ARIA/a11y), PerformanceIntrospector (N+1/indexes)
+- ViewComponent/Phlex component catalog: props, slots, previews, sidecar assets, usage examples
+- Accessibility scanning: ARIA attributes, semantic HTML, screen reader text, alt text, landmark roles, accessibility score
+- Performance analysis: N+1 query risks, missing counter_cache, missing FK indexes, Model.all anti-patterns, eager load candidates
+- Dependency graph generation in Mermaid or text format
+- Migration code generation with reversibility warnings and affected model detection
+- Component and accessibility split rules for Claude, Cursor, Copilot, and OpenCode
+- Stimulus cross-controller composition detection
+- Stimulus import graph and complexity metrics
+- Turbo 8 morph meta and permanent element detection
+- Turbo Drive configuration scanning (data-turbo-*, preload)
+- Form builder detection (form_with, simple_form, formtastic)
+- Semantic HTML element counting
+- DaisyUI theme and component detection
+- Font loading strategy detection (@font-face, Google Fonts, system fonts)
+- CSS @layer and PostCSS plugin detection
+- Convention fingerprint with SolidQueue/SolidCache/SolidCable awareness
+- Dynamic directory detection in app/
+- Controller rate_limit and rescue_from extraction
+- Model encryption, normalizes, and generates_token_for details
+- Schema check constraints, enum types, and generated columns
+- Factory trait extraction and test count by category
+- Expanded NOTABLE_GEMS list (30+ new gems including dry-rb, Solid stack)
+- Job retry_on/discard_on and perform argument extraction
+
+### Changed
+
+- Standard preset: 13 → 14 introspectors (added :components)
+- Full preset: 28 → 31 introspectors (added :components, :accessibility, :performance)
+- Tool count: 25 → 29
+- Test count: 681 → 806 examples
+- Combustion test app expanded with Stimulus controllers, ViewComponents, accessible views, factories
+
 ## [3.1.0] - 2026-03-26
 
 ### Fixed

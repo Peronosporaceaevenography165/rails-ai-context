@@ -44,7 +44,7 @@ RSpec.describe RailsAiContext::Introspectors::ControllerIntrospector do
 
     it "extracts respond_to formats from respond_to blocks" do
       formats = result[:controllers]["PostsController"][:respond_to_formats]
-      expect(formats).to contain_exactly("html", "json")
+      expect(formats).to contain_exactly("html", "json", "turbo_stream")
     end
 
     it "detects API controllers" do
@@ -65,6 +65,55 @@ RSpec.describe RailsAiContext::Introspectors::ControllerIntrospector do
     it "extracts concerns array" do
       concerns = result[:controllers]["PostsController"][:concerns]
       expect(concerns).to be_an(Array)
+    end
+
+    it "returns turbo_stream_actions for PostsController" do
+      turbo_actions = result[:controllers]["PostsController"][:turbo_stream_actions]
+      expect(turbo_actions).to include("create")
+    end
+
+    context "with a controller that has rescue_from and rate_limit" do
+      let(:fixture_ctrl) { File.join(Rails.root, "app/controllers/widgets_controller.rb") }
+
+      before do
+        File.write(fixture_ctrl, <<~RUBY)
+          class WidgetsController < ApplicationController
+            rescue_from ActiveRecord::RecordNotFound, with: :not_found
+            rescue_from ActionController::ParameterMissing, with: :bad_request
+            rate_limit to: 10, within: 1.minute
+
+            def index
+              @widgets = []
+            end
+
+            private
+
+            def not_found
+              head :not_found
+            end
+
+            def bad_request
+              head :bad_request
+            end
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_f(fixture_ctrl) }
+
+      it "extracts rescue_from declarations" do
+        load fixture_ctrl
+        rescue_from = result[:controllers]["WidgetsController"][:rescue_from]
+        expect(rescue_from).to be_an(Array)
+        not_found_entry = rescue_from.find { |r| r[:handler] == "not_found" }
+        expect(not_found_entry).not_to be_nil
+      end
+
+      it "extracts rate_limit macro" do
+        load fixture_ctrl
+        rate_limit = result[:controllers]["WidgetsController"][:rate_limit]
+        expect(rate_limit).to include("10")
+      end
     end
 
     context "with a controller that has complex respond_to" do

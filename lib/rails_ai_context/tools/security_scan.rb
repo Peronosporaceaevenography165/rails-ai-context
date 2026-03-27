@@ -23,7 +23,7 @@ module RailsAiContext
           checks: {
             type: "array",
             items: { type: "string" },
-            description: "Run only specific checks (e.g. ['CheckSQL', 'CheckXSS']). Omit to run all checks."
+            description: "Run only specific checks by Brakeman class name (e.g. ['CheckSQL', 'CheckCrossSiteScripting']). Omit to run all checks."
           },
           detail: {
             type: "string",
@@ -37,6 +37,24 @@ module RailsAiContext
 
       CONFIDENCE_MAP = { "high" => 0, "medium" => 1, "weak" => 2 }.freeze
       CONFIDENCE_NAMES = { 0 => "High", 1 => "Medium", 2 => "Weak" }.freeze
+
+      # Map friendly short names to actual Brakeman check class names.
+      # Accepts: "sql", "SQL", "xss", "XSS", etc.
+      # Full Brakeman names (e.g. "CheckSQL", "CheckCrossSiteScripting") pass through unchanged.
+      CHECK_ALIASES = {
+        "sql" => "CheckSQL", "SQL" => "CheckSQL",
+        "SQLInjection" => "CheckSQL",
+        "xss" => "CheckCrossSiteScripting", "XSS" => "CheckCrossSiteScripting",
+        "CheckXSS" => "CheckCrossSiteScripting", "CrossSiteScripting" => "CheckCrossSiteScripting",
+        "csrf" => "CheckForgerySetting", "CSRF" => "CheckForgerySetting",
+        "CheckCSRF" => "CheckForgerySetting",
+        "mass_assignment" => "CheckMassAssignment", "MassAssignment" => "CheckMassAssignment",
+        "redirect" => "CheckRedirect", "Redirect" => "CheckRedirect",
+        "file_access" => "CheckFileAccess", "FileAccess" => "CheckFileAccess",
+        "command_injection" => "CheckExecute", "CommandInjection" => "CheckExecute",
+        "CheckCommandInjection" => "CheckExecute",
+        "deserialize" => "CheckDeserialize", "Deserialize" => "CheckDeserialize"
+      }.freeze
 
       def self.call(files: nil, confidence: "weak", checks: nil, detail: "standard", server_context: nil)
         unless brakeman_available?
@@ -57,7 +75,10 @@ module RailsAiContext
           print_report: false
         }
 
-        options[:run_checks] = Set.new(checks) if checks&.any?
+        if checks&.any?
+          resolved = checks.map { |c| CHECK_ALIASES[c] || c }
+          options[:run_checks] = Set.new(resolved)
+        end
 
         tracker = begin
           Brakeman.run(options)

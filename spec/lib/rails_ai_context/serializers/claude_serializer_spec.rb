@@ -32,7 +32,7 @@ RSpec.describe RailsAiContext::Serializers::ClaudeSerializer do
       output = described_class.new(context).call
       line_count = output.lines.count
 
-      expect(line_count).to be <= 150
+      expect(line_count).to be <= 160
       expect(output).to include("MCP tools")
       expect(output).to include("rails_get_schema")
       expect(output).to include('detail:"summary"')

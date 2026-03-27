@@ -53,5 +53,56 @@ RSpec.describe RailsAiContext::Introspectors::ViewTemplateIntrospector do
       template_names = result[:templates].keys
       expect(template_names.none? { |n| n.include?("layouts/") }).to be true
     end
+
+    describe "form_builders" do
+      it "detects form_with usage in views" do
+        form_builders = result[:ui_patterns][:form_builders]
+        expect(form_builders).to be_a(Hash)
+        expect(form_builders[:form_with]).to be >= 1
+      end
+
+      it "omits builders with zero count" do
+        form_builders = result[:ui_patterns][:form_builders]
+        form_builders.each_value do |count|
+          expect(count).to be > 0
+        end
+      end
+    end
+
+    describe "semantic_html" do
+      it "detects semantic HTML elements in views" do
+        semantic = result[:ui_patterns][:semantic_html]
+        expect(semantic).to be_a(Hash)
+        expect(semantic[:nav]).to be >= 1
+      end
+
+      it "detects article elements" do
+        semantic = result[:ui_patterns][:semantic_html]
+        expect(semantic[:article]).to be >= 1 if semantic.key?(:article)
+      end
+
+      it "detects section elements" do
+        semantic = result[:ui_patterns][:semantic_html]
+        expect(semantic[:section]).to be >= 1
+      end
+    end
+
+    describe "accessibility_patterns" do
+      it "detects ARIA attributes in views" do
+        a11y = result[:ui_patterns][:accessibility_patterns]
+        expect(a11y).to be_a(Hash)
+        expect(a11y[:aria_attributes]).to be >= 1
+      end
+
+      it "detects role attributes in views" do
+        a11y = result[:ui_patterns][:accessibility_patterns]
+        expect(a11y[:roles]).to be >= 1
+      end
+
+      it "detects sr-only usage in views" do
+        a11y = result[:ui_patterns][:accessibility_patterns]
+        expect(a11y[:sr_only]).to be >= 1
+      end
+    end
   end
 end

@@ -188,4 +188,91 @@ RSpec.describe RailsAiContext::Introspectors::ModelIntrospector do
       end
     end
   end
+
+  describe "#extract_detailed_macros (private)" do
+    let(:fixture_model) { File.join(Rails.root, "app/models/employee.rb") }
+    let(:fake_model) { double(name: "Employee") }
+
+    after { FileUtils.rm_f(fixture_model) }
+
+    context "with encryption_details" do
+      before do
+        File.write(fixture_model, <<~RUBY)
+          class Employee < ApplicationRecord
+            encrypts :ssn, deterministic: true, downcase: true
+            encrypts :secret_code
+          end
+        RUBY
+      end
+
+      subject(:macros) { introspector.send(:extract_detailed_macros, fake_model) }
+
+      it "extracts field name and options for encrypted attributes" do
+        expect(macros[:encryption_details]).to be_an(Array)
+        ssn_entry = macros[:encryption_details].find { |e| e[:field] == "ssn" }
+        expect(ssn_entry).not_to be_nil
+        expect(ssn_entry[:options][:deterministic]).to be true
+        expect(ssn_entry[:options][:downcase]).to be true
+      end
+
+      it "extracts encrypted attributes without options" do
+        secret = macros[:encryption_details].find { |e| e[:field] == "secret_code" }
+        expect(secret).not_to be_nil
+      end
+    end
+
+    context "with normalizes_details" do
+      before do
+        File.write(fixture_model, <<~RUBY)
+          class Employee < ApplicationRecord
+            normalizes :email, with: ->(e) { e.strip.downcase }
+            normalizes :phone, with: ->(p) { p.gsub(/\\D/, "") }
+          end
+        RUBY
+      end
+
+      subject(:macros) { introspector.send(:extract_detailed_macros, fake_model) }
+
+      it "extracts field name and transformation" do
+        expect(macros[:normalizes_details]).to be_an(Array)
+        email_entry = macros[:normalizes_details].find { |e| e[:field] == "email" }
+        expect(email_entry).not_to be_nil
+        expect(email_entry[:transformation]).to include("strip.downcase")
+      end
+    end
+
+    context "with token_generation" do
+      before do
+        File.write(fixture_model, <<~RUBY)
+          class Employee < ApplicationRecord
+            generates_token_for :email_verification, expires_in: 2.hours
+            generates_token_for :password_reset
+          end
+        RUBY
+      end
+
+      subject(:macros) { introspector.send(:extract_detailed_macros, fake_model) }
+
+      it "extracts purpose and expiry" do
+        expect(macros[:token_generation]).to be_an(Array)
+        email_token = macros[:token_generation].find { |t| t[:purpose] == "email_verification" }
+        expect(email_token).not_to be_nil
+        expect(email_token[:expires_in]).to eq("2.hours")
+      end
+
+      it "handles token generation without expires_in" do
+        pw_token = macros[:token_generation].find { |t| t[:purpose] == "password_reset" }
+        expect(pw_token).not_to be_nil
+        expect(pw_token).not_to have_key(:expires_in)
+      end
+    end
+
+    context "when source file does not exist" do
+      subject(:macros) { introspector.send(:extract_detailed_macros, fake_model) }
+
+      it "returns empty hash" do
+        expect(macros).to eq({})
+      end
+    end
+  end
 end

@@ -18,7 +18,10 @@ module RailsAiContext
           partials: extract_partials,
           helpers: extract_helpers,
           view_components: extract_view_components,
-          template_engines: detect_template_engines
+          template_engines: detect_template_engines,
+          form_builders_detected: detect_form_builders,
+          component_usage: detect_component_usage,
+          layout_mapping: extract_layout_mapping
         }
       rescue => e
         { error: e.message }
@@ -124,6 +127,64 @@ module RailsAiContext
         engines << "slim" if extensions.include?("slim")
         engines << "jbuilder" if extensions.include?("jbuilder")
         engines
+      end
+
+      FORM_BUILDER_PATTERNS = {
+        "form_with" => /\bform_with\b/,
+        "form_for" => /\bform_for\b/,
+        "simple_form_for" => /\bsimple_form_for\b/,
+        "formtastic" => /\bsemantic_form_for\b/
+      }.freeze
+
+      def detect_form_builders
+        return {} unless Dir.exist?(views_dir)
+
+        counts = Hash.new(0)
+        view_files = Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}"))
+        view_files.each do |path|
+          content = File.read(path) rescue next
+          FORM_BUILDER_PATTERNS.each do |name, pattern|
+            count = content.scan(pattern).size
+            counts[name] += count if count > 0
+          end
+        end
+
+        counts.sort_by { |_, v| -v }.to_h
+      rescue
+        {}
+      end
+
+      def detect_component_usage
+        return [] unless Dir.exist?(views_dir)
+
+        components = Set.new
+        view_files = Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}"))
+        view_files.each do |path|
+          content = File.read(path) rescue next
+          # Match render ComponentName.new(...) or render(ComponentName.new(...))
+          content.scan(/render\s*\(?\s*([A-Z]\w+(?:::\w+)*(?:Component)?)\.new/).each do |match|
+            components << match[0]
+          end
+        end
+
+        components.to_a.sort
+      rescue
+        []
+      end
+
+      def extract_layout_mapping
+        dir = File.join(views_dir, "layouts")
+        return [] unless Dir.exist?(dir)
+
+        Dir.glob(File.join(dir, "*")).filter_map do |path|
+          next unless File.file?(path)
+          basename = File.basename(path)
+          # Strip template extensions to get the layout name
+          name = basename.sub(/\.(html|xml|json)\.(erb|haml|slim)\z/, "").sub(/\.(erb|haml|slim)\z/, "")
+          name
+        end.uniq.sort
+      rescue
+        []
       end
     end
   end
