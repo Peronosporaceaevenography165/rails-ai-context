@@ -33,10 +33,14 @@ module RailsAiContext
         end
 
         components = data[:components] || []
-        return text_response("No components found in app/components/.") if components.empty?
 
         if component
           component = component.to_s.strip
+
+          if components.empty?
+            return text_response("Component '#{component}' not found — no components exist in app/components/. Create ViewComponent or Phlex components first.")
+          end
+
           found = components.find { |c|
             c[:name]&.downcase == component.downcase ||
             c[:name]&.underscore&.downcase == component.downcase ||
@@ -49,6 +53,7 @@ module RailsAiContext
 
           text_response(render_single(found, detail))
         else
+          return text_response("No components found in app/components/.") if components.empty?
           text_response(render_catalog(components, data[:summary], detail))
         end
       end

@@ -17,7 +17,10 @@ module RailsAiContext
           serializers: detect_serializers,
           graphql: detect_graphql,
           api_versioning: detect_versioning,
-          rate_limiting: detect_rate_limiting
+          rate_limiting: detect_rate_limiting,
+          openapi_spec: detect_openapi_specs,
+          cors_config: detect_cors_config,
+          api_client_generation: detect_api_client_generation
         }
       rescue => e
         { error: e.message }
@@ -67,6 +70,49 @@ module RailsAiContext
         Dir.glob(File.join(controllers_dir, "api/v*/")).filter_map do |path|
           File.basename(path)
         end.sort
+      end
+
+      def detect_openapi_specs
+        globs = %w[
+          openapi/**/*.json openapi/**/*.yaml openapi/**/*.yml
+          swagger/**/*.json swagger/**/*.yaml swagger/**/*.yml
+          public/api-docs/**/*
+          docs/**/*.json docs/**/*.yaml docs/**/*.yml
+        ]
+
+        globs.flat_map { |pattern| Dir.glob(File.join(root, pattern)) }
+             .select { |path| File.file?(path) }
+             .map { |path| path.sub("#{root}/", "") }
+             .sort
+             .uniq
+      rescue
+        []
+      end
+
+      def detect_cors_config
+        cors_path = File.join(root, "config/initializers/cors.rb")
+        return nil unless File.exist?(cors_path)
+
+        content = File.read(cors_path)
+        origins = content.scan(/origins\s+(.+)$/).flatten.flat_map do |line|
+          line.scan(/["']([^"']+)["']/).flatten
+        end
+
+        { file: "config/initializers/cors.rb", origins: origins }
+      rescue
+        nil
+      end
+
+      def detect_api_client_generation
+        package_path = File.join(root, "package.json")
+        return [] unless File.exist?(package_path)
+
+        content = File.read(package_path, encoding: "bom|utf-8")
+        codegen_tools = %w[openapi-typescript @graphql-codegen/cli orval]
+
+        codegen_tools.select { |tool| content.include?(%("#{tool}")) }
+      rescue
+        []
       end
 
       def detect_rate_limiting

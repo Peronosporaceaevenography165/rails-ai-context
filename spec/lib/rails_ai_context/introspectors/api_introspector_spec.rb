@@ -72,5 +72,102 @@ RSpec.describe RailsAiContext::Introspectors::ApiIntrospector do
         expect(result[:rate_limiting]).to eq({ rack_attack: true })
       end
     end
+
+    describe "openapi_spec" do
+      it "returns an empty array when no spec files exist" do
+        expect(result[:openapi_spec]).to eq([])
+      end
+
+      context "with OpenAPI spec files" do
+        let(:openapi_dir) { File.join(Rails.root, "openapi") }
+        let(:swagger_dir) { File.join(Rails.root, "swagger") }
+        let(:docs_dir) { File.join(Rails.root, "docs") }
+
+        before do
+          FileUtils.mkdir_p(openapi_dir)
+          FileUtils.mkdir_p(File.join(swagger_dir, "v2"))
+          FileUtils.mkdir_p(docs_dir)
+          File.write(File.join(openapi_dir, "v1.yaml"), "openapi: 3.0.0")
+          File.write(File.join(swagger_dir, "v2", "api.json"), "{}")
+          File.write(File.join(docs_dir, "schema.yml"), "---")
+        end
+
+        after do
+          FileUtils.rm_rf(openapi_dir)
+          FileUtils.rm_rf(swagger_dir)
+          FileUtils.rm_rf(docs_dir)
+        end
+
+        it "detects OpenAPI spec files across all search paths" do
+          specs = result[:openapi_spec]
+          expect(specs).to include("openapi/v1.yaml")
+          expect(specs).to include("swagger/v2/api.json")
+          expect(specs).to include("docs/schema.yml")
+        end
+      end
+    end
+
+    describe "cors_config" do
+      it "returns nil when no cors initializer exists" do
+        expect(result[:cors_config]).to be_nil
+      end
+
+      context "with cors initializer" do
+        let(:cors_path) { File.join(Rails.root, "config/initializers/cors.rb") }
+
+        before do
+          FileUtils.mkdir_p(File.dirname(cors_path))
+          File.write(cors_path, <<~RUBY)
+            Rails.application.config.middleware.insert_before 0, Rack::Cors do
+              allow do
+                origins "localhost:3000", "example.com"
+                resource "*", headers: :any, methods: [:get, :post]
+              end
+            end
+          RUBY
+        end
+
+        after { FileUtils.rm_f(cors_path) }
+
+        it "detects CORS config with origins" do
+          cors = result[:cors_config]
+          expect(cors[:file]).to eq("config/initializers/cors.rb")
+          expect(cors[:origins]).to include("localhost:3000", "example.com")
+        end
+      end
+    end
+
+    describe "api_client_generation" do
+      it "detects codegen tools from permanent package.json fixture" do
+        # Permanent package.json has openapi-typescript, @graphql-codegen/cli, orval
+        expect(result[:api_client_generation]).to include("openapi-typescript", "@graphql-codegen/cli", "orval")
+      end
+
+      context "with codegen tools in package.json" do
+        let(:package_path) { File.join(Rails.root, "package.json") }
+        let!(:original_content) { File.read(package_path) }
+
+        before do
+          File.write(package_path, <<~JSON)
+            {
+              "dependencies": {
+                "openapi-typescript": "^6.0.0",
+                "@graphql-codegen/cli": "^5.0.0"
+              },
+              "devDependencies": {
+                "orval": "^6.0.0"
+              }
+            }
+          JSON
+        end
+
+        after { File.write(package_path, original_content) }
+
+        it "detects API client generation tools" do
+          tools = result[:api_client_generation]
+          expect(tools).to include("openapi-typescript", "@graphql-codegen/cli", "orval")
+        end
+      end
+    end
   end
 end

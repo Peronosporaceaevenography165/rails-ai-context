@@ -1,0 +1,246 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+
+RSpec.describe RailsAiContext::Tools::GetFrontendStack do
+  before { described_class.reset_cache! }
+
+  let(:frontend_data) do
+    {
+      framework: "React",
+      version: "19.0.0",
+      mounting_strategy: "Inertia",
+      build_tool: "Vite",
+      state_management: "Zustand",
+      package_manager: "yarn",
+      typescript: {
+        enabled: true,
+        strict: true,
+        path_aliases: {
+          "@components" => "src/components",
+          "@utils" => "src/utils",
+          "@hooks" => "src/hooks"
+        }
+      },
+      testing_frameworks: %w[Vitest React-Testing-Library],
+      frontend_roots: [
+        { path: "app/frontend", component_count: 32 },
+        { path: "app/frontend/admin", component_count: 15 }
+      ],
+      monorepo: {
+        tool: "yarn workspaces",
+        workspaces: %w[packages/ui packages/shared]
+      },
+      component_dirs: [
+        { path: "app/frontend/components/shared", count: 18 },
+        { path: "app/frontend/components/pages", count: 14 },
+        { path: "app/frontend/admin/components", count: 15 }
+      ],
+      build_config: {
+        plugins: %w[@vitejs/plugin-react vite-plugin-ruby vite-tsconfig-paths]
+      }
+    }
+  end
+
+  before do
+    allow(described_class).to receive(:cached_context).and_return({ frontend_frameworks: frontend_data })
+  end
+
+  describe ".call" do
+    context "with detail:summary" do
+      it "returns a one-liner with framework, tools, and component count" do
+        result = described_class.call(detail: "summary")
+        text = result.content.first[:text]
+
+        expect(text).to include("React 19.0.0")
+        expect(text).to include("Inertia")
+        expect(text).to include("Vite")
+        expect(text).to include("TypeScript")
+        expect(text).to include("Zustand")
+        expect(text).to include("(47 components)")
+      end
+    end
+
+    context "with detail:standard" do
+      it "includes framework and version" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Framework:** React 19.0.0")
+      end
+
+      it "includes mounting strategy" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Mounting strategy:** Inertia")
+      end
+
+      it "includes build tool" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Build tool:** Vite")
+      end
+
+      it "includes state management" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**State management:** Zustand")
+      end
+
+      it "includes package manager" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Package manager:** yarn")
+      end
+
+      it "includes TypeScript with strict mode" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**TypeScript:** enabled (strict)")
+      end
+
+      it "includes testing frameworks" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Testing:** Vitest, React-Testing-Library")
+      end
+
+      it "includes frontend roots with component counts" do
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("Frontend Roots")
+        expect(text).to include("`app/frontend` — 32 components")
+        expect(text).to include("`app/frontend/admin` — 15 components")
+      end
+
+      it "shows non-strict when typescript strict is false" do
+        frontend_data[:typescript][:strict] = false
+        result = described_class.call(detail: "standard")
+        text = result.content.first[:text]
+
+        expect(text).to include("**TypeScript:** enabled (non-strict)")
+      end
+    end
+
+    context "with detail:full" do
+      it "includes everything from standard" do
+        result = described_class.call(detail: "full")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Framework:** React 19.0.0")
+        expect(text).to include("**Build tool:** Vite")
+        expect(text).to include("**State management:** Zustand")
+        expect(text).to include("Frontend Roots")
+      end
+
+      it "includes TypeScript path aliases" do
+        result = described_class.call(detail: "full")
+        text = result.content.first[:text]
+
+        expect(text).to include("TypeScript Path Aliases")
+        expect(text).to include("`@components` -> `src/components`")
+        expect(text).to include("`@utils` -> `src/utils`")
+        expect(text).to include("`@hooks` -> `src/hooks`")
+      end
+
+      it "includes monorepo info" do
+        result = described_class.call(detail: "full")
+        text = result.content.first[:text]
+
+        expect(text).to include("Monorepo")
+        expect(text).to include("**Tool:** yarn workspaces")
+        expect(text).to include("**Workspaces:** packages/ui, packages/shared")
+      end
+
+      it "includes component directory breakdown" do
+        result = described_class.call(detail: "full")
+        text = result.content.first[:text]
+
+        expect(text).to include("Component Directories")
+        expect(text).to include("`app/frontend/components/shared` — 18 components")
+        expect(text).to include("`app/frontend/components/pages` — 14 components")
+        expect(text).to include("`app/frontend/admin/components` — 15 components")
+      end
+
+      it "includes build plugins" do
+        result = described_class.call(detail: "full")
+        text = result.content.first[:text]
+
+        expect(text).to include("Build Plugins")
+        expect(text).to include("@vitejs/plugin-react")
+        expect(text).to include("vite-plugin-ruby")
+        expect(text).to include("vite-tsconfig-paths")
+      end
+    end
+
+    context "when frontend_frameworks data is missing" do
+      it "returns a helpful message about enabling the introspector" do
+        allow(described_class).to receive(:cached_context).and_return({})
+        result = described_class.call
+        text = result.content.first[:text]
+
+        expect(text).to include("No frontend framework data available")
+        expect(text).to include(":frontend_frameworks")
+        expect(text).to include("config.introspectors")
+      end
+    end
+
+    context "when frontend_frameworks has an error" do
+      it "returns a helpful message about enabling the introspector" do
+        allow(described_class).to receive(:cached_context).and_return({
+          frontend_frameworks: { error: "something went wrong" }
+        })
+        result = described_class.call
+        text = result.content.first[:text]
+
+        expect(text).to include("No frontend framework data available")
+        expect(text).to include(":frontend_frameworks")
+      end
+    end
+
+    context "with unknown detail level" do
+      it "returns an error message" do
+        result = described_class.call(detail: "verbose")
+        text = result.content.first[:text]
+
+        expect(text).to include("Unknown detail level: verbose")
+        expect(text).to include("summary, standard, or full")
+      end
+    end
+
+    context "with minimal data" do
+      it "handles missing optional fields gracefully" do
+        allow(described_class).to receive(:cached_context).and_return({
+          frontend_frameworks: { framework: "Vue", version: "3.4.0" }
+        })
+        result = described_class.call(detail: "full")
+        text = result.content.first[:text]
+
+        expect(text).to include("**Framework:** Vue 3.4.0")
+        expect(text).not_to include("Monorepo")
+        expect(text).not_to include("Path Aliases")
+        expect(text).not_to include("Component Directories")
+        expect(text).not_to include("Build Plugins")
+      end
+
+      it "returns a summary without component count when no roots" do
+        allow(described_class).to receive(:cached_context).and_return({
+          frontend_frameworks: { framework: "Vue", version: "3.4.0", build_tool: "Vite" }
+        })
+        result = described_class.call(detail: "summary")
+        text = result.content.first[:text]
+
+        expect(text).to include("Vue 3.4.0")
+        expect(text).to include("Vite")
+        expect(text).not_to include("components")
+      end
+    end
+  end
+end

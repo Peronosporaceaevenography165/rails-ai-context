@@ -194,20 +194,32 @@ module RailsAiContext
       private_class_method def self.model_context(model_name)
         lines = []
 
-        model_result = GetModelDetails.call(model: model_name)
-        lines << model_result.content.first[:text]
-
-        # Schema for the model's table
+        # Normalize: try as-is, then singularized, then classified
         ctx = cached_context
         models = ctx[:models] || {}
-        key = models.keys.find { |k| k.downcase == model_name.downcase }
+        key = models.keys.find { |k| k.downcase == model_name.downcase } ||
+              models.keys.find { |k| k.downcase == model_name.singularize.downcase } ||
+              models.keys.find { |k| k.downcase == model_name.classify.downcase }
+
+        resolved_name = key || model_name
+
+        model_result = GetModelDetails.call(model: resolved_name)
+        model_text = model_result.content.first[:text]
+
+        # If model not found, fail fast — don't leak partial results from sub-tools
+        if model_text.include?("not found")
+          return model_result
+        end
+
+        lines << model_text
+
         if key && models[key][:table_name]
           schema_result = GetSchema.call(table: models[key][:table_name])
           lines << "" << "---" << "" << schema_result.content.first[:text]
         end
 
         # Tests for this model
-        test_result = GetTestInfo.call(model: model_name, detail: "standard")
+        test_result = GetTestInfo.call(model: resolved_name, detail: "standard")
         test_text = test_result.content.first[:text]
         unless test_text.include?("No test file found")
           lines << "" << "---" << "" << test_text

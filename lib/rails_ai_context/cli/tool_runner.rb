@@ -249,6 +249,7 @@ module RailsAiContext
           if matched
             kwargs[key] = matched
           else
+            $stderr.puts "Warning: '#{value}' is not a valid value for #{key}. Valid: #{prop[:enum].join(', ')}. Using default."
             kwargs.delete(key)
           end
         end

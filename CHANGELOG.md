@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] — 2026-03-29
+
+### Added
+- New `rails_get_frontend_stack` tool: detects React/Vue/Svelte/Angular, Inertia/react-rails mounting, state management, TypeScript config, monorepo layout, package manager
+- New `FrontendFrameworkIntrospector`: parses package.json (JSON.parse with BOM-safe reading), config/vite.json, config/shakapacker.yml, tsconfig.json
+- Frontend framework detection covers patterns 3 (hybrid SPA), 4 (API+SPA), and 7 (Turbo Native)
+- API introspector: OpenAPI/Swagger spec detection, CORS config parsing, API codegen tool detection (openapi-typescript, graphql-codegen, orval)
+- Auth introspector: JWT strategy (devise-jwt, Doorkeeper config), HTTP token auth detection
+- Turbo introspector: Turbo Native detection (turbo_native_app?, native navigation patterns, native conditionals in views)
+- Gem introspector: 6 new notable gems (devise-jwt, rswag-api, rswag-ui, grape-swagger, apipie-rails, hotwire-native-rails)
+- Optional config: `frontend_paths`, `mobile_paths` (auto-detected if nil, user override for edge cases)
+- Install generator: re-install now updates `ai_tools` and `tool_mode` selections, adds missing config sections without removing existing settings
+- Install generator: prompts to remove generated files when AI tools are deselected (per-tool chooser)
+- `rails ai:context:cursor` (and other format tasks) now auto-adds the format to `config.ai_tools`
+- CLI tool_runner: warns on invalid enum values instead of silent fallback
+
+### Fixed
+- `analyze_feature` crash on nil/empty input — now returns helpful prompt
+- `analyze_feature` with nonexistent feature — returns clean "no match" instead of scaffolded empty sections
+- `migration_advisor` crash on empty/invalid action — now validates with "Did you mean?" suggestions
+- `migration_advisor` generates broken SQL with empty table/column — now validates required params
+- `migration_advisor` doesn't normalize table names — "Cook" now auto-resolves to "cooks"
+- `migration_advisor` no duplicate column/index detection — now warns on existing columns, indexes, and FKs
+- `migration_advisor` no nonexistent column detection — now warns on remove/rename/change_type/add_index for missing columns
+- `edit_context` "File not found" with no hint — now suggests full path with "Did you mean?"
+- `performance_check` model filter fails for multi-word models — "BrandProfile" now resolves to "brand_profiles"
+- `performance_check` unknown model silently ignored — now returns "not found" with suggestions
+- `turbo_map` stream filter misses dynamic broadcasts — multi-line call handling + snippet fallback + fuzzy prefix matching
+- `turbo_map` controller filter misses job broadcasts — now includes broadcasts matching filtered subscriptions' streams
+- `security_scan` wrong check name examples — added CHECK_ALIASES mapping (CheckXSS → CheckCrossSiteScripting, sql → CheckSQL, etc.)
+- `search_code` unknown match_type silently ignored — now returns error with valid values
+- `validate` unknown level silently ignored — now returns error with valid values
+- `get_view` no "Did you mean?" on wrong controller — now uses `find_closest_match`
+- `get_context` plural model name ("Cooks") produces mixed output — now normalizes via singularize/classify, fails fast when not found
+- `component_catalog` specific component returns generic "no components" — now acknowledges the input
+- `stimulus` doesn't strip `_controller` suffix — now auto-strips for lookup
+- `controller_introspector_spec` rate_limit test crashes on Rails 7.1 — split into source-parsing test (no class loading)
+
+### Changed
+- Full preset: 31 → 32 introspectors (added :frontend_frameworks)
+- Tool count: 29 → 30
+- Test count: 817 → 893
+- Install generator always writes `config.ai_tools` and `config.tool_mode` uncommented for re-install detection
+
 ## [4.0.0] — 2026-03-26
 
 ### Added

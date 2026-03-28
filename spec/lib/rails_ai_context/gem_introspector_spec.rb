@@ -127,6 +127,47 @@ RSpec.describe RailsAiContext::Introspectors::GemIntrospector do
     end
   end
 
+  describe "new API and auth NOTABLE_GEMS entries" do
+    before do
+      FileUtils.mkdir_p(fixture_path)
+      File.write(File.join(fixture_path, "Gemfile.lock"), <<~LOCK)
+        GEM
+          remote: https://rubygems.org/
+          specs:
+            devise-jwt (0.11.0)
+            rswag-api (2.10.0)
+            rswag-ui (2.10.0)
+            grape-swagger (2.0.0)
+            apipie-rails (1.0.0)
+            hotwire-native-rails (1.0.0)
+
+        PLATFORMS
+          ruby
+      LOCK
+    end
+
+    after do
+      FileUtils.rm_f(File.join(fixture_path, "Gemfile.lock"))
+    end
+
+    it "detects all newly added gems" do
+      result = introspector.call
+      names = result[:notable_gems].map { |g| g[:name] }
+      expect(names).to include(
+        "devise-jwt", "rswag-api", "rswag-ui",
+        "grape-swagger", "apipie-rails", "hotwire-native-rails"
+      )
+    end
+
+    it "categorizes new gems correctly" do
+      result = introspector.call
+      cats = result[:categories]
+      expect(cats["auth"]).to include("devise-jwt")
+      expect(cats["api"]).to include("rswag-api", "rswag-ui", "grape-swagger", "apipie-rails")
+      expect(cats["frontend"]).to include("hotwire-native-rails")
+    end
+  end
+
   context "when Gemfile.lock is missing" do
     let(:app) { double("app", root: Pathname.new("/nonexistent")) }
 

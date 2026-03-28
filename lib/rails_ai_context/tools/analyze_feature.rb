@@ -22,7 +22,7 @@ module RailsAiContext
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
       def self.call(feature:, server_context: nil) # rubocop:disable Metrics
-        feature = feature.strip
+        feature = feature.to_s.strip
         return text_response("Please provide a feature keyword (e.g. 'cook', 'payment', 'authentication').") if feature.empty?
 
         ctx = cached_context
@@ -47,6 +47,14 @@ module RailsAiContext
         discover_test_gaps(root, pattern, matched_models, ctx, test_files || [], lines)
         discover_accessibility(ctx, pattern, lines)
         discover_components(ctx, pattern, lines)
+
+        # If nothing was discovered, return a clean "no match" with real suggestions
+        has_content = lines.any? { |l| l.start_with?("## ") || l.start_with?("### ") }
+        unless has_content
+          model_names = (ctx[:models] || {}).keys.map(&:to_s).sort.first(10)
+          suggestions = model_names.any? ? model_names.join(", ") : "user, payment, order"
+          return text_response("No matches found for '#{feature}'. No models, controllers, routes, services, or views match this keyword.\n\nTry one of your model names: #{suggestions}")
+        end
 
         text_response(lines.join("\n"))
       end
@@ -97,8 +105,6 @@ module RailsAiContext
                 lines << "**Enums:** #{enum_strs.join('; ')}"
               end
             end
-          else
-            lines << "## Models" << "_No models matching '#{pattern}'._"
           end
 
           lines << ""
@@ -131,8 +137,6 @@ module RailsAiContext
               end
               lines << "- **Filters:** #{filters.join('; ')}" if filters.any?
             end
-          else
-            lines << "## Controllers" << "_No controllers matching '#{pattern}'._"
           end
           lines << ""
         end
@@ -157,8 +161,6 @@ module RailsAiContext
                 lines << "- `#{r[:verb]}` `#{r[:path]}` → #{ctrl}##{r[:action]}#{helper}"
               end
             end
-          else
-            lines << "## Routes" << "_No routes matching '#{pattern}'._"
           end
           lines << ""
         end

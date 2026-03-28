@@ -91,5 +91,90 @@ RSpec.describe RailsAiContext::Introspectors::TurboIntrospector do
         expect(broadcast[:methods]).to include("broadcasts_to", "broadcasts_refreshes_to")
       end
     end
+
+    describe "turbo_native" do
+      it "returns a hash with turbo native keys" do
+        native = result[:turbo_native]
+        expect(native).to be_a(Hash)
+        expect(native).to have_key(:detected)
+        expect(native).to have_key(:native_helpers)
+        expect(native).to have_key(:native_navigation)
+        expect(native).to have_key(:native_conditionals)
+      end
+
+      it "returns false for detected when no native include" do
+        expect(result[:turbo_native][:detected]).to be false
+      end
+
+      it "returns empty arrays and zero when no native usage" do
+        native = result[:turbo_native]
+        expect(native[:native_helpers]).to eq([])
+        expect(native[:native_navigation]).to eq([])
+        expect(native[:native_conditionals]).to eq(0)
+      end
+
+      context "with Turbo Native controllers" do
+        let(:native_controller) { File.join(Rails.root, "app/controllers/native_controller.rb") }
+
+        before do
+          File.write(native_controller, <<~RUBY)
+            class NativeController < ApplicationController
+              include Turbo::Native::Navigation
+
+              def show
+                if turbo_native_app?
+                  recede_or_redirect_to root_path
+                else
+                  redirect_to root_path
+                end
+              end
+
+              def update
+                resume_or_redirect_back_or_to root_path
+              end
+            end
+          RUBY
+        end
+
+        after { FileUtils.rm_f(native_controller) }
+
+        it "detects Turbo::Native::Navigation include" do
+          expect(result[:turbo_native][:detected]).to be true
+        end
+
+        it "detects native helper usage in controllers" do
+          expect(result[:turbo_native][:native_helpers]).to include("app/controllers/native_controller.rb")
+        end
+
+        it "detects native navigation methods" do
+          nav = result[:turbo_native][:native_navigation]
+          expect(nav).to include(
+            { file: "app/controllers/native_controller.rb", method: "recede_or_redirect_to" },
+            { file: "app/controllers/native_controller.rb", method: "resume_or_redirect_back_or_to" }
+          )
+        end
+      end
+
+      context "with hotwire_native_app? in views" do
+        let(:view_file) { File.join(Rails.root, "app/views/posts/_native_check.html.erb") }
+
+        before do
+          File.write(view_file, <<~ERB)
+            <% if hotwire_native_app? %>
+              <p>Native app detected</p>
+            <% end %>
+            <% if turbo_native_app? %>
+              <p>Turbo native detected</p>
+            <% end %>
+          ERB
+        end
+
+        after { FileUtils.rm_f(view_file) }
+
+        it "counts native conditionals in views" do
+          expect(result[:turbo_native][:native_conditionals]).to be >= 2
+        end
+      end
+    end
   end
 end

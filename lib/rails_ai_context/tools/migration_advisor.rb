@@ -43,9 +43,24 @@ module RailsAiContext
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true, open_world_hint: false)
 
-      def self.call(action:, table:, column: nil, type: nil, new_name: nil, options: nil, server_context: nil)
+      VALID_ACTIONS = %w[add_column remove_column rename_column add_index add_association change_type create_table].freeze
+
+      def self.call(action: nil, table: nil, column: nil, type: nil, new_name: nil, options: nil, server_context: nil)
+        action = action.to_s.strip
         table = table.to_s.strip
         column = column.to_s.strip if column
+
+        # Normalize model names to table names: "Cook" → "cooks", "BrandProfile" → "brand_profiles"
+        table = table.underscore.pluralize if table.match?(/\A[A-Z]/)
+
+        return text_response("**Error:** `action` is required. Valid actions: #{VALID_ACTIONS.join(', ')}") if action.empty?
+        return text_response("**Error:** `table` is required (e.g., 'users', 'posts').") if table.empty?
+
+        unless VALID_ACTIONS.include?(action)
+          suggestion = VALID_ACTIONS.find { |a| a.start_with?(action) || a.include?(action) }
+          hint = suggestion ? " Did you mean `#{suggestion}`?" : ""
+          return text_response("**Error:** Unknown action `#{action}`.#{hint} Valid actions: #{VALID_ACTIONS.join(', ')}")
+        end
 
         schema = cached_context[:schema]
         models = cached_context[:models]
@@ -61,7 +76,6 @@ module RailsAiContext
         when "remove_column"
           lines.concat(generate_remove_column(table, column, type, schema, models))
         when "rename_column"
-          # Accept new_name explicitly, fall back to type for backward compat
           rename_to = new_name&.to_s&.strip
           rename_to = type if rename_to.nil? || rename_to.empty?
           lines.concat(generate_rename_column(table, column, rename_to))

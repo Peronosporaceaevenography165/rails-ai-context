@@ -7,7 +7,7 @@ module RailsAiContext
       full: %i[schema models routes jobs gems conventions stimulus controllers views view_templates design_tokens turbo
                i18n config active_storage action_text auth api tests rake_tasks assets
                devops action_mailbox migrations seeds middleware engines multi_database
-               components accessibility performance]
+               components accessibility performance frontend_frameworks]
     }.freeze
 
     # MCP server settings
@@ -94,6 +94,10 @@ module RailsAiContext
     attr_accessor :search_extensions      # File extensions for Ruby fallback search (default: rb,js,erb,yml,yaml,json)
     attr_accessor :concern_paths          # Where to look for concern source files (default: app/models/concerns)
 
+    # Frontend framework detection (optional overrides — auto-detected if nil)
+    attr_accessor :frontend_paths         # User-declared frontend dirs (e.g. ["app/frontend", "../web-client"])
+    attr_accessor :mobile_paths           # User-declared mobile dirs (e.g. ["../mobile-app"])
+
     def initialize
       @server_name         = "rails-ai-context"
       @server_version      = RailsAiContext::VERSION
@@ -160,6 +164,8 @@ module RailsAiContext
       @tool_mode                = :mcp
       @search_extensions        = %w[rb js erb yml yaml json ts tsx vue svelte haml slim]
       @concern_paths            = %w[app/models/concerns app/controllers/concerns]
+      @frontend_paths           = nil
+      @mobile_paths             = nil
     end
 
     def preset=(name)

@@ -54,7 +54,16 @@ module RailsAiContext
 
         # Path traversal protection (resolves symlinks)
         unless File.exist?(full_path)
-          return text_response("File not found: #{file}")
+          # Try to find a matching file to suggest
+          basename = File.basename(file)
+          candidates = Dir.glob(File.join(Rails.root, "app", "**", basename)).first(5)
+          hint = if candidates.any?
+            suggestions = candidates.map { |c| c.sub("#{Rails.root}/", "") }
+            " Did you mean: #{suggestions.join(', ')}? Use the full path relative to Rails root."
+          else
+            " Use the full path relative to Rails root (e.g., 'app/models/#{basename}')."
+          end
+          return text_response("File not found: #{file}.#{hint}")
         end
         begin
           unless File.realpath(full_path).start_with?(File.realpath(Rails.root))

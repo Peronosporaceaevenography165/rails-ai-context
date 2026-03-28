@@ -65,7 +65,9 @@ module RailsAiContext
 
           if filtered_templates.empty? && filtered_partials.empty?
             all_dirs = (templates.keys + partials.keys).map { |k| k.split("/").first }.uniq.sort
-            return text_response("No views for '#{controller}'. Directories with views: #{all_dirs.join(', ')}")
+            suggestion = find_closest_match(ctrl_lower, all_dirs)
+            hint = suggestion ? " Did you mean '#{suggestion}'?" : ""
+            return text_response("No views for '#{controller}'.#{hint} Directories with views: #{all_dirs.join(', ')}")
           end
 
           templates = filtered_templates

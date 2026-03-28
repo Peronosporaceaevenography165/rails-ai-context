@@ -18,7 +18,8 @@ module RailsAiContext
           morph_meta: detect_morph_meta,
           permanent_elements: extract_permanent_elements,
           turbo_drive_settings: extract_turbo_drive_settings,
-          turbo_stream_responses: extract_turbo_stream_responses
+          turbo_stream_responses: extract_turbo_stream_responses,
+          turbo_native: detect_turbo_native
         }
       rescue => e
         { error: e.message }
@@ -147,6 +148,81 @@ module RailsAiContext
         counts
       rescue
         { "data-turbo-false": 0, "data-turbo-action": 0, "data-turbo-preload": 0 }
+      end
+
+      def detect_turbo_native
+        controllers_dir = File.join(root, "app/controllers")
+
+        {
+          detected: detect_native_include(controllers_dir),
+          native_helpers: detect_native_helpers(controllers_dir),
+          native_navigation: detect_native_navigation(controllers_dir),
+          native_conditionals: detect_native_conditionals
+        }
+      rescue
+        { detected: false, native_helpers: [], native_navigation: [], native_conditionals: 0 }
+      end
+
+      def detect_native_include(controllers_dir)
+        return false unless Dir.exist?(controllers_dir)
+
+        Dir.glob(File.join(controllers_dir, "**/*.rb")).any? do |path|
+          content = File.read(path) rescue next
+          content.match?(/include\s+Turbo::Native::Navigation/)
+        end
+      rescue
+        false
+      end
+
+      def detect_native_helpers(controllers_dir)
+        return [] unless Dir.exist?(controllers_dir)
+
+        Dir.glob(File.join(controllers_dir, "**/*.rb")).filter_map do |path|
+          content = File.read(path) rescue next
+          if content.match?(/turbo_native_app\?|hotwire_native_app\?/)
+            path.sub("#{root}/", "")
+          end
+        end.sort
+      rescue
+        []
+      end
+
+      def detect_native_navigation(controllers_dir)
+        return [] unless Dir.exist?(controllers_dir)
+
+        navigation_methods = %w[
+          recede_or_redirect_to resume_or_redirect_to refresh_or_redirect_to
+          recede_or_redirect_back_or_to resume_or_redirect_back_or_to refresh_or_redirect_back_or_to
+        ]
+        pattern = Regexp.union(navigation_methods)
+
+        results = []
+        Dir.glob(File.join(controllers_dir, "**/*.rb")).each do |path|
+          content = File.read(path) rescue next
+          relative = path.sub("#{root}/", "")
+
+          content.scan(pattern).each do |match|
+            results << { file: relative, method: match }
+          end
+        end
+
+        results.sort_by { |r| [ r[:file], r[:method] ] }
+      rescue
+        []
+      end
+
+      def detect_native_conditionals
+        return 0 unless Dir.exist?(views_dir)
+
+        count = 0
+        Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}")).each do |path|
+          content = File.read(path) rescue next
+          count += content.scan(/turbo_native_app\?|hotwire_native_app\?/).size
+        end
+
+        count
+      rescue
+        0
       end
 
       def extract_turbo_stream_responses

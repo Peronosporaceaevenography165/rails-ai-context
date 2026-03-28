@@ -16,6 +16,14 @@ module RailsAiContext
         "4" => { key: :opencode, name: "OpenCode",        files: "AGENTS.md",                                          format: :opencode }
       }.freeze
 
+      # Files/dirs generated per AI tool format — used for cleanup on tool removal
+      FORMAT_PATHS = {
+        claude:   %w[CLAUDE.md .claude/rules],
+        cursor:   %w[.cursor/rules],
+        copilot:  %w[.github/copilot-instructions.md .github/instructions],
+        opencode: %w[AGENTS.md app/models/AGENTS.md app/controllers/AGENTS.md]
+      }.freeze
+
       def select_ai_tools
         say ""
         say "Which AI tools do you use? (select all that apply)", :yellow
@@ -43,6 +51,56 @@ module RailsAiContext
         selected_names = AI_TOOLS.values.select { |t| @selected_formats.include?(t[:format]) }.map { |t| t[:name] }
         say ""
         say "Selected: #{selected_names.join(', ')}", :green
+      end
+
+      def cleanup_removed_tools
+        @previous_formats = read_previous_ai_tools
+        return unless @previous_formats&.any?
+
+        removed = @previous_formats - @selected_formats
+        return if removed.empty?
+
+        say ""
+        say "These AI tools were removed from your selection:", :yellow
+        removed.each_with_index do |fmt, idx|
+          tool = AI_TOOLS.values.find { |t| t[:format] == fmt }
+          say "  #{idx + 1}. #{tool[:name]} (#{tool[:files]})" if tool
+        end
+        say ""
+
+        say "Remove their generated files?", :yellow
+        say "  y — remove all listed above"
+        say "  n — keep all (default)"
+        say "  1,2 — remove only specific ones by number"
+        say ""
+
+        input = ask("Enter choice:").strip.downcase
+        return if input.empty? || input == "n" || input == "no"
+
+        to_remove = if input == "y" || input == "yes" || input == "a"
+          removed
+        else
+          nums = input.split(/[\s,]+/).filter_map { |n| n.to_i - 1 }
+          nums.filter_map { |i| removed[i] if i >= 0 && i < removed.size }
+        end
+
+        return if to_remove.empty?
+
+        to_remove.each do |fmt|
+          tool = AI_TOOLS.values.find { |t| t[:format] == fmt }
+          paths = FORMAT_PATHS[fmt] || []
+          paths.each do |rel_path|
+            full = Rails.root.join(rel_path)
+            if File.directory?(full)
+              FileUtils.rm_rf(full)
+              say "  Removed #{rel_path}/", :red
+            elsif File.exist?(full)
+              FileUtils.rm_f(full)
+              say "  Removed #{rel_path}", :red
+            end
+          end
+          say "  ✓ #{tool[:name]} files removed", :green if tool
+        end
       end
 
       def select_tool_mode
@@ -95,39 +153,28 @@ module RailsAiContext
         end
       end
 
-      def create_initializer
-        tools_line = if @selected_formats.size == AI_TOOLS.size
-          "  # config.ai_tools = %i[claude cursor copilot opencode]  # default: all"
-        else
-          "  config.ai_tools = %i[#{@selected_formats.join(' ')}]"
-        end
-
-        tool_mode_line = if @tool_mode == :cli
-          "  config.tool_mode = :cli    # CLI only (no MCP server needed)"
-        else
-          "  # config.tool_mode = :mcp  # MCP primary + CLI fallback (default)"
-        end
-
-        create_file "config/initializers/rails_ai_context.rb", <<~RUBY
-          # frozen_string_literal: true
-
-          RailsAiContext.configure do |config|
+      # All config sections with their marker comment and content.
+      # Each section is identified by its marker (e.g., "── AI Tools ──").
+      # On re-install, only sections NOT already present are appended.
+      CONFIG_SECTIONS = {
+        "AI Tools" => <<~SECTION,
             # ── AI Tools ──────────────────────────────────────────────────────
             # Which AI tools to generate context files for (selected during install)
             # Run `rails generate rails_ai_context:install` to change selection
-          #{tools_line}
+            # config.ai_tools = %i[claude cursor copilot opencode]  # default: all
 
             # Tool invocation mode:
             #   :mcp — MCP primary + CLI fallback (default, requires `rails ai:serve`)
             #   :cli — CLI only (no MCP server needed, uses `rails 'ai:tool[NAME]'`)
-          #{tool_mode_line}
-
+            # config.tool_mode = :mcp
+        SECTION
+        "Introspection" => <<~SECTION,
             # ── Introspection ─────────────────────────────────────────────────
             # Introspector preset:
-            #   :full     — all 28 introspectors (default)
-            #   :standard — 13 core introspectors (schema, models, routes, jobs, gems,
+            #   :full     — all #{RailsAiContext::Configuration::PRESETS[:full].size} introspectors (default)
+            #   :standard — #{RailsAiContext::Configuration::PRESETS[:standard].size} core introspectors (schema, models, routes, jobs, gems,
             #               conventions, controllers, tests, migrations, stimulus,
-            #               view_templates, design_tokens, config)
+            #               view_templates, design_tokens, config, components)
             # config.preset = :full
 
             # Context mode: :compact (default, ≤150 lines) or :full (dumps everything)
@@ -139,7 +186,8 @@ module RailsAiContext
             # Whether to generate root files (CLAUDE.md, AGENTS.md, etc.)
             # Set false to only generate split rules (.claude/rules/, .cursor/rules/, etc.)
             # config.generate_root_files = true
-
+        SECTION
+        "Models & Filtering" => <<~SECTION,
             # ── Models & Filtering ────────────────────────────────────────────
             # Models to exclude from introspection
             # config.excluded_models += %w[AdminUser InternalThing]
@@ -149,7 +197,8 @@ module RailsAiContext
 
             # Route prefixes to hide with app_only filter
             # config.excluded_route_prefixes += %w[sidekiq/]
-
+        SECTION
+        "MCP Server" => <<~SECTION,
             # ── MCP Server ────────────────────────────────────────────────────
             # Cache TTL in seconds for introspection data
             # config.cache_ttl = 60
@@ -167,7 +216,8 @@ module RailsAiContext
             # config.auto_mount = false
             # config.http_path = "/mcp"
             # config.http_port = 6029
-
+        SECTION
+        "File Size Limits" => <<~SECTION,
             # ── File Size Limits ──────────────────────────────────────────────
             # Increase for larger projects
             # config.max_file_size = 5_000_000         # Per-file read (5MB)
@@ -177,32 +227,160 @@ module RailsAiContext
             # config.max_view_file_size = 1_000_000    # Per-view file (1MB)
             # config.max_search_results = 200          # Max search results per call
             # config.max_validate_files = 50           # Max files per validate call
-
+        SECTION
+        "Extensibility" => <<~SECTION,
             # ── Extensibility ─────────────────────────────────────────────────
-            # Register additional MCP tool classes alongside the 25 built-in tools
+            # Register additional MCP tool classes alongside the #{RailsAiContext::Server::TOOLS.size} built-in tools
             # config.custom_tools = [MyApp::CustomTool]
 
             # Exclude specific built-in tools by name
             # config.skip_tools = %w[rails_security_scan]
-
+        SECTION
+        "Security" => <<~SECTION,
             # ── Security ──────────────────────────────────────────────────────
             # Paths excluded from code search
             # config.excluded_paths += %w[vendor/cache]
 
             # File patterns blocked from search and read tools
             # config.sensitive_patterns += %w[config/secrets.yml]
-
+        SECTION
+        "Search" => <<~SECTION,
             # ── Search ────────────────────────────────────────────────────────
             # File extensions for fallback search (when ripgrep unavailable)
             # config.search_extensions = %w[rb js erb yml yaml json ts tsx vue svelte haml slim]
 
             # Where to look for concern source files
             # config.concern_paths = %w[app/models/concerns app/controllers/concerns]
-          end
-        RUBY
+        SECTION
+        "Frontend" => <<~SECTION
+            # ── Frontend Framework Detection ─────────────────────────────────
+            # Auto-detected from package.json, config/vite.json, etc. Override only if needed.
+            # config.frontend_paths = ["app/frontend", "../web-client"]
+            # config.mobile_paths = ["../mobile-app"]
+        SECTION
+      }.freeze
 
-        say "Created config/initializers/rails_ai_context.rb", :green
+      def create_initializer
+        initializer_path = "config/initializers/rails_ai_context.rb"
+        full_path = Rails.root.join(initializer_path)
+
+        if File.exist?(full_path)
+          update_existing_initializer(full_path)
+        else
+          create_new_initializer(initializer_path)
+        end
       end
+
+      no_tasks do
+      def create_new_initializer(path)
+        # Always write uncommented so re-install can detect previous selection
+        tools_line = "  config.ai_tools = %i[#{@selected_formats.join(' ')}]"
+
+        tool_mode_line = if @tool_mode == :cli
+          "  config.tool_mode = :cli    # CLI only (no MCP server needed)"
+        else
+          "  config.tool_mode = :mcp   # MCP primary + CLI fallback"
+        end
+
+        content = "# frozen_string_literal: true\n\nRailsAiContext.configure do |config|\n"
+
+        # AI Tools section gets dynamic values from user selection
+        content += <<~SECTION
+            # ── AI Tools ──────────────────────────────────────────────────────
+            # Which AI tools to generate context files for (selected during install)
+            # Run `rails generate rails_ai_context:install` to change selection
+          #{tools_line}
+
+            # Tool invocation mode:
+            #   :mcp — MCP primary + CLI fallback (default, requires `rails ai:serve`)
+            #   :cli — CLI only (no MCP server needed, uses `rails 'ai:tool[NAME]'`)
+          #{tool_mode_line}
+
+        SECTION
+
+        # All remaining sections use defaults (commented out)
+        CONFIG_SECTIONS.each do |name, section_content|
+          next if name == "AI Tools" # already added with dynamic values
+          content += section_content + "\n"
+        end
+
+        content += "end\n"
+
+        create_file path, content
+        say "Created #{path} with all #{CONFIG_SECTIONS.size} config sections", :green
+      end
+
+      def update_existing_initializer(full_path)
+        existing = File.read(full_path)
+        changes = []
+
+        # 1. Update ai_tools selection if user picked new tools
+        existing, changed = update_config_line(existing, "config.ai_tools", build_ai_tools_line)
+        changes << "ai_tools" if changed
+
+        # 2. Update tool_mode if user picked a new mode
+        existing, changed = update_config_line(existing, "config.tool_mode", build_tool_mode_line)
+        changes << "tool_mode" if changed
+
+        # 3. Add any missing config sections
+        CONFIG_SECTIONS.each do |name, section_content|
+          marker = "── #{name}"
+          next if existing.include?(marker)
+
+          insert_point = existing.rindex(/^end\b/)
+          if insert_point
+            existing = existing.insert(insert_point, "\n#{section_content}\n")
+            changes << "section: #{name}"
+          end
+        end
+
+        if changes.any?
+          File.write(full_path, existing)
+          say "Updated #{full_path.relative_path_from(Rails.root)}: #{changes.join(', ')}", :green
+        else
+          say "#{full_path.relative_path_from(Rails.root)} is up to date — no changes needed", :green
+        end
+      end
+
+      # Replace or uncomment a config line. Returns [new_content, changed?]
+      def update_config_line(content, key, new_line)
+        # Match both commented and uncommented versions of this config key
+        pattern = /^[ \t]*#?\s*#{Regexp.escape(key)}\s*=.*$/
+        if content.match?(pattern)
+          updated = content.sub(pattern, new_line)
+          [ updated, updated != content ]
+        else
+          # Key not found at all — don't add (it's in a section that will be added)
+          [ content, false ]
+        end
+      end
+
+      def build_ai_tools_line
+        # Always write uncommented so re-install can detect previous selection
+        "  config.ai_tools = %i[#{@selected_formats.join(' ')}]"
+      end
+
+      def build_tool_mode_line
+        if @tool_mode == :cli
+          "  config.tool_mode = :cli    # CLI only (no MCP server needed)"
+        else
+          "  config.tool_mode = :mcp   # MCP primary + CLI fallback"
+        end
+      end
+
+      def read_previous_ai_tools
+        init_path = Rails.root.join("config/initializers/rails_ai_context.rb")
+        return nil unless File.exist?(init_path)
+
+        content = File.read(init_path)
+        match = content.match(/^\s*config\.ai_tools\s*=\s*%i\[([^\]]*)\]/)
+        return nil unless match
+
+        match[1].split.map(&:to_sym)
+      rescue
+        nil
+      end
+      end # no_tasks
 
       def add_to_gitignore
         gitignore = Rails.root.join(".gitignore")
@@ -258,9 +436,9 @@ module RailsAiContext
         say ""
         say "Commands:", :yellow
         say "  rails ai:context         # Regenerate context files"
-        say "  rails 'ai:tool[schema]'    # Run any of the 25 tools from CLI"
+        say "  rails 'ai:tool[schema]'    # Run any of the 30 tools from CLI"
         if @tool_mode == :mcp
-          say "  rails ai:serve           # Start MCP server (25 live tools)"
+          say "  rails ai:serve           # Start MCP server (30 live tools)"
         end
         say "  rails ai:doctor          # Check AI readiness"
         say "  rails ai:inspect         # Print introspection summary"

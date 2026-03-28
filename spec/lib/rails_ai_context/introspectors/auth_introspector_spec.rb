@@ -131,5 +131,122 @@ RSpec.describe RailsAiContext::Introspectors::AuthIntrospector do
         expect(result[:devise_modules_per_model]).to eq({})
       end
     end
+
+    describe "token_auth" do
+      it "returns a hash with token auth keys" do
+        expect(result[:token_auth]).to be_a(Hash)
+        expect(result[:token_auth]).to have_key(:devise_jwt)
+        expect(result[:token_auth]).to have_key(:doorkeeper)
+        expect(result[:token_auth]).to have_key(:http_token_auth)
+      end
+
+      it "returns devise_jwt as not detected when gem is absent" do
+        expect(result[:token_auth][:devise_jwt]).to eq({ detected: false })
+      end
+
+      it "returns doorkeeper as nil when gem is absent" do
+        expect(result[:token_auth][:doorkeeper]).to be_nil
+      end
+
+      it "returns empty array for http_token_auth when no controllers use it" do
+        expect(result[:token_auth][:http_token_auth]).to eq([])
+      end
+
+      context "with devise-jwt gem and initializer" do
+        let(:lock_path) { File.join(Rails.root, "Gemfile.lock") }
+        let(:devise_init) { File.join(Rails.root, "config/initializers/devise.rb") }
+
+        before do
+          File.write(lock_path, <<~LOCK)
+            GEM
+              remote: https://rubygems.org/
+              specs:
+                devise-jwt (0.11.0)
+
+            PLATFORMS
+              ruby
+          LOCK
+          FileUtils.mkdir_p(File.dirname(devise_init))
+          File.write(devise_init, <<~RUBY)
+            Devise.setup do |config|
+              config.jwt do |jwt|
+                jwt.secret = Rails.application.credentials.devise_jwt_secret_key!
+              end
+            end
+          RUBY
+        end
+
+        after do
+          FileUtils.rm_f(lock_path)
+          FileUtils.rm_f(devise_init)
+        end
+
+        it "detects devise-jwt with jwt configuration" do
+          expect(result[:token_auth][:devise_jwt]).to eq({ detected: true, jwt_configured: true })
+        end
+      end
+
+      context "with doorkeeper gem and initializer" do
+        let(:lock_path) { File.join(Rails.root, "Gemfile.lock") }
+        let(:doorkeeper_init) { File.join(Rails.root, "config/initializers/doorkeeper.rb") }
+
+        before do
+          File.write(lock_path, <<~LOCK)
+            GEM
+              remote: https://rubygems.org/
+              specs:
+                doorkeeper (5.6.0)
+
+            PLATFORMS
+              ruby
+          LOCK
+          FileUtils.mkdir_p(File.dirname(doorkeeper_init))
+          File.write(doorkeeper_init, <<~RUBY)
+            Doorkeeper.configure do
+              grant_flows %w[authorization_code client_credentials]
+              access_token_expires_in 2.hours
+            end
+          RUBY
+        end
+
+        after do
+          FileUtils.rm_f(lock_path)
+          FileUtils.rm_f(doorkeeper_init)
+        end
+
+        it "detects doorkeeper with grant_flows and expiration" do
+          dk = result[:token_auth][:doorkeeper]
+          expect(dk[:detected]).to be true
+          expect(dk[:grant_flows]).to eq(%w[authorization_code client_credentials])
+          expect(dk[:access_token_expires_in]).to eq("2.hours")
+        end
+      end
+
+      context "with http token auth in a controller" do
+        let(:controller_file) { File.join(Rails.root, "app/controllers/api_tokens_controller.rb") }
+
+        before do
+          File.write(controller_file, <<~RUBY)
+            class ApiTokensController < ApplicationController
+              before_action :authenticate
+
+              private
+
+              def authenticate
+                authenticate_or_request_with_http_token do |token|
+                  ApiToken.find_by(token: token)
+                end
+              end
+            end
+          RUBY
+        end
+
+        after { FileUtils.rm_f(controller_file) }
+
+        it "detects controllers using HTTP token auth" do
+          expect(result[:token_auth][:http_token_auth]).to include("app/controllers/api_tokens_controller.rb")
+        end
+      end
+    end
   end
 end

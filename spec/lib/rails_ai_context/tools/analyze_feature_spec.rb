@@ -153,13 +153,12 @@ RSpec.describe RailsAiContext::Tools::AnalyzeFeature do
       expect(text).to include("`DELETE` `/logout`")
     end
 
-    it "returns no-match messages when feature has no hits" do
+    it "returns clean no-match message when feature has no hits" do
       result = described_class.call(feature: "zzz_nonexistent")
       text = result.content.first[:text]
 
-      expect(text).to include("No models matching")
-      expect(text).to include("No controllers matching")
-      expect(text).to include("No routes matching")
+      expect(text).to include("No matches found for 'zzz_nonexistent'")
+      expect(text).to include("Try one of your model names:")
     end
 
     it "handles missing introspection data gracefully" do
@@ -168,10 +167,7 @@ RSpec.describe RailsAiContext::Tools::AnalyzeFeature do
       result = described_class.call(feature: "anything")
       text = result.content.first[:text]
 
-      expect(text).to include("Feature Analysis: anything")
-      expect(text).to include("No models matching")
-      expect(text).to include("No controllers matching")
-      expect(text).to include("No routes matching")
+      expect(text).to include("No matches found for 'anything'")
     end
 
     it "performs case-insensitive matching" do

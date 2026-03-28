@@ -40,6 +40,17 @@ module RailsAiContext
 
         model = model.to_s.strip if model
 
+        # Validate model exists if specified
+        if model && !model.empty?
+          models_data = cached_context[:models]
+          if models_data.is_a?(Hash) && !models_data[:error]
+            model_names = models_data.keys.map(&:to_s)
+            unless model_names.any? { |m| m.downcase == model.downcase }
+              return not_found_response("model", model, model_names, recovery_tool: "rails_performance_check")
+            end
+          end
+        end
+
         lines = [ "# Performance Analysis", "" ]
 
         summary = data[:summary] || {}

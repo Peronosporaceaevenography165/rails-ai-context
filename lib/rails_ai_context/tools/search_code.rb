@@ -77,6 +77,12 @@ module RailsAiContext
         # Apply exact_match word boundaries
         pattern = "\\b#{pattern}\\b" if exact_match
 
+        # Validate match_type
+        valid_match_types = %w[any definition class call trace]
+        unless valid_match_types.include?(match_type)
+          return text_response("Unknown match_type: '#{match_type}'. Valid values: #{valid_match_types.join(', ')}")
+        end
+
         # Apply match_type filter to pattern
         search_pattern = case match_type
         when "definition"

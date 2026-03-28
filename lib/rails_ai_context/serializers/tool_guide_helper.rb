@@ -24,20 +24,20 @@ module RailsAiContext
       end
 
       def tools_header
-        "## Tools (29) — MANDATORY, Use Before Read"
+        "## Tools (30) — MANDATORY, Use Before Read"
       end
 
       def tools_intro
         case tool_mode
         when :cli
           [
-            "This project has 29 introspection tools. **MANDATORY — use these instead of reading files.**",
+            "This project has 30 introspection tools. **MANDATORY — use these instead of reading files.**",
             "They return only relevant, structured data and save tokens. Read files ONLY when you are about to Edit them.",
             ""
           ]
         else
           [
-            "This project has 29 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
+            "This project has 30 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
             "**MANDATORY — use these instead of reading files.** They return structured data and save tokens.",
             "Read files ONLY when you are about to Edit them.",
             "If MCP tools are not connected, use CLI fallback: `#{cli_cmd("TOOL_NAME", "param=value")}`",
@@ -53,6 +53,7 @@ module RailsAiContext
           "**Understand a feature or area:**",
           tool_call("rails_analyze_feature(feature:\"cook\")", cli_cmd("analyze_feature", "feature=cook")),
           tool_call("rails_get_context(model:\"Cook\")", cli_cmd("context", "model=Cook")),
+          tool_call("rails_get_frontend_stack", cli_cmd("frontend_stack")),
           "",
           "**Understand a method (who calls it, what it calls):**",
           tool_call("rails_search_code(pattern:\"can_cook?\", match_type:\"trace\")", cli_cmd("search_code", "pattern=\"can_cook?\" match_type=trace")),
@@ -120,7 +121,7 @@ module RailsAiContext
       end
 
       def tools_table # rubocop:disable Metrics/MethodLength
-        lines = [ "### All 29 Tools", "" ]
+        lines = [ "### All 30 Tools", "" ]
 
         if tool_mode == :cli
           lines.concat(tools_table_cli)
@@ -164,7 +165,8 @@ module RailsAiContext
           "| `rails_get_component_catalog(component:\"X\")` | `#{cli_cmd("component_catalog", "component=X")}` | ViewComponent/Phlex: props, slots, previews, usage |",
           "| `rails_performance_check(model:\"X\")` | `#{cli_cmd("performance_check", "model=X")}` | N+1 risks, missing indexes, Model.all anti-patterns |",
           "| `rails_dependency_graph(model:\"X\")` | `#{cli_cmd("dependency_graph", "model=X")}` | Model association graph as Mermaid diagram |",
-          "| `rails_migration_advisor(action:\"X\", table:\"Y\")` | `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |"
+          "| `rails_migration_advisor(action:\"X\", table:\"Y\")` | `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |",
+          "| `rails_get_frontend_stack` | `#{cli_cmd("frontend_stack")}` | React/Vue/Svelte/Angular, Inertia, TypeScript, package manager |"
         ]
       end
 
@@ -201,7 +203,8 @@ module RailsAiContext
           "| `#{cli_cmd("component_catalog", "component=X")}` | ViewComponent/Phlex: props, slots, previews, usage |",
           "| `#{cli_cmd("performance_check", "model=X")}` | N+1 risks, missing indexes, Model.all anti-patterns |",
           "| `#{cli_cmd("dependency_graph", "model=X")}` | Model association graph as Mermaid diagram |",
-          "| `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |"
+          "| `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |",
+          "| `#{cli_cmd("frontend_stack")}` | React/Vue/Svelte/Angular, Inertia, TypeScript, package manager |"
         ]
       end
 

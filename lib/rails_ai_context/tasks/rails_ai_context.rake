@@ -140,6 +140,35 @@ rescue
   nil
 end unless defined?(save_ai_tools_to_initializer)
 
+def add_ai_tool_to_initializer(format)
+  init_path = Rails.root.join("config/initializers/rails_ai_context.rb")
+  return unless File.exist?(init_path)
+
+  content = File.read(init_path)
+  format_sym = format.to_s
+
+  # Find the ai_tools line (commented or uncommented)
+  if content.match?(/^\s*config\.ai_tools\s*=\s*%i\[([^\]]*)\]/)
+    # Uncommented line — add format if not present
+    match = content.match(/^\s*config\.ai_tools\s*=\s*%i\[([^\]]*)\]/)
+    current_tools = match[1].split.map(&:strip)
+    unless current_tools.include?(format_sym)
+      current_tools << format_sym
+      new_line = "  config.ai_tools = %i[#{current_tools.join(' ')}]"
+      content.sub!(/^\s*config\.ai_tools\s*=\s*%i\[[^\]]*\]/, new_line)
+      File.write(init_path, content)
+      puts "💾 Added :#{format_sym} to config.ai_tools"
+    end
+  elsif content.match?(/^\s*#\s*config\.ai_tools\s*=/)
+    # Commented line — uncomment and set to just this format
+    content.sub!(/^\s*#\s*config\.ai_tools\s*=.*$/, "  config.ai_tools = %i[#{format_sym}]")
+    File.write(init_path, content)
+    puts "💾 Set config.ai_tools = %i[#{format_sym}]"
+  end
+rescue
+  nil
+end unless defined?(add_ai_tool_to_initializer)
+
 namespace :ai do
   desc "Run an MCP tool from the CLI: rails 'ai:tool[schema]' table=users detail=full"
   task :tool, [ :name ] => :environment do |_t, args|
@@ -255,6 +284,10 @@ namespace :ai do
         result = RailsAiContext.generate_context(format: fmt)
 
         print_result(result)
+
+        # Add this format to config.ai_tools if not already there
+        add_ai_tool_to_initializer(fmt)
+
         puts ""
         puts "Tip: Run `rails ai:context` to generate all formats at once."
       end

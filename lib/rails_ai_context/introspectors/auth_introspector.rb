@@ -16,7 +16,8 @@ module RailsAiContext
           authentication: detect_authentication,
           authorization: detect_authorization,
           security: detect_security,
-          devise_modules_per_model: detect_devise_modules_per_model
+          devise_modules_per_model: detect_devise_modules_per_model,
+          token_auth: detect_token_auth
         }
       rescue => e
         { error: e.message }
@@ -104,6 +105,67 @@ module RailsAiContext
         result
       rescue
         {}
+      end
+
+      def detect_token_auth
+        token_auth = {}
+
+        token_auth[:devise_jwt] = detect_devise_jwt
+        token_auth[:doorkeeper] = detect_doorkeeper
+        token_auth[:http_token_auth] = detect_http_token_auth
+
+        token_auth
+      rescue
+        {}
+      end
+
+      def detect_devise_jwt
+        return { detected: false } unless gem_present?("devise-jwt")
+
+        devise_init = File.join(root, "config/initializers/devise.rb")
+        if File.exist?(devise_init)
+          content = File.read(devise_init)
+          return { detected: true, jwt_configured: content.match?(/config\.jwt\b/) }
+        end
+
+        { detected: true }
+      rescue
+        { detected: false }
+      end
+
+      def detect_doorkeeper
+        return nil unless gem_present?("doorkeeper")
+
+        doorkeeper_init = File.join(root, "config/initializers/doorkeeper.rb")
+        return { detected: true } unless File.exist?(doorkeeper_init)
+
+        content = File.read(doorkeeper_init)
+
+        grant_flows = content.scan(/grant_flows\s+%w\[([^\]]+)\]/).flatten.first
+        grant_flows = grant_flows&.split&.map(&:strip)
+
+        expires_in = content.match(/access_token_expires_in\s+(\S+)/)&.send(:[], 1)
+
+        result = { detected: true }
+        result[:grant_flows] = grant_flows if grant_flows
+        result[:access_token_expires_in] = expires_in if expires_in
+        result
+      rescue
+        nil
+      end
+
+      def detect_http_token_auth
+        controllers_dir = File.join(root, "app/controllers")
+        return [] unless Dir.exist?(controllers_dir)
+
+        Dir.glob(File.join(controllers_dir, "**/*.rb")).filter_map do |path|
+          content = File.read(path) rescue next
+          if content.match?(/authenticate_with_http_token|authenticate_or_request_with_http_token/)
+            path.sub("#{root}/", "")
+          end
+        end.sort
+      rescue
+        []
       end
 
       def scan_models_for(pattern)

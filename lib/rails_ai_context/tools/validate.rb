@@ -36,9 +36,12 @@ module RailsAiContext
 
       # ── Main entry point ─────────────────────────────────────────────
 
+      VALID_LEVELS = %w[syntax rails].freeze
+
       def self.call(files:, level: "syntax", server_context: nil)
         return text_response("No files provided. Pass file paths relative to Rails root (e.g. files:[\"app/models/cook.rb\"]).") if files.nil? || files.empty?
         return text_response("Too many files (#{files.size}). Maximum is #{max_files} per call.") if files.size > max_files
+        return text_response("Unknown level: '#{level}'. Valid values: #{VALID_LEVELS.join(', ')}") unless VALID_LEVELS.include?(level)
 
         results = []
         passed = 0

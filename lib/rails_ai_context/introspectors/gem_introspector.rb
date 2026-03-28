@@ -19,6 +19,7 @@ module RailsAiContext
         "rodauth-rails"   => { category: :auth, note: "Authentication via Rodauth." },
         "authentication-zero" => { category: :auth, note: "Zero-dependency authentication generator for Rails." },
         "doorkeeper"      => { category: :auth, note: "OAuth 2 provider via Doorkeeper." },
+        "devise-jwt"      => { category: :auth, note: "JWT authentication strategy for Devise." },
         "jwt"             => { category: :auth, note: "JWT token handling." },
 
         # Background jobs
@@ -40,12 +41,17 @@ module RailsAiContext
         "tailwindcss-rails" => { category: :frontend, note: "Tailwind CSS integration." },
         "react-rails"     => { category: :frontend, note: "React components in Rails views." },
         "inertia_rails"   => { category: :frontend, note: "Inertia.js for SPA with Rails backend." },
+        "hotwire-native-rails" => { category: :frontend, note: "Hotwire Native Rails helpers for iOS/Android." },
         "propshaft"       => { category: :frontend, note: "Asset pipeline via Propshaft (Rails 8 default)." },
         "phlex-rails"     => { category: :frontend, note: "Phlex view components (Ruby-first HTML)." },
         "view_component"  => { category: :frontend, note: "ViewComponent for encapsulated view components." },
         "lookbook"        => { category: :frontend, note: "UI component preview and documentation via Lookbook." },
 
         # API
+        "rswag-api"       => { category: :api, note: "Serves OpenAPI specs from openapi/ directory." },
+        "rswag-ui"        => { category: :api, note: "Swagger UI for API documentation." },
+        "grape-swagger"   => { category: :api, note: "Swagger docs for Grape APIs." },
+        "apipie-rails"    => { category: :api, note: "API documentation DSL for Rails." },
         "grape"           => { category: :api, note: "API framework via Grape. Check app/api/." },
         "graphql"         => { category: :api, note: "GraphQL API. Check app/graphql/ for types and mutations." },
         "jsonapi-serializer" => { category: :api, note: "JSON:API serialization." },

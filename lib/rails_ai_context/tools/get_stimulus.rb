@@ -43,9 +43,9 @@ module RailsAiContext
         # Specific controller — accepts both dash and underscore naming
         # (HTML uses data-controller="weekly-chart", file is weekly_chart_controller.js)
         if controller
-          normalized = controller.downcase.tr("-", "_")
+          normalized = controller.downcase.tr("-", "_").delete_suffix("_controller")
           # Also handle PascalCase: CookStatus → cook_status
-          underscored = controller.underscore.downcase.tr("-", "_")
+          underscored = controller.underscore.downcase.tr("-", "_").delete_suffix("_controller")
           ctrl = all_controllers.find { |c|
             name_norm = c[:name]&.downcase&.tr("-", "_")
             name_norm == normalized || name_norm == underscored

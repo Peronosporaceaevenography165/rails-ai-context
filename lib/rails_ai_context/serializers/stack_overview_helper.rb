@@ -97,6 +97,14 @@ module RailsAiContext
           lines << "- Performance: #{total} issues detected" if total > 0
         end
 
+        fe = ctx[:frontend_frameworks]
+        if fe.is_a?(Hash) && !fe[:error]
+          parts = []
+          parts << "#{fe[:framework]} #{fe[:version]}".strip if fe[:framework]
+          parts << fe[:mounting] if fe[:mounting]
+          lines << "- Frontend: #{parts.join(', ')}" if parts.any?
+        end
+
         lines
       end
     end

@@ -252,7 +252,7 @@ rails ai:context:claude           # Use this instead (no quoting needed)
 
 ## CLI Tools
 
-All 29 MCP tools can be run directly from the terminal — no MCP server or AI client needed.
+All 30 MCP tools can be run directly from the terminal — no MCP server or AI client needed.
 
 ### Rake
 
@@ -316,7 +316,7 @@ The `tool_mode` is selected during `rails generate rails_ai_context:install`.
 
 ## MCP Tools — Full Reference
 
-All 29 tools are **read-only** and **idempotent** — they never modify your application or database.
+All 30 tools are **read-only** and **idempotent** — they never modify your application or database.
 
 ### rails_get_schema
 
@@ -1117,7 +1117,7 @@ RailsAiContext.configure do |config|
 end
 ```
 
-Both transports are **read-only** — they expose the same 29 tools and never modify your app.
+Both transports are **read-only** — they expose the same 30 tools and never modify your app.
 
 ---
 
@@ -1128,7 +1128,7 @@ Both transports are **read-only** — they expose the same 29 tools and never mo
 RailsAiContext.configure do |config|
   # --- Introspectors ---
 
-  # Presets: :full (31 introspectors, default) or :standard (14 core)
+  # Presets: :full (32 introspectors, default) or :standard (14 core)
   config.preset = :full
 
   # Cherry-pick on top of a preset
@@ -1243,7 +1243,7 @@ end
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `preset` | Symbol | `:full` | Introspector preset (`:full` or `:standard`) |
-| `introspectors` | Array | 28 (full preset) | Which introspectors to run |
+| `introspectors` | Array | 32 (full preset) | Which introspectors to run |
 | `context_mode` | Symbol | `:compact` | `:compact` or `:full` |
 | `claude_max_lines` | Integer | `150` | Max lines for CLAUDE.md in compact mode |
 | `max_tool_response_chars` | Integer | `200_000` | Safety cap for MCP tool responses |
@@ -1321,7 +1321,7 @@ Core Rails structure only. Use `config.preset = :standard` for a lighter footpri
 | `design_tokens` | Auto-detects CSS framework (Tailwind v3/v4, Bootstrap, Sass, plain CSS) and extracts design tokens from config files and built CSS. |
 | `components` | ViewComponent/Phlex components: props, slots, previews, sidecar assets, usage examples. |
 
-### Full preset (31 introspectors) — default
+### Full preset (32 introspectors) — default
 
 Includes all standard introspectors plus:
 
@@ -1344,6 +1344,7 @@ Includes all standard introspectors plus:
 | `multi_database` | Multiple databases, replicas, sharding config, model-specific `connects_to` declarations. database.yml parsing fallback. |
 | `accessibility` | ARIA attributes, semantic HTML elements, screen reader text, alt text coverage, landmark roles, accessibility score. |
 | `performance` | N+1 query risks, missing counter_cache, missing FK indexes, Model.all anti-patterns, eager load candidates. |
+| `frontend_frameworks` | Frontend JS framework detection (React/Vue/Svelte/Angular), mounting strategy (Inertia/react-rails), TypeScript config, state management, package manager. |
 | `database_stats` | PostgreSQL approximate row counts via `pg_stat_user_tables`. **Opt-in only** — not in any preset, add manually: `config.introspectors += [:database_stats]`. |
 
 ### Using the standard preset
