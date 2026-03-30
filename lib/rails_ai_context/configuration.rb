@@ -98,6 +98,15 @@ module RailsAiContext
     attr_accessor :frontend_paths         # User-declared frontend dirs (e.g. ["app/frontend", "../web-client"])
     attr_accessor :mobile_paths           # User-declared mobile dirs (e.g. ["../mobile-app"])
 
+    # Database query tool settings (rails_query)
+    attr_accessor :query_timeout              # Statement timeout in seconds (default: 5)
+    attr_accessor :query_row_limit            # Max rows returned (default: 100, hard cap: 1000)
+    attr_accessor :query_redacted_columns     # Column names whose values are redacted in output
+    attr_accessor :allow_query_in_production  # Allow rails_query in production (default: false)
+
+    # Log reading settings (rails_read_logs)
+    attr_accessor :log_lines                  # Default lines to tail (default: 50)
+
     def initialize
       @server_name         = "rails-ai-context"
       @server_version      = RailsAiContext::VERSION
@@ -166,6 +175,16 @@ module RailsAiContext
       @concern_paths            = %w[app/models/concerns app/controllers/concerns]
       @frontend_paths           = nil
       @mobile_paths             = nil
+      @query_timeout            = 5
+      @query_row_limit          = 100
+      @query_redacted_columns   = %w[
+        password_digest encrypted_password password_hash
+        reset_password_token confirmation_token unlock_token
+        otp_secret session_data secret_key
+        api_key api_secret access_token refresh_token jti
+      ]
+      @allow_query_in_production = false
+      @log_lines                = 50
     end
 
     def preset=(name)

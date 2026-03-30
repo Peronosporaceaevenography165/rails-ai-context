@@ -24,20 +24,20 @@ module RailsAiContext
       end
 
       def tools_header
-        "## Tools (30) — MANDATORY, Use Before Read"
+        "## Tools (33) — MANDATORY, Use Before Read"
       end
 
       def tools_intro
         case tool_mode
         when :cli
           [
-            "This project has 30 introspection tools. **MANDATORY — use these instead of reading files.**",
+            "This project has 33 introspection tools. **MANDATORY — use these instead of reading files.**",
             "They return only relevant, structured data and save tokens. Read files ONLY when you are about to Edit them.",
             ""
           ]
         else
           [
-            "This project has 30 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
+            "This project has 33 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
             "**MANDATORY — use these instead of reading files.** They return structured data and save tokens.",
             "Read files ONLY when you are about to Edit them.",
             "If MCP tools are not connected, use CLI fallback: `#{cli_cmd("TOOL_NAME", "param=value")}`",
@@ -86,6 +86,15 @@ module RailsAiContext
           "**Understand dependencies:**",
           tool_call("rails_dependency_graph(model:\"Cook\", format:\"mermaid\")", cli_cmd("dependency_graph", "model=Cook format=mermaid")),
           "",
+          "**Query the database:**",
+          tool_call("rails_query(sql:\"SELECT COUNT(*) FROM users WHERE created_at > '2024-01-01'\")", cli_cmd("query", "sql=\"SELECT COUNT(*) FROM users WHERE created_at > '2024-01-01'\"")),
+          "",
+          "**Debug errors:**",
+          tool_call("rails_read_logs(level:\"error\", lines:100)", cli_cmd("read_logs", "level=error lines=100")),
+          "",
+          "**Search docs:**",
+          tool_call("rails_search_docs(query:\"active_record_queries\")", cli_cmd("search_docs", "query=active_record_queries")),
+          "",
           "**After editing (EVERY time):**",
           tool_call("rails_validate(files:[\"app/models/cook.rb\"], level:\"rails\")", cli_cmd("validate", "files=app/models/cook.rb level=rails")),
           ""
@@ -121,7 +130,7 @@ module RailsAiContext
       end
 
       def tools_table # rubocop:disable Metrics/MethodLength
-        lines = [ "### All 30 Tools", "" ]
+        lines = [ "### All 33 Tools", "" ]
 
         if tool_mode == :cli
           lines.concat(tools_table_cli)
@@ -166,7 +175,10 @@ module RailsAiContext
           "| `rails_performance_check(model:\"X\")` | `#{cli_cmd("performance_check", "model=X")}` | N+1 risks, missing indexes, Model.all anti-patterns |",
           "| `rails_dependency_graph(model:\"X\")` | `#{cli_cmd("dependency_graph", "model=X")}` | Model association graph as Mermaid diagram |",
           "| `rails_migration_advisor(action:\"X\", table:\"Y\")` | `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |",
-          "| `rails_get_frontend_stack` | `#{cli_cmd("frontend_stack")}` | React/Vue/Svelte/Angular, Inertia, TypeScript, package manager |"
+          "| `rails_get_frontend_stack` | `#{cli_cmd("frontend_stack")}` | React/Vue/Svelte/Angular, Inertia, TypeScript, package manager |",
+          "| `rails_search_docs(query:\"X\")` | `#{cli_cmd("search_docs", "query=X")}` | Bundled topic index with weighted keyword search, on-demand GitHub fetch |",
+          "| `rails_query(sql:\"X\")` | `#{cli_cmd("query", "sql=X")}` | Safe read-only SQL queries with timeout, row limit, column redaction |",
+          "| `rails_read_logs(level:\"X\")` | `#{cli_cmd("read_logs", "level=X")}` | Reverse file tail with level filtering and sensitive data redaction |"
         ]
       end
 
@@ -204,7 +216,10 @@ module RailsAiContext
           "| `#{cli_cmd("performance_check", "model=X")}` | N+1 risks, missing indexes, Model.all anti-patterns |",
           "| `#{cli_cmd("dependency_graph", "model=X")}` | Model association graph as Mermaid diagram |",
           "| `#{cli_cmd("migration_advisor", "action=X table=Y")}` | Generate migration code, flag irreversible ops |",
-          "| `#{cli_cmd("frontend_stack")}` | React/Vue/Svelte/Angular, Inertia, TypeScript, package manager |"
+          "| `#{cli_cmd("frontend_stack")}` | React/Vue/Svelte/Angular, Inertia, TypeScript, package manager |",
+          "| `#{cli_cmd("search_docs", "query=X")}` | Bundled topic index with weighted keyword search, on-demand GitHub fetch |",
+          "| `#{cli_cmd("query", "sql=X")}` | Safe read-only SQL queries with timeout, row limit, column redaction |",
+          "| `#{cli_cmd("read_logs", "level=X")}` | Reverse file tail with level filtering and sensitive data redaction |"
         ]
       end
 

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] — 2026-03-26
+
+### Added
+- New `rails_search_docs` tool: bundled topic index with weighted keyword search, on-demand GitHub fetch for Rails documentation
+- New `rails_query` tool: safe read-only SQL queries with defense-in-depth (regex pre-filter + SET TRANSACTION READ ONLY + configurable timeout + row limit + column redaction)
+- New `rails_read_logs` tool: reverse file tail with level filtering (debug/info/warn/error/fatal) and sensitive data redaction
+- New config options: `query_timeout` (default timeout for SQL queries), `query_row_limit` (max rows returned), `query_redacted_columns` (columns to mask in query results), `allow_query_in_production` (safety gate, default false), `log_lines` (default number of log lines to read)
+
+### Changed
+- Tool count: 30 → 33
+- Test count: 893 → 983
+
 ## [4.1.0] — 2026-03-29
 
 ### Added

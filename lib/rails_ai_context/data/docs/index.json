@@ -1,0 +1,1082 @@
+[
+  {
+    "id": "getting_started",
+    "title": "Getting Started with Rails",
+    "source": "rails",
+    "summary": "Build your first Rails app: install, scaffold, MVC basics, database setup",
+    "keywords": [
+      "getting started",
+      "install",
+      "scaffold",
+      "new app",
+      "mvc",
+      "tutorial",
+      "beginner"
+    ],
+    "category": "core"
+  },
+  {
+    "id": "active_record_basics",
+    "title": "Active Record Basics",
+    "source": "rails",
+    "summary": "CRUD operations, naming conventions, migrations overview, model creation basics",
+    "keywords": [
+      "model",
+      "database",
+      "crud",
+      "migration",
+      "active record",
+      "orm",
+      "naming"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "active_record_migrations",
+    "title": "Active Record Migrations",
+    "source": "rails",
+    "summary": "Create and manage database schema changes with migration DSL and generators",
+    "keywords": [
+      "migration",
+      "schema",
+      "database",
+      "create_table",
+      "add_column",
+      "change",
+      "rollback",
+      "generator"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "active_record_validations",
+    "title": "Active Record Validations",
+    "source": "rails",
+    "summary": "Validate model attributes: presence, uniqueness, format, custom validators, error messages",
+    "keywords": [
+      "validation",
+      "validates",
+      "presence",
+      "uniqueness",
+      "format",
+      "custom validator",
+      "errors"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "active_record_callbacks",
+    "title": "Active Record Callbacks",
+    "source": "rails",
+    "summary": "Lifecycle hooks: before_save, after_create, around_update, conditional callbacks",
+    "keywords": [
+      "callback",
+      "before_save",
+      "after_create",
+      "lifecycle",
+      "hook",
+      "before_validation",
+      "after_commit"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "active_record_querying",
+    "title": "Active Record Querying",
+    "source": "rails",
+    "summary": "Find, where, joins, includes, scopes, group, order, pluck, eager loading",
+    "keywords": [
+      "query",
+      "where",
+      "find",
+      "joins",
+      "includes",
+      "scope",
+      "eager loading",
+      "pluck",
+      "order"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "association_basics",
+    "title": "Active Record Associations",
+    "source": "rails",
+    "summary": "belongs_to, has_many, has_one, through, polymorphic, self-joins, inverse_of",
+    "keywords": [
+      "association",
+      "belongs_to",
+      "has_many",
+      "has_one",
+      "through",
+      "polymorphic",
+      "join",
+      "inverse_of"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "active_record_encryption",
+    "title": "Active Record Encryption",
+    "source": "rails",
+    "summary": "Encrypt model attributes at rest with deterministic and non-deterministic encryption",
+    "keywords": [
+      "encryption",
+      "encrypt",
+      "decrypt",
+      "deterministic",
+      "credentials",
+      "secret",
+      "sensitive"
+    ],
+    "category": "security"
+  },
+  {
+    "id": "active_record_multiple_databases",
+    "title": "Active Record Multiple Databases",
+    "source": "rails",
+    "summary": "Configure multiple databases, read replicas, horizontal sharding, database switching",
+    "keywords": [
+      "multiple databases",
+      "replica",
+      "sharding",
+      "connects_to",
+      "database switching",
+      "horizontal",
+      "read replica"
+    ],
+    "category": "models"
+  },
+  {
+    "id": "action_controller_overview",
+    "title": "Action Controller Overview",
+    "source": "rails",
+    "summary": "Controllers, params, filters, session, cookies, rendering, redirects, strong parameters",
+    "keywords": [
+      "controller",
+      "params",
+      "filter",
+      "before_action",
+      "session",
+      "cookies",
+      "strong parameters",
+      "redirect"
+    ],
+    "category": "controllers"
+  },
+  {
+    "id": "routing",
+    "title": "Rails Routing from the Outside In",
+    "source": "rails",
+    "summary": "RESTful routes, resources, nested routes, namespaces, constraints, member/collection",
+    "keywords": [
+      "route",
+      "resources",
+      "nested",
+      "namespace",
+      "constraint",
+      "member",
+      "collection",
+      "path",
+      "url helper"
+    ],
+    "category": "routing"
+  },
+  {
+    "id": "layouts_and_rendering",
+    "title": "Layouts and Rendering in Rails",
+    "source": "rails",
+    "summary": "Render templates, partials, layouts, content_for, yield, streaming, JSON responses",
+    "keywords": [
+      "render",
+      "layout",
+      "partial",
+      "template",
+      "content_for",
+      "yield",
+      "view",
+      "json",
+      "streaming"
+    ],
+    "category": "views"
+  },
+  {
+    "id": "form_helpers",
+    "title": "Action View Form Helpers",
+    "source": "rails",
+    "summary": "form_with, form_for, text_field, select, checkbox, file upload, nested attributes",
+    "keywords": [
+      "form",
+      "form_with",
+      "form_for",
+      "input",
+      "select",
+      "checkbox",
+      "file upload",
+      "nested attributes"
+    ],
+    "category": "views"
+  },
+  {
+    "id": "action_view_helpers",
+    "title": "Action View Helpers",
+    "source": "rails",
+    "summary": "Built-in helpers: link_to, image_tag, number_to_currency, date, text formatting",
+    "keywords": [
+      "helper",
+      "link_to",
+      "image_tag",
+      "number_to_currency",
+      "date_select",
+      "text helper",
+      "url helper"
+    ],
+    "category": "views"
+  },
+  {
+    "id": "action_view_overview",
+    "title": "Action View Overview",
+    "source": "rails",
+    "summary": "Template formats, ERB, builders, partials, view lookup, template resolution",
+    "keywords": [
+      "view",
+      "erb",
+      "template",
+      "partial",
+      "builder",
+      "jbuilder",
+      "lookup",
+      "action view"
+    ],
+    "category": "views"
+  },
+  {
+    "id": "active_job_basics",
+    "title": "Active Job Basics",
+    "source": "rails",
+    "summary": "Background jobs, queues, perform_later, callbacks, retry, Sidekiq/GoodJob adapters",
+    "keywords": [
+      "job",
+      "background",
+      "queue",
+      "perform_later",
+      "sidekiq",
+      "retry",
+      "active job",
+      "async"
+    ],
+    "category": "jobs"
+  },
+  {
+    "id": "action_mailer_basics",
+    "title": "Action Mailer Basics",
+    "source": "rails",
+    "summary": "Send emails, mailer classes, templates, attachments, previews, delivery methods",
+    "keywords": [
+      "email",
+      "mailer",
+      "mail",
+      "deliver",
+      "attachment",
+      "preview",
+      "smtp",
+      "action mailer"
+    ],
+    "category": "core"
+  },
+  {
+    "id": "action_cable_overview",
+    "title": "Action Cable Overview",
+    "source": "rails",
+    "summary": "WebSockets, channels, subscriptions, broadcasting, real-time features in Rails",
+    "keywords": [
+      "websocket",
+      "channel",
+      "cable",
+      "broadcast",
+      "subscription",
+      "real-time",
+      "streaming",
+      "action cable"
+    ],
+    "category": "frontend"
+  },
+  {
+    "id": "active_storage_overview",
+    "title": "Active Storage Overview",
+    "source": "rails",
+    "summary": "Upload files to cloud storage (S3, GCS, Azure), variants, direct uploads, mirrors",
+    "keywords": [
+      "upload",
+      "storage",
+      "s3",
+      "file",
+      "attachment",
+      "variant",
+      "direct upload",
+      "blob",
+      "active storage"
+    ],
+    "category": "storage"
+  },
+  {
+    "id": "action_text_overview",
+    "title": "Action Text Overview",
+    "source": "rails",
+    "summary": "Rich text editing with Trix editor, has_rich_text, embedded attachments",
+    "keywords": [
+      "rich text",
+      "trix",
+      "editor",
+      "has_rich_text",
+      "attachment",
+      "wysiwyg",
+      "action text"
+    ],
+    "category": "views"
+  },
+  {
+    "id": "action_mailbox_basics",
+    "title": "Action Mailbox Basics",
+    "source": "rails",
+    "summary": "Receive and route inbound emails to mailbox classes for processing",
+    "keywords": [
+      "inbound email",
+      "mailbox",
+      "receive",
+      "routing",
+      "ingress",
+      "action mailbox",
+      "process"
+    ],
+    "category": "core"
+  },
+  {
+    "id": "testing",
+    "title": "Testing Rails Applications",
+    "source": "rails",
+    "summary": "Unit, integration, system tests, fixtures, assertions, test helpers, Minitest",
+    "keywords": [
+      "test",
+      "minitest",
+      "fixture",
+      "assertion",
+      "integration test",
+      "system test",
+      "capybara",
+      "testing"
+    ],
+    "category": "testing"
+  },
+  {
+    "id": "security",
+    "title": "Securing Rails Applications",
+    "source": "rails",
+    "summary": "CSRF protection, SQL injection, XSS, authentication, session security, CORS",
+    "keywords": [
+      "security",
+      "csrf",
+      "xss",
+      "sql injection",
+      "authentication",
+      "session",
+      "cors",
+      "protection"
+    ],
+    "category": "security"
+  },
+  {
+    "id": "configuring",
+    "title": "Configuring Rails Applications",
+    "source": "rails",
+    "summary": "Application configuration, initializers, environments, credentials, custom settings",
+    "keywords": [
+      "config",
+      "configuration",
+      "initializer",
+      "environment",
+      "credentials",
+      "settings",
+      "application.rb"
+    ],
+    "category": "core"
+  },
+  {
+    "id": "command_line",
+    "title": "The Rails Command Line",
+    "source": "rails",
+    "summary": "Rails CLI commands: generate, console, server, dbconsole, runner, rake tasks",
+    "keywords": [
+      "command line",
+      "cli",
+      "generate",
+      "console",
+      "server",
+      "runner",
+      "rake",
+      "rails command"
+    ],
+    "category": "core"
+  },
+  {
+    "id": "asset_pipeline",
+    "title": "The Asset Pipeline",
+    "source": "rails",
+    "summary": "Sprockets, Propshaft, asset compilation, fingerprinting, CDN, import maps",
+    "keywords": [
+      "asset",
+      "pipeline",
+      "sprockets",
+      "propshaft",
+      "css",
+      "javascript",
+      "compile",
+      "import map"
+    ],
+    "category": "frontend"
+  },
+  {
+    "id": "working_with_javascript_in_rails",
+    "title": "Working with JavaScript in Rails",
+    "source": "rails",
+    "summary": "Import maps, jsbundling, Turbo, Stimulus, JavaScript integrations in Rails",
+    "keywords": [
+      "javascript",
+      "import map",
+      "jsbundling",
+      "turbo",
+      "stimulus",
+      "esbuild",
+      "hotwire",
+      "js"
+    ],
+    "category": "frontend"
+  },
+  {
+    "id": "i18n",
+    "title": "Rails Internationalization (I18n)",
+    "source": "rails",
+    "summary": "Translations, locale files, interpolation, pluralization, date/number localization",
+    "keywords": [
+      "i18n",
+      "internationalization",
+      "locale",
+      "translation",
+      "t helper",
+      "pluralization",
+      "localization"
+    ],
+    "category": "i18n"
+  },
+  {
+    "id": "caching_with_rails",
+    "title": "Caching with Rails",
+    "source": "rails",
+    "summary": "Fragment caching, Russian doll caching, cache stores, HTTP caching, ETags",
+    "keywords": [
+      "cache",
+      "caching",
+      "fragment",
+      "russian doll",
+      "memcached",
+      "redis",
+      "etag",
+      "expires"
+    ],
+    "category": "core"
+  },
+  {
+    "id": "api_app",
+    "title": "Using Rails for API-Only Applications",
+    "source": "rails",
+    "summary": "API-only mode, JSON responses, token auth, CORS, versioning, serializers",
+    "keywords": [
+      "api",
+      "json",
+      "api-only",
+      "token",
+      "cors",
+      "serializer",
+      "rest",
+      "versioning"
+    ],
+    "category": "api"
+  },
+  {
+    "id": "turbo_handbook_introduction",
+    "title": "Turbo Handbook: Introduction",
+    "source": "turbo",
+    "summary": "Overview of Turbo: Drive, Frames, Streams for fast page updates without JavaScript",
+    "keywords": [
+      "turbo",
+      "introduction",
+      "overview",
+      "hotwire",
+      "html-over-the-wire",
+      "spa",
+      "no javascript"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/01_introduction.md"
+  },
+  {
+    "id": "turbo_handbook_drive",
+    "title": "Turbo Handbook: Drive",
+    "source": "turbo",
+    "summary": "Navigate without full page reloads, intercept links and forms automatically",
+    "keywords": [
+      "turbo drive",
+      "navigation",
+      "visit",
+      "link",
+      "form submission",
+      "page load",
+      "advance",
+      "replace"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/02_drive.md"
+  },
+  {
+    "id": "turbo_handbook_page_refreshes",
+    "title": "Turbo Handbook: Page Refreshes",
+    "source": "turbo",
+    "summary": "Morph-based page refreshes for smooth updates preserving scroll and form state",
+    "keywords": [
+      "page refresh",
+      "morph",
+      "smooth",
+      "scroll preservation",
+      "turbo refresh",
+      "morphing"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/03_page_refreshes.md"
+  },
+  {
+    "id": "turbo_handbook_frames",
+    "title": "Turbo Handbook: Frames",
+    "source": "turbo",
+    "summary": "Decompose pages into turbo-frame sections that load and update independently",
+    "keywords": [
+      "turbo frame",
+      "frame",
+      "lazy loading",
+      "turbo-frame",
+      "decompose",
+      "independent",
+      "inline"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/04_frames.md"
+  },
+  {
+    "id": "turbo_handbook_streams",
+    "title": "Turbo Handbook: Streams",
+    "source": "turbo",
+    "summary": "Deliver partial page updates via turbo-stream actions: append, prepend, replace, remove",
+    "keywords": [
+      "turbo stream",
+      "stream",
+      "append",
+      "prepend",
+      "replace",
+      "remove",
+      "broadcast",
+      "action"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/05_streams.md"
+  },
+  {
+    "id": "turbo_handbook_native",
+    "title": "Turbo Handbook: Native",
+    "source": "turbo",
+    "summary": "Build hybrid iOS and Android apps using Turbo Native with web-based views",
+    "keywords": [
+      "turbo native",
+      "ios",
+      "android",
+      "hybrid",
+      "mobile",
+      "native app",
+      "webview"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/06_native.md"
+  },
+  {
+    "id": "turbo_handbook_building",
+    "title": "Turbo Handbook: Building",
+    "source": "turbo",
+    "summary": "Build Turbo from source, development setup, contribution workflow",
+    "keywords": [
+      "turbo build",
+      "development",
+      "source",
+      "compile",
+      "contribute",
+      "build"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/07_building.md"
+  },
+  {
+    "id": "turbo_handbook_installing",
+    "title": "Turbo Handbook: Installing",
+    "source": "turbo",
+    "summary": "Install Turbo via npm, import maps, or direct script tag inclusion",
+    "keywords": [
+      "turbo install",
+      "npm",
+      "import map",
+      "script tag",
+      "setup",
+      "installation"
+    ],
+    "category": "turbo",
+    "path": "_source/handbook/08_installing.md"
+  },
+  {
+    "id": "turbo_reference_attributes",
+    "title": "Turbo Reference: Attributes",
+    "source": "turbo",
+    "summary": "HTML attributes for Turbo: data-turbo, data-turbo-frame, data-turbo-action",
+    "keywords": [
+      "turbo attributes",
+      "data-turbo",
+      "data-turbo-frame",
+      "data-turbo-action",
+      "html attribute",
+      "configuration"
+    ],
+    "category": "turbo",
+    "path": "_source/reference/attributes.md"
+  },
+  {
+    "id": "turbo_reference_drive",
+    "title": "Turbo Reference: Drive",
+    "source": "turbo",
+    "summary": "Turbo.visit API, visit options, cache control, progress bar configuration",
+    "keywords": [
+      "turbo visit",
+      "drive api",
+      "cache control",
+      "progress bar",
+      "Turbo.visit",
+      "snapshot"
+    ],
+    "category": "turbo",
+    "path": "_source/reference/drive.md"
+  },
+  {
+    "id": "turbo_reference_events",
+    "title": "Turbo Reference: Events",
+    "source": "turbo",
+    "summary": "Turbo lifecycle events: before-visit, before-render, load, frame-load, stream-render",
+    "keywords": [
+      "turbo event",
+      "before-visit",
+      "before-render",
+      "load",
+      "frame-load",
+      "lifecycle",
+      "listener"
+    ],
+    "category": "turbo",
+    "path": "_source/reference/events.md"
+  },
+  {
+    "id": "turbo_reference_frames",
+    "title": "Turbo Reference: Frames",
+    "source": "turbo",
+    "summary": "turbo-frame element API, attributes, lazy loading, targeting, frame navigation",
+    "keywords": [
+      "turbo-frame",
+      "frame element",
+      "src",
+      "lazy",
+      "target",
+      "loading",
+      "frame api"
+    ],
+    "category": "turbo",
+    "path": "_source/reference/frames.md"
+  },
+  {
+    "id": "turbo_reference_streams",
+    "title": "Turbo Reference: Streams",
+    "source": "turbo",
+    "summary": "turbo-stream actions reference: append, prepend, replace, update, remove, morph",
+    "keywords": [
+      "turbo-stream",
+      "stream action",
+      "append",
+      "prepend",
+      "replace",
+      "update",
+      "remove",
+      "morph"
+    ],
+    "category": "turbo",
+    "path": "_source/reference/streams.md"
+  },
+  {
+    "id": "stimulus_handbook_origin",
+    "title": "Stimulus Handbook: The Origin of Stimulus",
+    "source": "stimulus",
+    "summary": "Philosophy and motivation behind Stimulus: HTML-first, modest JavaScript framework",
+    "keywords": [
+      "stimulus origin",
+      "philosophy",
+      "html-first",
+      "basecamp",
+      "modest",
+      "motivation",
+      "why stimulus"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/00_the_origin_of_stimulus.md"
+  },
+  {
+    "id": "stimulus_handbook_introduction",
+    "title": "Stimulus Handbook: Introduction",
+    "source": "stimulus",
+    "summary": "Stimulus core concepts: controllers, actions, targets, values for HTML behavior",
+    "keywords": [
+      "stimulus introduction",
+      "controller",
+      "action",
+      "target",
+      "value",
+      "overview",
+      "concept"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/01_introduction.md"
+  },
+  {
+    "id": "stimulus_handbook_hello",
+    "title": "Stimulus Handbook: Hello Stimulus",
+    "source": "stimulus",
+    "summary": "Build your first Stimulus controller: connect, actions, targets in practice",
+    "keywords": [
+      "hello stimulus",
+      "first controller",
+      "tutorial",
+      "connect",
+      "beginner",
+      "getting started"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/02_hello_stimulus.md"
+  },
+  {
+    "id": "stimulus_handbook_building_something_real",
+    "title": "Stimulus Handbook: Building Something Real",
+    "source": "stimulus",
+    "summary": "Build a clipboard controller: real-world Stimulus patterns with DOM interaction",
+    "keywords": [
+      "clipboard",
+      "real-world",
+      "dom",
+      "build",
+      "practical",
+      "copy",
+      "example"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/03_building_something_real.md"
+  },
+  {
+    "id": "stimulus_handbook_resilience",
+    "title": "Stimulus Handbook: Designing for Resilience",
+    "source": "stimulus",
+    "summary": "Progressive enhancement patterns: work without JavaScript, graceful degradation",
+    "keywords": [
+      "resilience",
+      "progressive enhancement",
+      "graceful degradation",
+      "fallback",
+      "no javascript",
+      "accessible"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/04_designing_for_resilience.md"
+  },
+  {
+    "id": "stimulus_handbook_state",
+    "title": "Stimulus Handbook: Managing State",
+    "source": "stimulus",
+    "summary": "Manage state with Stimulus values API instead of custom data attributes",
+    "keywords": [
+      "state",
+      "values",
+      "data attribute",
+      "manage state",
+      "reactive",
+      "value changed"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/05_managing_state.md"
+  },
+  {
+    "id": "stimulus_handbook_external_resources",
+    "title": "Stimulus Handbook: Working with External Resources",
+    "source": "stimulus",
+    "summary": "Fetch API data, timers, async patterns with Stimulus controller lifecycle",
+    "keywords": [
+      "fetch",
+      "api",
+      "async",
+      "timer",
+      "external",
+      "http",
+      "interval",
+      "resource"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/06_working_with_external_resources.md"
+  },
+  {
+    "id": "stimulus_handbook_installing",
+    "title": "Stimulus Handbook: Installing Stimulus",
+    "source": "stimulus",
+    "summary": "Install Stimulus via import maps, webpack, esbuild, or standalone script",
+    "keywords": [
+      "stimulus install",
+      "import map",
+      "webpack",
+      "esbuild",
+      "setup",
+      "installation",
+      "npm"
+    ],
+    "category": "stimulus",
+    "path": "docs/handbook/07_installing_stimulus.md"
+  },
+  {
+    "id": "stimulus_reference_controllers",
+    "title": "Stimulus Reference: Controllers",
+    "source": "stimulus",
+    "summary": "Controller class API: registration, naming, modules, application instance",
+    "keywords": [
+      "controller",
+      "register",
+      "application",
+      "class",
+      "module",
+      "identifier",
+      "naming"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/controllers.md"
+  },
+  {
+    "id": "stimulus_reference_targets",
+    "title": "Stimulus Reference: Targets",
+    "source": "stimulus",
+    "summary": "Target elements API: static targets array, has/find target, multiple targets",
+    "keywords": [
+      "target",
+      "static targets",
+      "hasTarget",
+      "findTarget",
+      "element",
+      "dom reference",
+      "data-target"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/targets.md"
+  },
+  {
+    "id": "stimulus_reference_values",
+    "title": "Stimulus Reference: Values",
+    "source": "stimulus",
+    "summary": "Values API: typed data attributes, defaults, change callbacks, type coercion",
+    "keywords": [
+      "value",
+      "values",
+      "type",
+      "default",
+      "changed callback",
+      "data attribute",
+      "coercion",
+      "boolean"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/values.md"
+  },
+  {
+    "id": "stimulus_reference_actions",
+    "title": "Stimulus Reference: Actions",
+    "source": "stimulus",
+    "summary": "Action descriptors: event->controller#method, default events, action options",
+    "keywords": [
+      "action",
+      "event",
+      "click",
+      "submit",
+      "descriptor",
+      "prevent default",
+      "stop propagation",
+      "action options"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/actions.md"
+  },
+  {
+    "id": "stimulus_reference_css_classes",
+    "title": "Stimulus Reference: CSS Classes",
+    "source": "stimulus",
+    "summary": "CSS class map API: define logical class names, apply dynamic styling via data attributes",
+    "keywords": [
+      "css class",
+      "class map",
+      "styling",
+      "has class",
+      "data-class",
+      "dynamic class",
+      "toggle"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/css_classes.md"
+  },
+  {
+    "id": "stimulus_reference_lifecycle_callbacks",
+    "title": "Stimulus Reference: Lifecycle Callbacks",
+    "source": "stimulus",
+    "summary": "Controller lifecycle: connect, disconnect, initialize for setup and teardown",
+    "keywords": [
+      "lifecycle",
+      "connect",
+      "disconnect",
+      "initialize",
+      "callback",
+      "setup",
+      "teardown",
+      "mount"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/lifecycle_callbacks.md"
+  },
+  {
+    "id": "stimulus_reference_outlets",
+    "title": "Stimulus Reference: Outlets",
+    "source": "stimulus",
+    "summary": "Cross-controller communication via outlets: reference and call other controllers",
+    "keywords": [
+      "outlet",
+      "cross-controller",
+      "communication",
+      "reference",
+      "has outlet",
+      "outlet connected"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/outlets.md"
+  },
+  {
+    "id": "stimulus_reference_using_typescript",
+    "title": "Stimulus Reference: Using TypeScript",
+    "source": "stimulus",
+    "summary": "TypeScript support: typed controllers, targets, values with full type safety",
+    "keywords": [
+      "typescript",
+      "type safety",
+      "typed",
+      "ts",
+      "generics",
+      "type definition",
+      "stimulus typescript"
+    ],
+    "category": "stimulus",
+    "path": "docs/reference/using_typescript.md"
+  },
+  {
+    "id": "hotwire_native_ios",
+    "title": "Hotwire Native: iOS Setup",
+    "source": "hotwire_native",
+    "summary": "Set up Hotwire Native iOS app with Swift, WKWebView, and Turbo Navigator",
+    "keywords": [
+      "ios",
+      "swift",
+      "wkwebview",
+      "turbo navigator",
+      "native ios",
+      "xcode",
+      "setup"
+    ],
+    "category": "hotwire_native",
+    "path": "_source/handbook/06_native.md"
+  },
+  {
+    "id": "hotwire_native_android",
+    "title": "Hotwire Native: Android Setup",
+    "source": "hotwire_native",
+    "summary": "Set up Hotwire Native Android app with Kotlin, WebView, and Turbo Session",
+    "keywords": [
+      "android",
+      "kotlin",
+      "webview",
+      "turbo session",
+      "native android",
+      "gradle",
+      "setup"
+    ],
+    "category": "hotwire_native",
+    "path": "_source/handbook/06_native.md"
+  },
+  {
+    "id": "hotwire_native_path_configuration",
+    "title": "Hotwire Native: Path Configuration",
+    "source": "hotwire_native",
+    "summary": "Configure URL path rules for native vs web navigation, modals, and presentations",
+    "keywords": [
+      "path configuration",
+      "url rules",
+      "navigation",
+      "modal",
+      "presentation",
+      "path properties",
+      "native"
+    ],
+    "category": "hotwire_native",
+    "path": "_source/handbook/06_native.md"
+  },
+  {
+    "id": "hotwire_native_bridge_components",
+    "title": "Hotwire Native: Bridge Components",
+    "source": "hotwire_native",
+    "summary": "Bridge web and native with JavaScript bridge components for native UI elements",
+    "keywords": [
+      "bridge",
+      "component",
+      "native ui",
+      "javascript bridge",
+      "web bridge",
+      "stimulus bridge",
+      "hybrid"
+    ],
+    "category": "hotwire_native",
+    "path": "_source/handbook/06_native.md"
+  },
+  {
+    "id": "hotwire_native_navigation",
+    "title": "Hotwire Native: Navigation",
+    "source": "hotwire_native",
+    "summary": "Handle native navigation: push, modal, replace, tab bar, back button behavior",
+    "keywords": [
+      "navigation",
+      "push",
+      "modal",
+      "replace",
+      "tab bar",
+      "back button",
+      "native navigation",
+      "routing"
+    ],
+    "category": "hotwire_native",
+    "path": "_source/handbook/06_native.md"
+  }
+]

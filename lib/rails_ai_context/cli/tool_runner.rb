@@ -222,9 +222,23 @@ module RailsAiContext
       # For missing required params: strip empty values so the tool's own guards
       # can return a friendly response (matching MCP behavior).
       # For invalid enums: strip the bad value and let the tool use its default.
+      # For unknown params: raise InvalidArgumentError with closest-match suggestion.
       def validate_kwargs!(kwargs, schema)
         properties = schema[:properties] || {}
         required = (schema[:required] || []).map(&:to_s)
+        known_keys = properties.keys.map(&:to_s)
+
+        # Check for unknown params and raise a helpful error with suggestions.
+        # server_context is always allowed (internal MCP param).
+        unknown = kwargs.keys.map(&:to_s) - known_keys - [ "server_context" ]
+        if unknown.any?
+          msgs = unknown.map do |k|
+            suggestion = Tools::BaseTool.find_closest_match(k, known_keys)
+            suggestion ? "  '#{k}' — did you mean '#{suggestion}='?" : "  '#{k}'"
+          end
+          valid_str = known_keys.any? ? "Valid params: #{known_keys.join(', ')}" : "This tool takes no params."
+          raise InvalidArgumentError, "Unknown param#{unknown.size > 1 ? 's' : ''}:\n#{msgs.join("\n")}\n#{valid_str}"
+        end
 
         # For required params with empty-string values, keep the key but set to nil
         # so the tool's own guards can return friendly "parameter is required" messages

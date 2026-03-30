@@ -14,6 +14,7 @@ module RailsAiContext
       # @return [Hash] database schema context
       def call
         return static_schema_parse unless active_record_connected?
+        return static_schema_parse if table_names.empty?
 
         schema_content = File.exist?(schema_file_path) ? File.read(schema_file_path) : ""
 
@@ -229,6 +230,7 @@ module RailsAiContext
           adapter: "static_parse",
           tables: tables,
           total_tables: tables.size,
+          schema_version: current_schema_version,
           check_constraints: parse_check_constraints(content),
           enum_types: parse_enum_types(content),
           generated_columns: parse_generated_columns(content),
