@@ -12,6 +12,8 @@ module RailsAiContext
       config/routes.rb
       config/database.yml
       Gemfile.lock
+      package.json
+      tsconfig.json
     ].freeze
 
     WATCHED_DIRS = %w[
@@ -21,6 +23,7 @@ module RailsAiContext
       app/jobs
       app/mailers
       app/channels
+      app/components
       app/javascript/controllers
       app/middleware
       config/initializers

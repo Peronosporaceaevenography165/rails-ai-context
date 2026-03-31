@@ -4,7 +4,7 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 4.2.x   | :white_check_mark: |
+| 4.2.x   | :white_check_mark: (4.2.1 includes security hardening) |
 | 4.1.x   | :white_check_mark: |
 | 4.0.x   | :white_check_mark: |
 | 3.1.x   | :white_check_mark: |
@@ -34,4 +34,10 @@ If you discover a security vulnerability in rails-ai-context, please report it r
 - **Credential safety** — `rails_get_env` only reads `.env.example` (never `.env`), shows credential key names only (never values), and redacts secrets. `rails_get_config` exposes adapter/framework names, not connection strings.
 - **Brakeman integration** — optional `rails_security_scan` tool runs static security analysis. Graceful degradation if not installed. Users can exclude it via `config.skip_tools = %w[rails_security_scan]`.
 - **File size limits** — all tools enforce configurable `max_file_size` (default 5MB) to prevent memory exhaustion on large files.
-- The gem does not make any outbound network requests.
+- **SQL comment stripping** — `rails_query` strips block (`/* */`), line (`--`), and MySQL-style (`#`) comments before validation to prevent keyword hiding.
+- **Regex interpolation safety** — all introspectors use `Regexp.escape` when interpolating model/association names into patterns to prevent regex injection.
+- **Log redaction** — `rails_read_logs` redacts passwords, tokens, secrets, API keys, cookies, session IDs, emails, and environment variables before output.
+- **Migration input validation** — `rails_migration_advisor` validates table and column names as safe identifiers before generating migration code.
+- **Cache invalidation coverage** — Fingerprinter watches `app/components`, `package.json`, and `tsconfig.json` alongside models/controllers/views to prevent stale tool responses.
+- **Fetch size limits** — `rails_search_docs` caps fetched documentation content at 2MB to prevent memory exhaustion.
+- The gem makes outbound HTTPS requests only when `rails_search_docs` is called with `fetch: true` (to fetch Rails documentation from GitHub raw content). All other tools are offline.

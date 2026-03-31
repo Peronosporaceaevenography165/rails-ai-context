@@ -134,5 +134,24 @@ RSpec.describe RailsAiContext::Tools::MigrationAdvisor do
       text = response.content.first[:text]
       expect(text).to include("rename_column :users, :name, :full_name")
     end
+
+    it "rejects invalid table names with special characters" do
+      response = described_class.call(action: "add_column", table: "users; DROP TABLE", column: "name")
+      text = response.content.first[:text]
+      expect(text).to include("Invalid table name")
+    end
+
+    it "rejects invalid column names with special characters" do
+      response = described_class.call(action: "add_column", table: "users", column: "name; DROP")
+      text = response.content.first[:text]
+      expect(text).to include("Invalid column name")
+    end
+
+    it "allows column definition strings for create_table" do
+      response = described_class.call(action: "create_table", table: "tags", column: "name:string,slug:string")
+      text = response.content.first[:text]
+      expect(text).to include("create_table :tags")
+      expect(text).to include("t.string :name")
+    end
   end
 end

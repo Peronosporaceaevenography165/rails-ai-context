@@ -56,6 +56,33 @@ RSpec.describe RailsAiContext::Fingerprinter do
 
       expect(before).not_to eq(after)
     end
+
+    it "includes app/components in WATCHED_DIRS" do
+      expect(described_class::WATCHED_DIRS).to include("app/components")
+    end
+
+    it "includes package.json in WATCHED_FILES" do
+      expect(described_class::WATCHED_FILES).to include("package.json")
+    end
+
+    it "includes tsconfig.json in WATCHED_FILES" do
+      expect(described_class::WATCHED_FILES).to include("tsconfig.json")
+    end
+
+    it "detects changes to package.json" do
+      package_json = File.join(Rails.root, "package.json")
+      next unless File.exist?(package_json)
+
+      before = described_class.compute(Rails.application)
+      original_mtime = File.mtime(package_json)
+
+      FileUtils.touch(package_json)
+      after = described_class.compute(Rails.application)
+
+      File.utime(original_mtime, original_mtime, package_json)
+
+      expect(before).not_to eq(after)
+    end
   end
 
   describe ".changed?" do

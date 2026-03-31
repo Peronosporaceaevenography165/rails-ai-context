@@ -193,7 +193,10 @@ module RailsAiContext
         end
 
         def sanitize(name)
-          name.to_s.gsub(/[^a-zA-Z0-9_]/, "_")
+          sanitized = name.to_s.gsub(/[^a-zA-Z0-9_]/, "_")
+          # Mermaid node IDs must start with a letter
+          sanitized = "M#{sanitized}" if sanitized.match?(/\A\d/)
+          sanitized
         end
       end
     end

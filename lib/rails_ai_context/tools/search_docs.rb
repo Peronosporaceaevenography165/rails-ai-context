@@ -105,7 +105,9 @@ module RailsAiContext
         private
 
         def load_index
-          @docs_index ||= begin
+          return @docs_index if @docs_index&.dig(:topics)
+
+          result = begin
             unless File.exist?(INDEX_PATH)
               return { error: "Documentation index not found at #{INDEX_PATH}. The gem installation may be incomplete — reinstall rails-ai-context." }
             end
@@ -117,6 +119,10 @@ module RailsAiContext
           rescue JSON::ParserError => e
             { error: "Failed to parse documentation index: #{e.message}" }
           end
+
+          # Only memoize successful results so transient failures can be retried
+          @docs_index = result if result[:topics]
+          result
         end
 
         def detect_rails_branch
@@ -222,9 +228,12 @@ module RailsAiContext
           request = Net::HTTP::Get.new(uri)
           response = http.request(request)
 
+          max_fetch_bytes = 2_000_000 # 2MB safety cap
           if response.is_a?(Net::HTTPSuccess)
-            File.write(cache_file, response.body)
-            response.body
+            body = response.body
+            body = body.byteslice(0, max_fetch_bytes) if body.bytesize > max_fetch_bytes
+            File.write(cache_file, body)
+            body
           else
             "#{topic['summary']}\n→ #{url}\n_(fetch failed: HTTP #{response.code})_"
           end

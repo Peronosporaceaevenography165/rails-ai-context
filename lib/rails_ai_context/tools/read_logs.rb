@@ -52,6 +52,9 @@ module RailsAiContext
         /(?<=api_key:\s)\S+/i,
         /(?<=authorization:\s)(Bearer\s)?\S+/i,
         /(SECRET|PRIVATE|SIGNING|ENCRYPTION)[_A-Z]*=\S+/i,
+        /(?<=cookie:\s)\S+/i,
+        /(?<=session_id=)\S+/i,
+        /(?<=_session=)\S+/i,
         /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b/i
       ].freeze
 
@@ -155,8 +158,9 @@ module RailsAiContext
         root = Rails.root.to_s
 
         if file_name
-          # Strip .log suffix if provided, then re-add
-          name = file_name.to_s.strip.delete_suffix(".log")
+          # Strip .log suffix if provided, then re-add; sanitize null bytes and path separators
+          name = file_name.to_s.strip.delete("\0").delete_suffix(".log")
+          name = File.basename(name) # Prevent directory traversal via slashes
           path = File.join(root, "log", "#{name}.log")
         else
           path = File.join(root, "log", "#{Rails.env}.log")

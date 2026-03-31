@@ -388,5 +388,25 @@ RSpec.describe RailsAiContext::Tools::Query do
       sql = "SELECT /* this\nis\nmultiline */ 1"
       expect(described_class.strip_sql_comments(sql)).to eq("SELECT 1")
     end
+
+    it "strips MySQL-style hash comments" do
+      expect(described_class.strip_sql_comments("SELECT 1 # evil comment")).to eq("SELECT 1")
+    end
+  end
+
+  describe "CSV format" do
+    it "escapes newlines in cell values" do
+      columns = %w[id note]
+      rows = [ [ 1, "line1\nline2" ] ]
+      mock_result = ActiveRecord::Result.new(columns, rows)
+
+      allow(ActiveRecord::Base.connection).to receive(:select_all).and_return(mock_result)
+      allow(ActiveRecord::Base.connection).to receive(:execute)
+
+      result = described_class.call(sql: "SELECT id, note FROM notes", format: "csv")
+      text = result.content.first[:text]
+      # Newline-containing value should be quoted
+      expect(text).to include('"line1')
+    end
   end
 end

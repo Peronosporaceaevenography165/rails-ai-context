@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.1] — 2026-03-31
+
+### Fixed
+- **Security: SQL comment stripping** — `rails_query` now strips MySQL-style `#` comments in addition to `--` and `/* */`
+- **Security: Regex injection** — PerformanceIntrospector now uses `Regexp.escape` on all interpolated model/association names to prevent regex injection
+- **Security: SearchDocs error memoization** — transient index load failures (JSON parse errors, missing file) are no longer cached permanently; subsequent calls retry instead of returning stale errors
+- **Security: ReadLogs file parameter** — null byte sanitization + `File.basename` enforcement prevents path traversal via directory separators in file names
+- **Security: ReadLogs redaction** — added `cookie`, `session_id`, and `_session` patterns to sensitive data redaction
+- **Security: SearchDocs fetch size** — 2MB cap on fetched documentation content prevents memory exhaustion from oversized HTTP responses
+- **Security: MigrationAdvisor input validation** — table and column names now validated as safe identifiers; special characters rejected with clear error messages
+- **Cache: Fingerprinter watched paths** — added `app/components` to WATCHED_DIRS, `package.json` and `tsconfig.json` to WATCHED_FILES; component catalog and frontend stack tools now invalidate on relevant file changes
+- **Schema: static parse skipped tables** — `parse_schema_rb` no longer leaves `current_table` pointing at a skipped table (`schema_migrations`, `ar_internal_metadata`), preventing potential nil access on subsequent column lines
+- **Query: CSV newline escaping** — CSV format output now properly quotes cell values containing newlines and carriage returns
+- **DependencyGraph: Mermaid node IDs** — model names starting with digits now get an `M` prefix to produce valid Mermaid syntax
+
+### Changed
+- Test count: 983 → 998
+
 ## [4.2.0] — 2026-03-26
 
 ### Added

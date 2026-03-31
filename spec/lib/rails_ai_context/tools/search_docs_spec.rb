@@ -253,5 +253,20 @@ RSpec.describe RailsAiContext::Tools::SearchDocs do
       # vs other topics that might only have it as a keyword (1 pt)
       expect(text).to include("Active Record Callbacks")
     end
+
+    it "retries after transient index load failure" do
+      # First call: simulate a parse error
+      described_class.instance_variable_set(:@docs_index, nil)
+      allow(File).to receive(:read).with(described_class::INDEX_PATH, encoding: "bom|utf-8").and_return("invalid json{{{")
+
+      result1 = described_class.call(query: "active record")
+      expect(result1.content.first[:text]).to include("Failed to parse")
+
+      # Second call: fix the index — should retry since error wasn't memoized
+      allow(File).to receive(:read).with(described_class::INDEX_PATH, encoding: "bom|utf-8").and_return(mock_index_json)
+
+      result2 = described_class.call(query: "active record")
+      expect(result2.content.first[:text]).to include("Active Record Basics")
+    end
   end
 end

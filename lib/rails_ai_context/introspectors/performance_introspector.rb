@@ -108,12 +108,12 @@ module RailsAiContext
           model_data.each do |model|
             model[:has_many].each do |assoc|
               # Check if controller fetches this model's collection without includes
-              model_ref = model[:name]
+              model_ref = Regexp.escape(model[:name])
               pattern = /#{model_ref}\.(all|where|order|limit|find_each)\b/
               next unless content.match?(pattern)
 
               # Check if .includes is used for this association
-              includes_pattern = /\.includes\(.*:#{assoc[:name]}/
+              includes_pattern = /\.includes\(.*:#{Regexp.escape(assoc[:name])}/
               next if content.match?(includes_pattern)
 
               # Check views for accessing association
@@ -142,7 +142,7 @@ module RailsAiContext
         # Check if any view iterates over the association
         Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}")).any? do |path|
           content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace)
-          content.match?(/\.#{association_name}\b/)
+          content.match?(/\.#{Regexp.escape(association_name)}\b/)
         rescue
           false
         end
@@ -231,7 +231,7 @@ module RailsAiContext
           relative = path.sub("#{root}/", "")
 
           model_names.each do |model_name|
-            content.scan(/#{model_name}\.all\b/).each do
+            content.scan(/#{Regexp.escape(model_name)}\.all\b/).each do
               findings << {
                 controller: relative,
                 model: model_name,

@@ -311,6 +311,36 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
       end
     end
 
+    context "with schema_migrations table in schema.rb" do
+      before do
+        allow(introspector).to receive(:active_record_connected?).and_return(false)
+
+        db_dir = File.join(fixture_path, "db")
+        FileUtils.mkdir_p(db_dir)
+        File.write(File.join(db_dir, "schema.rb"), <<~RUBY)
+          ActiveRecord::Schema[7.1].define(version: 2024_01_15_000000) do
+            create_table "schema_migrations" do |t|
+              t.string "version"
+            end
+
+            create_table "users" do |t|
+              t.string "email"
+            end
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_rf(File.join(fixture_path, "db")) }
+
+      it "skips schema_migrations without corrupting subsequent tables" do
+        result = introspector.call
+        expect(result[:tables]).not_to have_key("schema_migrations")
+        expect(result[:tables]).to have_key("users")
+        user_cols = result[:tables]["users"][:columns]
+        expect(user_cols).to include(a_hash_including(name: "email", type: "string"))
+      end
+    end
+
     context "schema version parsing" do
       before do
         allow(introspector).to receive(:active_record_connected?).and_return(true)

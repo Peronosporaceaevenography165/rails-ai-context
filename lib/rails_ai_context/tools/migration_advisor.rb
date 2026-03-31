@@ -56,6 +56,15 @@ module RailsAiContext
         return text_response("**Error:** `action` is required. Valid actions: #{VALID_ACTIONS.join(', ')}") if action.empty?
         return text_response("**Error:** `table` is required (e.g., 'users', 'posts').") if table.empty?
 
+        # Validate identifier characters to produce valid migration code
+        unless table.match?(/\A[a-z_][a-z0-9_]*\z/)
+          return text_response("**Error:** Invalid table name `#{table}`. Use lowercase letters, digits, and underscores only.")
+        end
+        # create_table uses column param as a comma-separated column:type definition string
+        if action != "create_table" && column && !column.empty? && !column.match?(/\A[a-z_][a-z0-9_]*\z/)
+          return text_response("**Error:** Invalid column name `#{column}`. Use lowercase letters, digits, and underscores only.")
+        end
+
         unless VALID_ACTIONS.include?(action)
           suggestion = VALID_ACTIONS.find { |a| a.start_with?(action) || a.include?(action) }
           hint = suggestion ? " Did you mean `#{suggestion}`?" : ""

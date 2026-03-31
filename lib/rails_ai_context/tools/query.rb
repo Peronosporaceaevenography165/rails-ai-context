@@ -93,7 +93,11 @@ module RailsAiContext
 
       # ── SQL comment stripping ───────────────────────────────────────
       def self.strip_sql_comments(sql)
-        sql.gsub(/\/\*.*?\*\//m, " ").gsub(/--[^\n]*/, " ").squeeze(" ").strip
+        sql
+          .gsub(/\/\*.*?\*\//m, " ")   # Block comments: /* ... */
+          .gsub(/--[^\n]*/, " ")        # Line comments: -- ...
+          .gsub(/#[^\n]*/, " ")         # MySQL-style comments: # ...
+          .squeeze(" ").strip
       end
 
       # ── SQL validation (Layer 1) ────────────────────────────────────
@@ -263,8 +267,8 @@ module RailsAiContext
         rows.each do |row|
           lines << row.map { |val|
             formatted = format_cell(val)
-            # Quote values that contain commas or quotes
-            if formatted.include?(",") || formatted.include?('"')
+            # Quote values that contain commas, quotes, or newlines
+            if formatted.include?(",") || formatted.include?('"') || formatted.include?("\n") || formatted.include?("\r")
               "\"#{formatted.gsub('"', '""')}\""
             else
               formatted

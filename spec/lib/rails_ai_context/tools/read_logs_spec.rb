@@ -159,5 +159,28 @@ RSpec.describe RailsAiContext::Tools::ReadLogs do
       result = described_class.call
       expect(result).to be_a(MCP::Tool::Response)
     end
+
+    it "redacts cookie values" do
+      File.write(File.join(log_dir, "test.log"), "I, [2026-03-29T10:00:00 #1] INFO -- : cookie: abc123secret_session_data\n")
+      result = described_class.call
+      text = result.content.first[:text]
+      expect(text).to include("[REDACTED]")
+      expect(text).not_to include("abc123secret_session_data")
+    end
+
+    it "redacts session_id values" do
+      File.write(File.join(log_dir, "test.log"), "I, [2026-03-29T10:00:00 #1] INFO -- : session_id=abc123secret\n")
+      result = described_class.call
+      text = result.content.first[:text]
+      expect(text).to include("[REDACTED]")
+      expect(text).not_to include("abc123secret")
+    end
+
+    it "sanitizes null bytes in file parameter" do
+      result = described_class.call(file: "test\0.secret")
+      text = result.content.first[:text]
+      # Should not crash; either finds a file or reports not found
+      expect(result).to be_a(MCP::Tool::Response)
+    end
   end
 end

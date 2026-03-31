@@ -64,5 +64,23 @@ RSpec.describe RailsAiContext::Tools::DependencyGraph do
       text = response.content.first[:text]
       expect(text).to include("Post")
     end
+
+    it "sanitizes digit-prefixed model names for mermaid" do
+      models_with_digit = {
+        "3DModel": {
+          associations: [ { macro: :belongs_to, name: :user, class_name: "User" } ]
+        },
+        User: {
+          associations: [ { macro: :has_many, name: :"3d_models", class_name: "3DModel" } ]
+        }
+      }
+      allow(described_class).to receive(:cached_context).and_return({ models: models_with_digit })
+
+      response = described_class.call(format: "mermaid")
+      text = response.content.first[:text]
+      # Mermaid IDs starting with digits get prefixed with M
+      expect(text).to include("M3DModel")
+      expect(text).not_to match(/\s3DModel\s/)
+    end
   end
 end
