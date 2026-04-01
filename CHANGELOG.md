@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.2] — 2026-04-01
+
+### Fixed
+- **Vite config detection** — framework plugin detection now checks `.mts`, `.mjs`, `.cts`, `.cjs` extensions in addition to `.ts` and `.js`
+- **Component catalog ERB** — no-props no-slots components now generate inline `<%= render Foo.new %>` instead of misleading `do...end` block
+- **Custom tools validation** — invalid entries in `config.custom_tools` are now filtered with a clear warning instead of crashing the MCP server with a cryptic `NoMethodError`
+
+### Changed
+- Test count: 998 → 1003
+
 ## [4.2.1] — 2026-03-31
 
 ### Fixed

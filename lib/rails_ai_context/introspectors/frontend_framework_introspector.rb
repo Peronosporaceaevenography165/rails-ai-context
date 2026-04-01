@@ -262,7 +262,7 @@ module RailsAiContext
 
       def detect_vite_config_frameworks
         found = []
-        %w[vite.config.ts vite.config.js].each do |filename|
+        %w[vite.config.ts vite.config.js vite.config.mts vite.config.mjs vite.config.cts vite.config.cjs].each do |filename|
           path = File.join(root, filename)
           next unless File.exist?(path)
 

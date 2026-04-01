@@ -155,7 +155,11 @@ module RailsAiContext
           init = parts.any? ? "(#{parts.join(', ')})" : ".new"
 
           if slots.empty?
-            "<%= render #{name}.new#{init == ".new" ? "" : init} do %>\n  Content here\n<% end %>"
+            if init == ".new"
+              "<%= render #{name}.new %>"
+            else
+              "<%= render #{name}.new#{init} do %>\n  Content here\n<% end %>"
+            end
           else
             result = "<%= render #{name}.new#{init == ".new" ? "" : init} do |c| %>"
             slots.each do |slot|

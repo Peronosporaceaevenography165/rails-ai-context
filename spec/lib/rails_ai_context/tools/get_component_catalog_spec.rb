@@ -66,5 +66,54 @@ RSpec.describe RailsAiContext::Tools::GetComponentCatalog do
       expect(text).to include("Usage")
       expect(text).to include("render")
     end
+
+    context "no-props no-slots component" do
+      before do
+        data = {
+          components: [
+            {
+              name: "DividerComponent", type: :view_component,
+              file: "app/components/divider_component.rb",
+              props: [], slots: [],
+              sidecar_assets: [ "divider_component.html.erb" ]
+            }
+          ],
+          summary: { total: 1, view_component: 1, phlex: 0, with_slots: 0, with_previews: 0 }
+        }
+        allow(described_class).to receive(:cached_context).and_return({ components: data })
+      end
+
+      it "generates inline render without block" do
+        response = described_class.call(component: "divider", detail: "full")
+        text = response.content.first[:text]
+        expect(text).to include("<%= render DividerComponent.new %>")
+        expect(text).not_to include("do %>")
+      end
+    end
+
+    context "props-only component (no slots)" do
+      before do
+        data = {
+          components: [
+            {
+              name: "BadgeComponent", type: :view_component,
+              file: "app/components/badge_component.rb",
+              props: [ { name: "label", default: nil }, { name: "color", default: ":gray" } ],
+              slots: [],
+              sidecar_assets: [ "badge_component.html.erb" ]
+            }
+          ],
+          summary: { total: 1, view_component: 1, phlex: 0, with_slots: 0, with_previews: 0 }
+        }
+        allow(described_class).to receive(:cached_context).and_return({ components: data })
+      end
+
+      it "generates render with args and block for optional content" do
+        response = described_class.call(component: "badge", detail: "full")
+        text = response.content.first[:text]
+        expect(text).to include("render BadgeComponent.new(label: value, color: :gray)")
+        expect(text).to include("do %>")
+      end
+    end
   end
 end

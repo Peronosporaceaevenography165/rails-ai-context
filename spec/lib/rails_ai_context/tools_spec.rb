@@ -112,6 +112,28 @@ RSpec.describe "MCP Tool Integration" do
 
       expect(server.tools.size).to eq(33)
     end
+
+    it "rejects non-MCP::Tool classes with a warning" do
+      RailsAiContext.configuration.custom_tools = [ String, 42, "not_a_tool" ]
+
+      expect($stderr).to receive(:puts).with(a_string_matching(/WARNING.*Skipping invalid custom_tool/)).exactly(3).times
+
+      server = RailsAiContext::Server.new(Rails.application).build
+      expect(server.tools.size).to eq(33)
+    ensure
+      RailsAiContext.configuration.custom_tools = []
+    end
+
+    it "accepts valid tools and rejects invalid entries in the same array" do
+      RailsAiContext.configuration.custom_tools = [ fake_tool, "bad" ]
+      allow($stderr).to receive(:puts)
+
+      server = RailsAiContext::Server.new(Rails.application).build
+      expect(server.tools.keys).to include("my_custom_tool")
+      expect(server.tools.size).to eq(34)
+    ensure
+      RailsAiContext.configuration.custom_tools = []
+    end
   end
 
   describe "skip_tools" do

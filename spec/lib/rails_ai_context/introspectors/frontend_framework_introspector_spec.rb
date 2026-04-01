@@ -264,5 +264,27 @@ RSpec.describe RailsAiContext::Introspectors::FrontendFrameworkIntrospector do
         expect(result[:build_tool]).to eq("vite")
       end
     end
+
+    context "with vite.config.mts containing vue plugin import" do
+      let(:vite_config_path) { File.join(Rails.root, "vite.config.mts") }
+
+      before do
+        File.write(vite_config_path, <<~JS)
+          import { defineConfig } from 'vite'
+          import vue from '@vitejs/plugin-vue'
+
+          export default defineConfig({
+            plugins: [vue()]
+          })
+        JS
+      end
+
+      after { FileUtils.rm_f(vite_config_path) }
+
+      it "detects vue from vite.config.mts" do
+        result = introspector.call
+        expect(result[:frameworks]).to have_key(:vue)
+      end
+    end
   end
 end

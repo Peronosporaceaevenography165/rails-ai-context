@@ -53,10 +53,19 @@ module RailsAiContext
     def build
       config = RailsAiContext.configuration
 
+      validated_custom_tools = config.custom_tools.select do |tool|
+        if tool.is_a?(Class) && tool < MCP::Tool
+          true
+        else
+          $stderr.puts "[rails-ai-context] WARNING: Skipping invalid custom_tool #{tool.inspect} (must be an MCP::Tool subclass)"
+          false
+        end
+      end
+
       server = MCP::Server.new(
         name: config.server_name,
         version: config.server_version,
-        tools: active_tools(config) + config.custom_tools,
+        tools: active_tools(config) + validated_custom_tools,
         resource_templates: Resources.resource_templates
       )
 
