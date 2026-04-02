@@ -8,12 +8,12 @@
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-green)](https://registry.modelcontextprotocol.io)
 [![Ruby](https://img.shields.io/badge/Ruby-3.2%20%7C%203.3%20%7C%203.4-red)](https://github.com/crisnahine/rails-ai-context)
 [![Rails](https://img.shields.io/badge/Rails-7.1%20%7C%207.2%20%7C%208.0-red)](https://github.com/crisnahine/rails-ai-context)
-[![Tests](https://img.shields.io/badge/Tests-1170%20passing-brightgreen)](https://github.com/crisnahine/rails-ai-context/actions)
+[![Tests](https://img.shields.io/badge/Tests-1529%20passing-brightgreen)](https://github.com/crisnahine/rails-ai-context/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Works with:** Claude Code &bull; Cursor &bull; GitHub Copilot &bull; OpenCode &bull; Any terminal
 
-> Built by a Rails developer with 10+ years of production experience. AI assisted — the same way it assists me shipping features at work. I designed the architecture, made every decision, reviewed every line, and wrote 1170 tests. This gem exists because I understand Rails deeply enough to know exactly what AI agents get wrong and what context they need to get it right.
+> Built by a Rails developer with 10+ years of production experience. AI assisted — the same way it assists me shipping features at work. I designed the architecture, made every decision, reviewed every line, and wrote 1529 tests. This gem exists because I understand Rails deeply enough to know exactly what AI agents get wrong and what context they need to get it right.
 
 ```bash
 gem "rails-ai-context", group: :development
@@ -355,7 +355,7 @@ end
 ```bash
 git clone https://github.com/crisnahine/rails-ai-context.git
 cd rails-ai-context && bundle install
-bundle exec rspec       # 983 examples
+bundle exec rspec       # 1529 examples
 bundle exec rubocop     # Lint
 ```
 
@@ -364,6 +364,12 @@ Bug reports and pull requests welcome at [github.com/crisnahine/rails-ai-context
 ## Sponsorship
 
 If rails-ai-context saves you time, consider [becoming a sponsor](https://github.com/sponsors/crisnahine).
+
+## Star History
+
+If this gem helps you, a star helps others find it.
+
+[![Star History Chart](https://api.star-history.com/svg?repos=crisnahine/rails-ai-context&type=Date)](https://star-history.com/#crisnahine/rails-ai-context&Date)
 
 ## License
 
