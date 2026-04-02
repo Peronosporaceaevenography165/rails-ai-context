@@ -14,7 +14,7 @@ RSpec.describe RailsAiContext::Tools::GetModelDetails do
           { type: "has_many", name: "comments", dependent: "destroy" }
         ],
         validations: [
-          { kind: "presence", attributes: ["email"], options: {} }
+          { kind: "presence", attributes: [ "email" ], options: {} }
         ],
         enums: { "role" => { "member" => 0, "admin" => 1 } },
         scopes: [
@@ -30,7 +30,7 @@ RSpec.describe RailsAiContext::Tools::GetModelDetails do
           { type: "has_many", name: "comments", dependent: "destroy" }
         ],
         validations: [
-          { kind: "presence", attributes: ["title"], options: {} }
+          { kind: "presence", attributes: [ "title" ], options: {} }
         ]
       },
       "Comment" => {
@@ -40,7 +40,7 @@ RSpec.describe RailsAiContext::Tools::GetModelDetails do
           { type: "belongs_to", name: "user" }
         ],
         validations: [
-          { kind: "presence", attributes: ["body"], options: {} }
+          { kind: "presence", attributes: [ "body" ], options: {} }
         ]
       }
     }

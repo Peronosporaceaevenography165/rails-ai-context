@@ -62,7 +62,7 @@ RSpec.describe RailsAiContext::Watcher do
         allow(RailsAiContext::Fingerprinter).to receive(:changed?).and_return(true)
         allow(RailsAiContext::Fingerprinter).to receive(:compute).and_return("new_fp")
         allow(RailsAiContext).to receive(:generate_context).and_return(
-          { written: ["/tmp/CLAUDE.md"], skipped: ["/tmp/.cursorrules"] }
+          { written: [ "/tmp/CLAUDE.md" ], skipped: [ "/tmp/.cursorrules" ] }
         )
         allow($stderr).to receive(:puts)
       end

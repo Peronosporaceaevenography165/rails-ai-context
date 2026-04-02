@@ -64,13 +64,13 @@ RSpec.describe RailsAiContext::Server do
           tool_name "custom_valid_tool"
           description "A valid custom tool"
           def call
-            MCP::Tool::Response.new([{ type: "text", text: "ok" }])
+            MCP::Tool::Response.new([ { type: "text", text: "ok" } ])
           end
         end
       end
 
       it "includes valid custom tools" do
-        RailsAiContext.configuration.custom_tools = [valid_tool]
+        RailsAiContext.configuration.custom_tools = [ valid_tool ]
         mcp_server = server.build
         expect(mcp_server.tools.values).to include(valid_tool)
       ensure
@@ -78,7 +78,7 @@ RSpec.describe RailsAiContext::Server do
       end
 
       it "rejects invalid custom tools with a warning" do
-        RailsAiContext.configuration.custom_tools = ["not_a_tool", 42, String]
+        RailsAiContext.configuration.custom_tools = [ "not_a_tool", 42, String ]
         expect($stderr).to receive(:puts).exactly(3).times
         server.build
       ensure
@@ -89,7 +89,7 @@ RSpec.describe RailsAiContext::Server do
     context "with skip_tools" do
       it "excludes tools matching skip_tools names" do
         schema_tool_name = RailsAiContext::Tools::GetSchema.tool_name
-        RailsAiContext.configuration.skip_tools = [schema_tool_name]
+        RailsAiContext.configuration.skip_tools = [ schema_tool_name ]
         mcp_server = server.build
         expect(mcp_server.tools.values).not_to include(RailsAiContext::Tools::GetSchema)
       ensure

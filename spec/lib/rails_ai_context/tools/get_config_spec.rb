@@ -33,7 +33,7 @@ RSpec.describe RailsAiContext::Tools::GetConfig do
 
   let(:gems_data) do
     {
-      notable: [{ name: "devise" }],
+      notable: [ { name: "devise" } ],
       all: []
     }
   end

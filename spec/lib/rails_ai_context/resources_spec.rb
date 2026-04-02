@@ -60,7 +60,7 @@ RSpec.describe RailsAiContext::Resources do
   describe ".resource_templates" do
     it "returns an array containing the MODEL_TEMPLATE" do
       templates = described_class.resource_templates
-      expect(templates).to eq([described_class::MODEL_TEMPLATE])
+      expect(templates).to eq([ described_class::MODEL_TEMPLATE ])
     end
   end
 
@@ -86,9 +86,9 @@ RSpec.describe RailsAiContext::Resources do
   describe "handle_read (via register)" do
     let(:fake_context) do
       {
-        schema: { tables: ["users"] },
+        schema: { tables: [ "users" ] },
         routes: { total: 10 },
-        models: { "User" => { columns: ["id", "name"] } }
+        models: { "User" => { columns: [ "id", "name" ] } }
       }
     end
 
@@ -112,7 +112,7 @@ RSpec.describe RailsAiContext::Resources do
       expect(result.first[:uri]).to eq("rails://schema")
       expect(result.first[:mime_type]).to eq("application/json")
       parsed = JSON.parse(result.first[:text])
-      expect(parsed).to eq({ "tables" => ["users"] })
+      expect(parsed).to eq({ "tables" => [ "users" ] })
     end
 
     it "returns model data for a model URI" do
@@ -120,7 +120,7 @@ RSpec.describe RailsAiContext::Resources do
       expect(result).to be_an(Array)
       expect(result.first[:uri]).to eq("rails://models/User")
       parsed = JSON.parse(result.first[:text])
-      expect(parsed["columns"]).to eq(["id", "name"])
+      expect(parsed["columns"]).to eq([ "id", "name" ])
     end
 
     it "returns error for an unknown model" do

@@ -119,7 +119,7 @@ RSpec.describe RailsAiContext::Tools::GetRoutes do
               { verb: "GET", path: "/api/v1/posts", action: "index", name: "api_v1_posts" }
             ]
           },
-          api_namespaces: ["api/v1"]
+          api_namespaces: [ "api/v1" ]
         }
       })
       result = described_class.call(detail: "summary")

@@ -18,7 +18,7 @@ RSpec.describe RailsAiContext::Tools::GetSchema do
           { name: "updated_at", type: "datetime", null: false }
         ],
         indexes: [
-          { name: "index_users_on_email", columns: ["email"], unique: true }
+          { name: "index_users_on_email", columns: [ "email" ], unique: true }
         ],
         foreign_keys: []
       },
