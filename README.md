@@ -22,6 +22,8 @@ rails generate rails_ai_context:install
 
 That's it. Your AI now has 39 tools that understand your entire Rails app — via MCP server or CLI. Zero config.
 
+![Install demo](demo.gif)
+
 > **[Full Guide →](docs/GUIDE.md)** — every command, every parameter, every configuration option.
 
 ---
