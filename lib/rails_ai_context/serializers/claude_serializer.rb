@@ -37,7 +37,6 @@ module RailsAiContext
         lines.concat(render_ui_patterns)
         lines.concat(render_commands)
         lines.concat(render_footer)
-        lines.concat(render_conventions)
         lines.concat(render_mcp_guide_compact)
 
         # Enforce max lines
@@ -252,6 +251,19 @@ module RailsAiContext
         if stimulus.is_a?(Hash) && !stimulus[:error] && (stimulus[:controllers]&.any? || stimulus[:total_controllers]&.positive?)
           lines << "- Stimulus controllers auto-register — no manual import in controllers/index.js needed"
         end
+
+        # Global before_actions — critical for understanding controller flow
+        begin
+          root = defined?(Rails) ? Rails.root.to_s : Dir.pwd
+          app_ctrl_file = File.join(root, "app", "controllers", "application_controller.rb")
+          if File.exist?(app_ctrl_file)
+            source = File.read(app_ctrl_file)
+            before_actions = source.scan(/before_action\s+:([\w!?]+)/).flatten
+            if before_actions.any?
+              lines << "- Global before_actions: #{before_actions.join(', ')}"
+            end
+          end
+        rescue; end
 
         lines << ""
         lines

@@ -52,7 +52,9 @@ module RailsAiContext
           lines << "## Page Examples — Copy These Patterns"
           lines << ""
 
-          examples.each do |ex|
+          # Cap at 3 examples to avoid bloating context files
+          shown = examples.first(3)
+          shown.each do |ex|
             label = { form_page: "Form Page", list_page: "List/Grid Page", show_page: "Detail Page",
                       dashboard: "Dashboard" }[ex[:type]] || ex[:type].to_s.tr("_", " ").capitalize
             lines << "### #{label} (#{ex[:template]})"
@@ -60,6 +62,11 @@ module RailsAiContext
             lines << "```erb"
             lines.concat(ex[:snippet].lines.map(&:chomp))
             lines << "```"
+            lines << ""
+          end
+
+          if examples.size > 3
+            lines << "_#{examples.size - 3} more examples available via `get_design_system(detail:\"full\")` tool._"
             lines << ""
           end
         end

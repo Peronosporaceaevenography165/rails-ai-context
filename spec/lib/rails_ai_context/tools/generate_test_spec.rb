@@ -88,6 +88,28 @@ RSpec.describe RailsAiContext::Tools::GenerateTest do
       expect(text).to include("POST /cooks")
     end
 
+    it "generates minitest controller test with quoted paths and defined params for nested routes" do
+      allow(described_class).to receive(:cached_context).and_return({
+        tests: { framework: "minitest", test_helper_setup: [] },
+        models: {},
+        routes: {
+          by_controller: {
+            "likes" => [
+              { verb: "DELETE", path: "/posts/:post_id/like", action: "destroy", name: nil }
+            ]
+          }
+        }
+      })
+
+      result = described_class.call(controller: "LikesController")
+      text = result.content.first[:text]
+      # Path must be a quoted string, not a regex literal
+      expect(text).to include('delete "/posts/')
+      expect(text).not_to match(/delete\s+\/posts/)
+      # post_id variable must be defined
+      expect(text).to include("post_id = posts(:one).id")
+    end
+
     it "detects file type from path" do
       allow(described_class).to receive(:cached_context).and_return({
         tests: { framework: "rspec" },

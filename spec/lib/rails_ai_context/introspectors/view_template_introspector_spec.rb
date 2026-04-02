@@ -54,6 +54,52 @@ RSpec.describe RailsAiContext::Introspectors::ViewTemplateIntrospector do
       expect(template_names.none? { |n| n.include?("layouts/") }).to be true
     end
 
+    describe "phlex views" do
+      it "discovers Phlex view templates" do
+        expect(result[:templates].keys).to include("articles/show.rb")
+      end
+
+      it "marks Phlex views with phlex: true" do
+        phlex_template = result[:templates]["articles/show.rb"]
+        expect(phlex_template[:phlex]).to be true
+      end
+
+      it "extracts component renders from Phlex views" do
+        phlex_template = result[:templates]["articles/show.rb"]
+        expect(phlex_template[:components]).to include("Components::Articles::ArticleUser")
+        expect(phlex_template[:components]).to include("Components::Likes::Button")
+        expect(phlex_template[:components]).to include("Components::Comments::CommentHeader")
+        expect(phlex_template[:components]).to include("Components::Comments::CommentForm")
+        expect(phlex_template[:components]).to include("Components::Comments::Comment")
+        expect(phlex_template[:components]).to include("RubyUI::Heading")
+      end
+
+      it "extracts helper calls from Phlex views" do
+        phlex_template = result[:templates]["articles/show.rb"]
+        expect(phlex_template[:helpers]).to include("link_to")
+        expect(phlex_template[:helpers]).to include("image_tag")
+        expect(phlex_template[:helpers]).to include("content_for")
+        expect(phlex_template[:helpers]).to include("dom_id")
+      end
+
+      it "extracts stimulus controllers from Phlex views" do
+        phlex_template = result[:templates]["articles/show.rb"]
+        expect(phlex_template[:stimulus]).to include("infinite_scroll")
+        expect(phlex_template[:stimulus]).to include("clipboard")
+        expect(phlex_template[:stimulus]).to include("reply_form")
+      end
+
+      it "does not mark ERB templates as phlex" do
+        erb_template = result[:templates]["posts/index.html.erb"]
+        expect(erb_template[:phlex]).to be_nil
+      end
+
+      it "counts lines for Phlex views" do
+        phlex_template = result[:templates]["articles/show.rb"]
+        expect(phlex_template[:lines]).to be > 0
+      end
+    end
+
     describe "form_builders" do
       it "detects form_with usage in views" do
         form_builders = result[:ui_patterns][:form_builders]

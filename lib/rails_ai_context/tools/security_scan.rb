@@ -123,7 +123,13 @@ module RailsAiContext
 
         if warnings.empty?
           scope = files&.any? ? " in #{files.join(', ')}" : ""
-          return text_response("No security warnings found#{scope}. (#{checks_run} checks run)")
+          # Summarize what categories were checked for transparency
+          check_names = tracker.checks.checks_run.map do |c|
+            c.to_s.sub(/\ABrakeman::Checks::Check/, "").gsub(/([a-z])([A-Z])/, '\1 \2')
+          end
+          categories = check_names.first(6).join(", ")
+          categories += ", ..." if check_names.size > 6
+          return text_response("No security warnings found#{scope}. (#{checks_run} checks run: #{categories})")
         end
 
         case detail

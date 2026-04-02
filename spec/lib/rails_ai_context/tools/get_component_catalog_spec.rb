@@ -47,6 +47,40 @@ RSpec.describe RailsAiContext::Tools::GetComponentCatalog do
       expect(text).to include("icon")
     end
 
+    context "with enum values on props" do
+      let(:component_data) do
+        {
+          components: [
+            {
+              name: "ButtonComponent", type: :phlex,
+              file: "app/components/button_component.rb",
+              props: [
+                { name: "variant", default: ":primary", values: %w[primary secondary ghost destructive] },
+                { name: "size", default: ":md", values: %w[sm md lg] },
+                { name: "icon", default: "false" }
+              ],
+              slots: []
+            }
+          ],
+          summary: { total: 1, view_component: 0, phlex: 1, with_slots: 0, with_previews: 0 }
+        }
+      end
+
+      it "renders valid values for props with enums" do
+        response = described_class.call(component: "button", detail: "standard")
+        text = response.content.first[:text]
+        expect(text).to include("values: primary, secondary, ghost, destructive")
+        expect(text).to include("values: sm, md, lg")
+      end
+
+      it "does not render values for props without enums" do
+        response = described_class.call(component: "button", detail: "standard")
+        text = response.content.first[:text]
+        icon_line = text.lines.find { |l| l.include?("`icon`") }
+        expect(icon_line).not_to include("values:")
+      end
+    end
+
     it "filters by component name" do
       response = described_class.call(component: "alert")
       text = response.content.first[:text]

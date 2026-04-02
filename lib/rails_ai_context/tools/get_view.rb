@@ -87,7 +87,9 @@ module RailsAiContext
             ctrl_templates.sort.each do |name, meta|
               parts = meta[:partials]&.any? ? " renders: #{meta[:partials].join(', ')}" : ""
               stim = meta[:stimulus]&.any? ? " stimulus: #{meta[:stimulus].join(', ')}" : ""
-              lines << "- #{name} (#{meta[:lines]} lines)#{parts}#{stim}"
+              comps = meta[:components]&.any? ? " components: #{meta[:components].join(', ')}" : ""
+              phlex_tag = meta[:phlex] ? " [phlex]" : ""
+              lines << "- #{name} (#{meta[:lines]} lines#{phlex_tag})#{parts}#{comps}#{stim}"
             end
             ctrl_partials.sort.each do |name, meta|
               lines << "- #{name} (#{meta[:lines]} lines)"
@@ -118,13 +120,29 @@ module RailsAiContext
             lines << "## #{ctrl}/" unless controller && all_dirs.size == 1
             ctrl_templates.sort.each do |name, meta|
               detail_parts = []
-              detail_parts << "renders: #{meta[:partials].join(', ')}" if meta[:partials]&.any?
-              detail_parts << "stimulus: #{meta[:stimulus].join(', ')}" if meta[:stimulus]&.any?
               extra = extract_view_metadata(name)
-              detail_parts << "ivars: #{extra[:ivars].join(', ')}" if extra[:ivars]&.any?
-              detail_parts << "turbo: #{extra[:turbo].join(', ')}" if extra[:turbo]&.any?
+
+              if meta[:phlex]
+                # Phlex views: show components, helpers, stimulus, ivars
+                # Prefer introspector-level data, fall back to extract_view_metadata
+                components = meta[:components]&.any? ? meta[:components] : extra[:components]
+                helpers = meta[:helpers]&.any? ? meta[:helpers] : extra[:helpers]
+                detail_parts << "ivars: #{extra[:ivars].join(', ')}" if extra[:ivars]&.any?
+                detail_parts << "components: #{components.join(', ')}" if components&.any?
+                detail_parts << "helpers: #{helpers.join(', ')}" if helpers&.any?
+                detail_parts << "stimulus: #{meta[:stimulus].join(', ')}" if meta[:stimulus]&.any?
+                detail_parts << "turbo: #{extra[:turbo].join(', ')}" if extra[:turbo]&.any?
+              else
+                # ERB/Haml/Slim views: existing behavior
+                detail_parts << "renders: #{meta[:partials].join(', ')}" if meta[:partials]&.any?
+                detail_parts << "stimulus: #{meta[:stimulus].join(', ')}" if meta[:stimulus]&.any?
+                detail_parts << "ivars: #{extra[:ivars].join(', ')}" if extra[:ivars]&.any?
+                detail_parts << "turbo: #{extra[:turbo].join(', ')}" if extra[:turbo]&.any?
+              end
+
+              phlex_tag = meta[:phlex] ? " [phlex]" : ""
               details = detail_parts.any? ? " — #{detail_parts.join(' | ')}" : ""
-              lines << "- **#{name}** (#{meta[:lines]} lines)#{details}"
+              lines << "- **#{name}** (#{meta[:lines]} lines#{phlex_tag})#{details}"
             end
             ctrl_partials.sort.each do |name, meta|
               fields = meta[:fields]&.any? ? " fields: #{meta[:fields].join(', ')}" : ""
@@ -269,7 +287,7 @@ module RailsAiContext
       # Extract instance variables and Turbo wiring from a view template
       private_class_method def self.extract_view_metadata(relative_path)
         content = read_view_content(relative_path)
-        return { ivars: [], turbo: [] } if content.nil? || content.include?("(file not found)")
+        return { ivars: [], turbo: [], components: [], helpers: [] } if content.nil? || content.include?("(file not found)")
 
         # Instance variables used in template
         ivars = content.scan(/@(\w+)/).flatten.uniq.reject { |v| %w[output_buffer virtual_path _request].include?(v) }.sort
@@ -284,9 +302,47 @@ module RailsAiContext
           turbo << "stream:#{val}" unless val.start_with?('"') || val.start_with?("'") || turbo.any? { |t| t.include?(val) }
         end
 
-        { ivars: ivars, turbo: turbo.uniq }
+        result = { ivars: ivars, turbo: turbo.uniq }
+
+        # For Phlex views (.rb), extract component renders and helper calls
+        if relative_path.end_with?(".rb") && phlex_view_content?(content)
+          result[:components] = extract_phlex_components(content)
+          result[:helpers] = extract_phlex_helpers(content)
+        end
+
+        result
       rescue
-        { ivars: [], turbo: [] }
+        { ivars: [], turbo: [], components: [], helpers: [] }
+      end
+
+      # Detect if content is a Phlex view class
+      private_class_method def self.phlex_view_content?(content)
+        content.match?(/class\s+\S+\s*<\s*\S+/) && content.match?(/def\s+view_template\b/)
+      end
+
+      # Extract component render calls from Phlex Ruby DSL
+      private_class_method def self.extract_phlex_components(content)
+        components = Set.new
+        content.scan(/render[\s(]+([A-Z]\w+(?:::\w+)*)\.new/).each do |match|
+          components << match[0]
+        end
+        components.to_a.sort
+      end
+
+      # Extract helper method calls from Phlex views
+      PHLEX_HELPERS = %w[
+        link_to image_tag content_for button_to form_with form_for
+        content_tag tag number_to_currency number_to_human
+        time_ago_in_words distance_of_time_in_words
+        truncate pluralize raw sanitize dom_id
+      ].freeze
+
+      private_class_method def self.extract_phlex_helpers(content)
+        helpers = []
+        PHLEX_HELPERS.each do |method|
+          helpers << method if content.match?(/\b#{method}\b/)
+        end
+        helpers
       end
 
       # Scan templates that render a partial to extract locals keys

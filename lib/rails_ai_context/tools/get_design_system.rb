@@ -89,16 +89,27 @@ module RailsAiContext
           end
         end
 
-        # ViewComponents
+        # ViewComponents — grouped by category
         if cached_context[:components].is_a?(Hash) && !cached_context[:components][:error] && cached_context[:components][:components]&.any?
           comp_data = cached_context[:components][:components]
-          lines << "## Components" << ""
-          comp_data.first(15).each do |c|
-            slots = c[:slots]&.size || 0
-            slot_info = slots > 0 ? " (#{slots} slots)" : ""
-            lines << "- **#{c[:name]}**#{slot_info}"
+
+          # Group components by inferred category from file path or name
+          grouped = comp_data.group_by { |c| categorize_component(c) }
+          lines << "## Components (#{comp_data.size})" << ""
+
+          grouped.sort_by { |cat, _| cat }.each do |category, comps|
+            lines << "### #{category}"
+            comps.each do |c|
+              slots = c[:slots]&.size || 0
+              props = c[:props]&.size || 0
+              meta = []
+              meta << "#{slots} slots" if slots > 0
+              meta << "#{props} props" if props > 0
+              meta_str = meta.any? ? " (#{meta.join(', ')})" : ""
+              lines << "- **#{c[:name]}**#{meta_str}"
+            end
+            lines << ""
           end
-          lines << ""
         end
 
         # Accessibility
@@ -492,6 +503,33 @@ module RailsAiContext
           end
 
           lines
+        end
+
+        def categorize_component(component)
+          file = (component[:file] || "").downcase
+          name = (component[:name] || "").downcase
+
+          # Categorize by directory structure first
+          if file.include?("/ruby_ui/") || file.include?("/ui/")
+            # Sub-categorize UI primitives
+            return "UI / Form" if name.match?(/input|select|textarea|form|radio|checkbox/)
+            return "UI / Feedback" if name.match?(/alert|toast|dialog|modal/)
+            return "UI / Navigation" if name.match?(/breadcrumb|pagination|nav|link|menu|tabs/)
+            return "UI / Layout" if name.match?(/card|separator|heading|text|badge/)
+            return "UI / Media" if name.match?(/avatar|carousel|image/)
+            return "UI / Overlay" if name.match?(/dialog|popover|tooltip|dropdown/)
+            return "UI / Primitives"
+          end
+
+          return "Domain / Articles" if name.match?(/article/)
+          return "Domain / Comments" if name.match?(/comment/)
+          return "Domain / Posts" if name.match?(/post/)
+          return "Domain / Users" if name.match?(/user|profile/)
+          return "Domain / Likes" if name.match?(/like/)
+          return "Domain / Tags" if name.match?(/tag/)
+          return "Layout" if name.match?(/layout|flash|pagination|sidebar|login/)
+
+          "Other"
         end
 
         # Safe key extraction — handles both Hash and Array

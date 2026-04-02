@@ -15,7 +15,7 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
 
       it "returns an error" do
         result = introspector.call
-        expect(result[:error]).to include("No db/schema.rb or db/structure.sql")
+        expect(result[:error]).to include("No db/schema.rb, db/structure.sql, or migrations found")
       end
     end
 
@@ -341,12 +341,110 @@ RSpec.describe RailsAiContext::Introspectors::SchemaIntrospector do
       end
     end
 
+    context "with migration files fallback (empty schema.rb)" do
+      before do
+        allow(introspector).to receive(:active_record_connected?).and_return(false)
+
+        db_dir = File.join(fixture_path, "db")
+        FileUtils.mkdir_p(db_dir)
+        # Empty schema.rb (just boilerplate, no create_table)
+        File.write(File.join(db_dir, "schema.rb"), <<~RUBY)
+          ActiveRecord::Schema[8.0].define() do
+          end
+        RUBY
+
+        migrate_dir = File.join(db_dir, "migrate")
+        FileUtils.mkdir_p(migrate_dir)
+        File.write(File.join(migrate_dir, "20250101000001_create_users.rb"), <<~RUBY)
+          class CreateUsers < ActiveRecord::Migration[8.0]
+            def change
+              create_table :users do |t|
+                t.string :email, null: false
+                t.string :name
+                t.timestamps
+              end
+              add_index :users, :email, unique: true
+            end
+          end
+        RUBY
+        File.write(File.join(migrate_dir, "20250101000002_create_posts.rb"), <<~RUBY)
+          class CreatePosts < ActiveRecord::Migration[8.0]
+            def change
+              create_table :posts do |t|
+                t.string :title
+                t.text :body
+                t.references :user, null: false
+                t.timestamps
+              end
+            end
+          end
+        RUBY
+        File.write(File.join(migrate_dir, "20250101000003_add_slug_to_posts.rb"), <<~RUBY)
+          class AddSlugToPosts < ActiveRecord::Migration[8.0]
+            def change
+              add_column :posts, :slug, :string
+              add_index :posts, :slug, unique: true
+            end
+          end
+        RUBY
+      end
+
+      after { FileUtils.rm_rf(File.join(fixture_path, "db")) }
+
+      it "falls back to migration parsing when schema.rb is empty" do
+        result = introspector.call
+        expect(result[:adapter]).to eq("static_parse")
+        expect(result[:note]).to include("migration")
+      end
+
+      it "reconstructs tables from create_table migrations" do
+        result = introspector.call
+        expect(result[:tables]).to have_key("users")
+        expect(result[:tables]).to have_key("posts")
+        expect(result[:total_tables]).to eq(2)
+      end
+
+      it "extracts columns including types and null constraints" do
+        result = introspector.call
+        user_cols = result[:tables]["users"][:columns]
+        expect(user_cols).to include(a_hash_including(name: "email", type: "string", null: false))
+        expect(user_cols).to include(a_hash_including(name: "name", type: "string"))
+      end
+
+      it "handles t.references as bigint column" do
+        result = introspector.call
+        post_cols = result[:tables]["posts"][:columns]
+        expect(post_cols).to include(a_hash_including(name: "user_id", type: "bigint"))
+      end
+
+      it "adds timestamps columns" do
+        result = introspector.call
+        user_cols = result[:tables]["users"][:columns]
+        expect(user_cols).to include(a_hash_including(name: "created_at", type: "datetime"))
+        expect(user_cols).to include(a_hash_including(name: "updated_at", type: "datetime"))
+      end
+
+      it "replays add_column from later migrations" do
+        result = introspector.call
+        post_cols = result[:tables]["posts"][:columns]
+        expect(post_cols).to include(a_hash_including(name: "slug", type: "string"))
+      end
+
+      it "extracts indexes from migrations" do
+        result = introspector.call
+        user_indexes = result[:tables]["users"][:indexes]
+        expect(user_indexes).to include(a_hash_including(columns: [ "email" ], unique: true))
+        post_indexes = result[:tables]["posts"][:indexes]
+        expect(post_indexes).to include(a_hash_including(columns: [ "slug" ], unique: true))
+      end
+    end
+
     context "schema version parsing" do
       before do
         allow(introspector).to receive(:active_record_connected?).and_return(true)
         allow(introspector).to receive(:adapter_name).and_return("postgresql")
-        allow(introspector).to receive(:table_names).and_return([])
-        allow(introspector).to receive(:extract_tables).and_return({})
+        allow(introspector).to receive(:table_names).and_return([ "users" ])
+        allow(introspector).to receive(:extract_tables).and_return({ "users" => { columns: [], indexes: [], foreign_keys: [] } })
       end
 
       it "parses full schema version with underscores" do

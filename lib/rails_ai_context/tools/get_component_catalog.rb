@@ -53,7 +53,15 @@ module RailsAiContext
 
           text_response(render_single(found, detail))
         else
-          return text_response("No components found in app/components/.") if components.empty?
+          if components.empty?
+            return text_response(
+              "No components found in app/components/.\n\n" \
+              "This app may use ERB partials instead of ViewComponent/Phlex. Try:\n" \
+              "- `rails_get_partial_interface(partial:\"shared/partial_name\")` — partial locals contract + usage\n" \
+              "- `rails_get_view(controller:\"name\")` — view templates with partial/Stimulus references\n" \
+              "- `rails_get_design_system` — UI component patterns extracted from views"
+            )
+          end
           text_response(render_catalog(components, data[:summary], detail))
         end
       end
@@ -102,7 +110,8 @@ module RailsAiContext
             lines << "**Props:**"
             comp[:props].each do |prop|
               default = prop[:default] ? " (default: #{prop[:default]})" : ""
-              lines << "  - `#{prop[:name]}`#{default}"
+              values = prop[:values]&.any? ? " -- values: #{prop[:values].join(', ')}" : ""
+              lines << "  - `#{prop[:name]}`#{default}#{values}"
             end
           end
 

@@ -24,7 +24,7 @@ RSpec.describe RailsAiContext::Tools::PerformanceCheck do
             suggestion: "Consider eager loading when rendering Post with associations: comments, tags" }
         ],
         summary: {
-          total_issues: 4, n_plus_one_risks: 1, missing_counter_cache: 0,
+          total_issues: 5, n_plus_one_risks: 1, missing_counter_cache: 0,
           missing_fk_indexes: 2, model_all_in_controllers: 1, eager_load_candidates: 1
         }
       }

@@ -17,7 +17,7 @@ module RailsAiContext
           detail: {
             type: "string",
             enum: %w[summary standard full],
-            description: "Detail level. summary: names + counts. standard: names + targets + actions (default). full: everything including values, outlets, classes."
+            description: "Detail level. summary: names + counts. standard: targets + values + actions (default). full: everything including outlets, classes, HTML usage."
           },
           limit: {
             type: "integer",
@@ -73,14 +73,19 @@ module RailsAiContext
 
         case detail
         when "summary"
-          active = controllers.select { |c| (c[:targets] || []).any? || (c[:actions] || []).any? }
-          empty = controllers.reject { |c| (c[:targets] || []).any? || (c[:actions] || []).any? }
+          active = controllers.select { |c| (c[:targets] || []).any? || (c[:actions] || []).any? || (c[:values].is_a?(Hash) ? c[:values] : {}).any? }
+          empty = controllers.reject { |c| (c[:targets] || []).any? || (c[:actions] || []).any? || (c[:values].is_a?(Hash) ? c[:values] : {}).any? }
 
           lines = [ "# Stimulus Controllers (#{total})", "" ]
           active.each do |ctrl|
             targets = (ctrl[:targets] || []).size
+            values = (ctrl[:values].is_a?(Hash) ? ctrl[:values] : {}).size
             actions = (ctrl[:actions] || []).size
-            lines << "- **#{ctrl[:name]}** — #{targets} targets, #{actions} actions"
+            parts = []
+            parts << "#{targets} targets" if targets > 0
+            parts << "#{values} values" if values > 0
+            parts << "#{actions} actions" if actions > 0
+            lines << "- **#{ctrl[:name]}** — #{parts.join(', ')}"
           end
           if empty.any?
             names = empty.map { |c| c[:name] }.join(", ")
@@ -90,13 +95,14 @@ module RailsAiContext
           text_response(lines.join("\n"))
 
         when "standard"
-          active = controllers.select { |c| (c[:targets] || []).any? || (c[:actions] || []).any? }
-          empty = controllers.reject { |c| (c[:targets] || []).any? || (c[:actions] || []).any? }
+          active = controllers.select { |c| (c[:targets] || []).any? || (c[:actions] || []).any? || (c[:values].is_a?(Hash) ? c[:values] : {}).any? }
+          empty = controllers.reject { |c| (c[:targets] || []).any? || (c[:actions] || []).any? || (c[:values].is_a?(Hash) ? c[:values] : {}).any? }
 
           lines = [ "# Stimulus Controllers (#{total})", "" ]
           active.each do |ctrl|
             lines << "## #{ctrl[:name]}"
             lines << "- Targets: #{(ctrl[:targets] || []).join(', ')}" if ctrl[:targets]&.any?
+            lines << "- Values: #{(ctrl[:values].is_a?(Hash) ? ctrl[:values] : {}).map { |k, v| "#{k} (#{v})" }.join(', ')}" if (ctrl[:values].is_a?(Hash) ? ctrl[:values] : {}).any?
             lines << "- Actions: #{(ctrl[:actions] || []).join(', ')}" if ctrl[:actions]&.any?
             if ctrl[:complexity].is_a?(Hash)
               parts = []
@@ -110,7 +116,7 @@ module RailsAiContext
           end
           if empty.any?
             names = empty.map { |c| c[:name] }.join(", ")
-            lines << "_Lifecycle only (no targets/actions): #{names}_"
+            lines << "_Lifecycle only (no targets/values/actions): #{names}_"
           end
 
           # Cross-controller composition

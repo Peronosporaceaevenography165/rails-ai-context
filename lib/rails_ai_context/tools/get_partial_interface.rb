@@ -212,7 +212,7 @@ module RailsAiContext
         prefixed_basename = basename.start_with?("_") ? basename : "_#{basename}"
         unprefixed_basename = basename.delete_prefix("_")
 
-        extensions = %w[.html.erb .erb .html.haml .haml .html.slim .slim]
+        extensions = %w[.html.erb .erb .html.haml .haml .html.slim .slim .rb .json.jbuilder .jbuilder .turbo_stream.erb]
         candidates = []
 
         # Try prefixed name with various extensions

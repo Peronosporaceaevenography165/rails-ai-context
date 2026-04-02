@@ -9,7 +9,8 @@ RSpec.describe RailsAiContext::Tools::GetStimulus do
     {
       controllers: [
         { name: "hello", targets: %w[name output], actions: %w[greet], values: { "name" => "String" }, outlets: [], classes: [], file: "hello_controller.js" },
-        { name: "search", targets: %w[input results], actions: %w[search clear], values: {}, outlets: %w[hello], classes: %w[active], file: "search_controller.js" }
+        { name: "search", targets: %w[input results], actions: %w[search clear], values: {}, outlets: %w[hello], classes: %w[active], file: "search_controller.js" },
+        { name: "infinite-scroll", targets: [], actions: [], values: { "url" => "String", "page" => "Number" }, outlets: [], classes: [], file: "infinite_scroll_controller.js" }
       ]
     }
   end
@@ -22,15 +23,16 @@ RSpec.describe RailsAiContext::Tools::GetStimulus do
     it "lists controllers with counts for detail:summary" do
       result = described_class.call(detail: "summary")
       text = result.content.first[:text]
-      expect(text).to include("**hello** — 2 targets, 1 actions")
+      expect(text).to include("**hello** — 2 targets, 1 values, 1 actions")
       expect(text).to include("**search** — 2 targets, 2 actions")
     end
 
-    it "lists controllers with targets and actions for detail:standard" do
+    it "lists controllers with targets, values, and actions for detail:standard" do
       result = described_class.call(detail: "standard")
       text = result.content.first[:text]
       expect(text).to include("## hello")
       expect(text).to include("Targets: name, output")
+      expect(text).to include("Values: name (String)")
       expect(text).to include("Actions: greet")
     end
 
@@ -56,11 +58,26 @@ RSpec.describe RailsAiContext::Tools::GetStimulus do
       expect(text).to include("## hello")
     end
 
+    it "shows values-only controllers in summary (not lifecycle only)" do
+      result = described_class.call(detail: "summary")
+      text = result.content.first[:text]
+      expect(text).to include("**infinite-scroll** — 2 values")
+      expect(text).not_to include("infinite-scroll_ (lifecycle only)")
+    end
+
+    it "shows values for values-only controllers in standard detail" do
+      result = described_class.call(detail: "standard")
+      text = result.content.first[:text]
+      expect(text).to include("## infinite-scroll")
+      expect(text).to include("Values: url (String), page (Number)")
+    end
+
     it "handles missing controller" do
       result = described_class.call(controller: "nonexistent")
       text = result.content.first[:text]
       expect(text).to include("not found")
-      expect(text).to include("hello, search")
+      expect(text).to include("hello")
+      expect(text).to include("search")
     end
 
     it "handles missing stimulus data" do

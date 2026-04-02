@@ -33,7 +33,7 @@ RSpec.describe RailsAiContext::Serializers::ClaudeSerializer do
       line_count = output.lines.count
 
       expect(line_count).to be <= 175
-      expect(output).to include("Tools (37)")
+      expect(output).to include("Tools (39)")
       expect(output).to include("rails_get_schema")
       expect(output).to include("rails_diagnose")
     end

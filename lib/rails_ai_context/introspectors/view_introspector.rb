@@ -140,7 +140,7 @@ module RailsAiContext
         return {} unless Dir.exist?(views_dir)
 
         counts = Hash.new(0)
-        view_files = Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}"))
+        view_files = Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim,rb}"))
         view_files.each do |path|
           content = File.read(path) rescue next
           FORM_BUILDER_PATTERNS.each do |name, pattern|
@@ -158,7 +158,7 @@ module RailsAiContext
         return [] unless Dir.exist?(views_dir)
 
         components = Set.new
-        view_files = Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim}"))
+        view_files = Dir.glob(File.join(views_dir, "**/*.{erb,haml,slim,rb}"))
         view_files.each do |path|
           content = File.read(path) rescue next
           # Match render ComponentName.new(...) or render(ComponentName.new(...))

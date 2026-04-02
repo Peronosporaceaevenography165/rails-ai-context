@@ -24,20 +24,20 @@ module RailsAiContext
       end
 
       def tools_header
-        "## Tools (37) — MANDATORY, Use Before Read"
+        "## Tools (39) — MANDATORY, Use Before Read"
       end
 
       def tools_intro
         case tool_mode
         when :cli
           [
-            "This project has 37 introspection tools. **MANDATORY — use these instead of reading files.**",
+            "This project has 39 introspection tools. **MANDATORY — use these instead of reading files.**",
             "They return only relevant, structured data and save tokens. Read files ONLY when you are about to Edit them.",
             ""
           ]
         else
           [
-            "This project has 37 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
+            "This project has 39 MCP tools via `rails ai:serve` (configured in `.mcp.json`).",
             "**MANDATORY — use these instead of reading files.** They return structured data and save tokens.",
             "Read files ONLY when you are about to Edit them.",
             "If MCP tools are not connected, use CLI fallback: `#{cli_cmd("TOOL_NAME", "param=value")}`",
@@ -127,7 +127,7 @@ module RailsAiContext
           "",
           "- **Don't read db/schema.rb** — use `get_schema`. It adds [indexed]/[unique] hints you'd miss.",
           "- **Don't read model files for reference** — use `get_model_details`. It resolves concerns, inherited methods, and implicit belongs_to validations.",
-          "- **Don't use Grep/search agents** — use `#{search_tool}`. It excludes sensitive files, supports `match_type:\"trace\"`, and paginates.",
+          "- **Prefer `#{search_tool}` over Grep** for method tracing and cross-layer search. It excludes sensitive files, supports `match_type:\"trace\"`, and paginates.",
           "- **Don't call tools without a target** — `get_model_details()` without `model:` returns a paginated list, not an error. Always specify what you want.",
           "- **Don't skip validation** — run `#{validate_tool}` after EVERY edit. It catches syntax errors AND Rails-specific issues (missing partials, bad column refs).",
           "- **Don't ignore cross-references** — tool responses include `_Next:` hints suggesting the best follow-up call. Follow them.",
@@ -144,7 +144,7 @@ module RailsAiContext
             "",
             "1. **Use composite tools first** — `#{cli_cmd("context")}` and `#{cli_cmd("analyze_feature")}` before individual tools",
             "2. **NEVER read reference files** — db/schema.rb, config/routes.rb, model files, test files — tools are better",
-            "3. **NEVER use Grep** — use `#{cli_cmd("search_code")}`",
+            "3. **Prefer `#{cli_cmd("search_code")}`** for tracing and cross-layer search — standard search tools are fine for simple targeted lookups",
             "4. **Read files ONLY to Edit them** — not for reference",
             "5. **Validate EVERY edit** — `#{cli_cmd("validate", "files=... level=rails")}`",
             "6. **Follow _Next:_ hints** — tool responses suggest the best follow-up call",
@@ -156,7 +156,7 @@ module RailsAiContext
             "",
             "1. **Use composite tools first** — `rails_get_context` and `rails_analyze_feature` before individual tools",
             "2. **NEVER read reference files** — db/schema.rb, config/routes.rb, model files, test files — tools are better",
-            "3. **NEVER use Grep** — use `rails_search_code`",
+            "3. **Prefer `rails_search_code`** for tracing and cross-layer search — standard search tools are fine for simple targeted lookups",
             "4. **Read files ONLY to Edit them** — not for reference",
             "5. **Validate EVERY edit** — `rails_validate(files:[...], level:\"rails\")`",
             "6. **Follow _Next:_ hints** — tool responses suggest the best follow-up call",
@@ -167,7 +167,7 @@ module RailsAiContext
       end
 
       def tools_table # rubocop:disable Metrics/MethodLength
-        lines = [ "### All 37 Tools", "" ]
+        lines = [ "### All 39 Tools", "" ]
 
         if tool_mode == :cli
           lines.concat(tools_table_cli)
@@ -218,7 +218,9 @@ module RailsAiContext
           "| `rails_generate_test(model:\"X\")` | `#{cli_cmd("generate_test", "model=X")}` | Generate test scaffolding matching project patterns (framework, factories, style) |",
           "| `rails_diagnose(error:\"X\")` | `#{cli_cmd("diagnose", "error=\"X\"")}` | One-call error diagnosis: context + git changes + logs + fix suggestions |",
           "| `rails_review_changes(ref:\"main\")` | `#{cli_cmd("review_changes", "ref=main")}` | PR/commit review: file context + warnings (missing indexes, removed validations) |",
-          "| `rails_onboard(detail:\"standard\")` | `#{cli_cmd("onboard", "detail=standard")}` | Narrative app walkthrough for new developers or AI agents |"
+          "| `rails_onboard(detail:\"standard\")` | `#{cli_cmd("onboard", "detail=standard")}` | Narrative app walkthrough for new developers or AI agents |",
+          "| `rails_runtime_info(detail:\"standard\")` | `#{cli_cmd("runtime_info", "detail=standard")}` | Live runtime: DB pool, table sizes, cache stats, job queues, pending migrations |",
+          "| `rails_session_context(action:\"status\")` | `#{cli_cmd("session_context", "action=status")}` | Track what you've already queried, avoid redundant calls |"
         ]
       end
 
@@ -262,7 +264,9 @@ module RailsAiContext
           "| `#{cli_cmd("generate_test", "model=X")}` | Generate test scaffolding matching project patterns (framework, factories, style) |",
           "| `#{cli_cmd("diagnose", "error=\"X\"")}` | One-call error diagnosis: context + git changes + logs + fix suggestions |",
           "| `#{cli_cmd("review_changes", "ref=main")}` | PR/commit review: file context + warnings (missing indexes, removed validations) |",
-          "| `#{cli_cmd("onboard", "detail=standard")}` | Narrative app walkthrough for new developers or AI agents |"
+          "| `#{cli_cmd("onboard", "detail=standard")}` | Narrative app walkthrough for new developers or AI agents |",
+          "| `#{cli_cmd("runtime_info", "detail=standard")}` | Live runtime: DB pool, table sizes, cache stats, job queues, pending migrations |",
+          "| `#{cli_cmd("session_context", "action=status")}` | Track what you've already queried, avoid redundant calls |"
         ]
       end
 
@@ -290,6 +294,7 @@ module RailsAiContext
         lines.concat(tools_intro)
         lines.concat(tools_power_tool_section)
         lines.concat(tools_workflow_section)
+        lines.concat(tools_antipatterns_section)
         lines.concat(tools_rules_section)
         lines.concat(tools_name_list)
         lines
@@ -309,6 +314,7 @@ module RailsAiContext
           rails_migration_advisor rails_get_frontend_stack rails_search_docs
           rails_query rails_read_logs rails_generate_test rails_diagnose
           rails_review_changes rails_onboard
+          rails_runtime_info rails_session_context
         ]
         [
           "### All #{all_tools.size} tools",

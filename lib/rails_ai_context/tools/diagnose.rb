@@ -37,11 +37,33 @@ module RailsAiContext
 
       # ── Error classification ──────────────────────────────────────────
 
+      # Section size limits for output truncation
+      MAX_TOTAL_OUTPUT = 20_000
+      MAX_SECTION_CHARS = {
+        controller_context: 3_000,
+        model_context: 3_000,
+        code_context: 3_000,
+        schema_context: 3_000,
+        method_trace: 3_000,
+        git_changes: 2_000,
+        logs: 2_000
+      }.freeze
+
       ERROR_CLASSIFICATIONS = {
-        /NoMethodError|NameError/ => {
+        /NameError.*uninitialized constant/ => {
+          type: :name_error,
+          likely: "A class or module constant could not be found. This usually means a typo in the class/module name, a missing require, or an autoload issue.",
+          fix: "1. Check for typo in class/module name, missing require, or autoload issue\n2. Verify the file is in the correct autoload path (e.g. app/models, app/services)\n3. Run `rails_search_code(pattern:\"ClassName\", match_type:\"trace\")` to find where the constant is defined"
+        },
+        /NoMethodError/ => {
           type: :nil_reference,
           likely: "A method was called on nil or an undefined name was referenced. Check for: missing association, unfetched record, typo in method name.",
           fix: "1. Check the variable/object is not nil before calling the method\n2. Verify the association or attribute exists on the model\n3. Use `&.` safe navigation if the value can legitimately be nil"
+        },
+        /NameError/ => {
+          type: :name_error,
+          likely: "An undefined name was referenced. This could be a typo in a variable, method, or constant name, or a missing require/autoload.",
+          fix: "1. Check for typo in class/module name, missing require, or autoload issue\n2. Verify the name is defined and accessible in the current scope\n3. Use `rails_search_code(pattern:\"name\", match_type:\"trace\")` to find where it is defined"
         },
         /RecordNotFound/ => {
           type: :record_not_found,
@@ -92,9 +114,11 @@ module RailsAiContext
         lines << "**Classification:** #{classification[:type]}"
         lines << ""
 
-        # Likely cause
+        # Likely cause — enriched with specific inference when possible
         lines << "## Likely Cause"
         lines << classification[:likely]
+        specific = infer_specific_cause(parsed, classification, file, action)
+        lines << "" << "**Specific:** #{specific}" if specific
         lines << ""
 
         # Suggested fix
@@ -103,14 +127,25 @@ module RailsAiContext
         lines << ""
 
         # Gather context based on parameters and error type
-        lines.concat(gather_context(parsed, classification, file, line, action))
+        context_sections = gather_context(parsed, classification, file, line, action)
 
         # Recent git changes
         git_section = gather_git_context(file, parsed[:file_refs])
-        lines.concat(git_section) if git_section.any?
 
         # Recent error logs
         log_section = gather_log_context(parsed[:exception_class])
+
+        # Truncate large sections before assembling final output
+        context_sections = truncate_section(context_sections, "Controller Context", MAX_SECTION_CHARS[:controller_context])
+        context_sections = truncate_section(context_sections, "Code Context", MAX_SECTION_CHARS[:code_context])
+        context_sections = truncate_section(context_sections, "Schema Context", MAX_SECTION_CHARS[:schema_context])
+        context_sections = truncate_section(context_sections, "Model Context", MAX_SECTION_CHARS[:model_context])
+        context_sections = truncate_section(context_sections, "Method Trace", MAX_SECTION_CHARS[:method_trace])
+        git_section = truncate_section(git_section, "Recent Git Changes", MAX_SECTION_CHARS[:git_changes])
+        log_section = truncate_section(log_section, "Recent Error Logs", MAX_SECTION_CHARS[:logs])
+
+        lines.concat(context_sections)
+        lines.concat(git_section) if git_section.any?
         lines.concat(log_section) if log_section.any?
 
         # Next steps
@@ -122,7 +157,14 @@ module RailsAiContext
           lines << "_Use `rails_search_code(pattern:\"#{parsed[:method_name]}\", match_type:\"trace\")` to trace the method._"
         end
 
-        text_response(lines.join("\n"))
+        output = lines.join("\n")
+
+        # Final safety cap: if total output still exceeds limit, hard-truncate
+        if output.length > MAX_TOTAL_OUTPUT
+          output = output[0, MAX_TOTAL_OUTPUT] + "\n\n_... output truncated (#{output.length} chars exceeded #{MAX_TOTAL_OUTPUT} limit)._"
+        end
+
+        text_response(output)
       rescue => e
         text_response("Diagnosis error: #{e.message}")
       end
@@ -262,6 +304,55 @@ module RailsAiContext
           lines
         end
 
+        # Infer a specific diagnosis from the error + context
+        def infer_specific_cause(parsed, classification, file, action) # rubocop:disable Metrics
+          msg = parsed[:message].to_s
+          method = parsed[:method_name]
+
+          # "undefined method X for nil" — identify WHAT is nil
+          if classification[:type] == :nil_reference && msg.include?("for nil")
+            # Check if calling on current_user (common: auth not running)
+            if file&.include?("controller") && msg.match?(/current_user/)
+              return "`current_user` is nil — the `authenticate_user!` before_action may not be running for this route. " \
+                     "Check if this action is excluded via `unless:` or `skip_before_action`."
+            end
+            # Check if calling on an association
+            if method && file
+              begin
+                ctx = GetEditContext.call(file: file, near: method)
+                code = ctx.content.first[:text]
+                # Find the receiver: something.method_name
+                receiver_match = code.match(/(\w+)\.#{Regexp.escape(method)}/)
+                if receiver_match
+                  receiver = receiver_match[1]
+                  return "`#{receiver}` is nil when `.#{method}` is called. " \
+                         "This variable may not be set in all code paths — check if it's assigned before use, " \
+                         "or use `#{receiver}&.#{method}` for safe navigation."
+                end
+              rescue; end
+            end
+          end
+
+          # RecordNotFound — check if there's a set_* before_action
+          if classification[:type] == :record_not_found && action
+            ctrl, act = action.split("#", 2)
+            if ctrl && act
+              begin
+                ctrl_class = ctrl.end_with?("Controller") ? ctrl : "#{ctrl.camelize}Controller"
+                result = GetControllers.call(controller: ctrl_class, action: act)
+                text = result.content.first[:text]
+                if text.include?("set_") && text.include?("find")
+                  return "The `set_*` before_action uses `.find` which raises RecordNotFound. " \
+                         "The record with the given ID doesn't exist or doesn't belong to the current user. " \
+                         "Check if the record was deleted or if the user is authorized to access it."
+                end
+              rescue; end
+            end
+          end
+
+          nil
+        end
+
         def gather_git_context(file, file_refs)
           lines = []
           root = Rails.root.to_s
@@ -302,6 +393,42 @@ module RailsAiContext
           rescue
             []
           end
+        end
+
+        # Truncate the content of a named section (identified by "## heading") within a lines array.
+        # Returns a new array with the section's content lines truncated if they exceed max_chars.
+        def truncate_section(lines, heading, max_chars)
+          return lines if lines.empty? || max_chars.nil?
+
+          header_marker = "## #{heading}"
+          header_idx = lines.index(header_marker)
+          return lines unless header_idx
+
+          # Find the end of this section: next "## " header or end of array
+          section_end = nil
+          (header_idx + 1...lines.length).each do |i|
+            if lines[i].is_a?(String) && lines[i].start_with?("## ")
+              section_end = i
+              break
+            end
+          end
+          section_end ||= lines.length
+
+          # Measure content between header and section_end
+          content_lines = lines[(header_idx + 1)...section_end]
+          content = content_lines.join("\n")
+
+          return lines if content.length <= max_chars
+
+          # Truncate and rebuild
+          truncated_content = content[0, max_chars]
+          truncated_content += "\n\n_... section truncated (#{content.length} chars → #{max_chars} max)._"
+
+          result = lines[0...header_idx + 1]
+          result << truncated_content
+          result << ""
+          result.concat(lines[section_end..])
+          result
         end
       end
     end

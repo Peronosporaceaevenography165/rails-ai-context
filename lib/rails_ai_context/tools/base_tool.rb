@@ -12,6 +12,11 @@ module RailsAiContext
       # for thread safety in multi-threaded servers (e.g., Puma).
       SHARED_CACHE = { mutex: Mutex.new }
 
+      # Session-level context tracking. Lets AI avoid redundant queries
+      # by recording what tools have been called with what params.
+      # In-memory only — resets on server restart (matches conversation lifecycle).
+      SESSION_CONTEXT = { mutex: Mutex.new, queries: {} }
+
       class << self
         # Convenience: access the Rails app and cached introspection
         def rails_app
@@ -52,12 +57,54 @@ module RailsAiContext
         # Reset the shared cache. Used by LiveReload to invalidate on file change.
         def reset_all_caches!
           reset_cache!
+          session_reset!
+        end
+
+        # ── Session context helpers ──────────────────────────────────────
+
+        def session_record(tool_name, params, summary = nil)
+          SESSION_CONTEXT[:mutex].synchronize do
+            key = session_key(tool_name, params)
+            SESSION_CONTEXT[:queries][key] = {
+              tool: tool_name.to_s,
+              params: params,
+              timestamp: Time.now.iso8601,
+              summary: summary
+            }
+          end
+        end
+
+        def session_queried?(tool_name, **params)
+          SESSION_CONTEXT[:mutex].synchronize do
+            SESSION_CONTEXT[:queries].key?(session_key(tool_name, params))
+          end
+        end
+
+        def session_queries
+          SESSION_CONTEXT[:mutex].synchronize do
+            SESSION_CONTEXT[:queries].values.dup
+          end
+        end
+
+        def session_reset!
+          SESSION_CONTEXT[:mutex].synchronize do
+            SESSION_CONTEXT[:queries].clear
+          end
+        end
+
+        # Auto-compress: if text exceeds 85% of max, call the fallback lambda for a shorter version
+        def auto_compress(full_text, &fallback)
+          max = config.max_tool_response_chars
+          return full_text if !max || full_text.length <= (max * 0.85).to_i
+          fallback ? fallback.call : full_text
         end
 
         # Structured not-found error with fuzzy suggestion and recovery hint.
         # Helps AI agents self-correct without retrying blind.
         def not_found_response(type, name, available, recovery_tool: nil)
           suggestion = find_closest_match(name, available)
+          # Don't suggest the exact same string the user typed — that's useless
+          suggestion = nil if suggestion == name
           lines = [ "#{type} '#{name}' not found." ]
           lines << "Did you mean '#{suggestion}'?" if suggestion
           lines << "Available: #{available.first(20).join(', ')}#{"..." if available.size > 20}"
@@ -108,8 +155,15 @@ module RailsAiContext
           end
         end
 
-        # Helper: wrap text in an MCP::Tool::Response with safety-net truncation
+        # Helper: wrap text in an MCP::Tool::Response with safety-net truncation.
+        # Auto-records the call in session context so session_context(action:"status") works.
         def text_response(text)
+          # Auto-track: record this tool call in session context (skip SessionContext itself to avoid recursion)
+          if respond_to?(:tool_name) && tool_name != "rails_session_context"
+            summary = text.lines.first&.strip&.truncate(80)
+            session_record(tool_name, {}, summary)
+          end
+
           max = RailsAiContext.configuration.max_tool_response_chars
           if max && text.length > max
             truncated = text[0...max]
@@ -118,6 +172,14 @@ module RailsAiContext
           else
             MCP::Tool::Response.new([ { type: "text", text: text } ])
           end
+        end
+
+        private
+
+        def session_key(tool_name, params)
+          normalized = tool_name.to_s.sub(/\Arails_/, "")
+          param_str = params.is_a?(Hash) ? params.sort_by { |k, _| k.to_s }.map { |k, v| "#{k}:#{v}" }.join(",") : params.to_s
+          "#{normalized}:#{param_str}"
         end
       end
     end

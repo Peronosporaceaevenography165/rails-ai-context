@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fileutils"
+
 module RailsAiContext
   module Serializers
     # Orchestrates writing context files to disk in various formats.
@@ -87,7 +89,7 @@ module RailsAiContext
         if File.exist?(filepath) && File.read(filepath) == content
           skipped << filepath
         else
-          File.write(filepath, content)
+          atomic_write(filepath, content)
           written << filepath
         end
       end
@@ -112,13 +114,22 @@ module RailsAiContext
           if new_content == existing
             skipped << filepath
           else
-            File.write(filepath, new_content)
+            atomic_write(filepath, new_content)
             written << filepath
           end
         else
-          File.write(filepath, marked_content)
+          atomic_write(filepath, marked_content)
           written << filepath
         end
+      end
+
+      # Write via temp file + rename to avoid partial writes from concurrent processes
+      def atomic_write(filepath, content)
+        dir = File.dirname(filepath)
+        FileUtils.mkdir_p(dir)
+        tmp = File.join(dir, ".#{File.basename(filepath)}.tmp")
+        File.write(tmp, content)
+        File.rename(tmp, filepath)
       end
 
       def generate_split_rules(formats, output_dir, written, skipped)

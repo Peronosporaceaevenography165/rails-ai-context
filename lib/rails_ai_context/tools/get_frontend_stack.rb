@@ -49,20 +49,59 @@ module RailsAiContext
 
         def build_summary(data)
           parts = []
-          parts << "#{data[:framework]}#{version_suffix(data[:version])}" if data[:framework]
-          parts << data[:mounting_strategy] if data[:mounting_strategy]
-          parts << data[:build_tool] if data[:build_tool]
+          parts << "#{data[:framework]}#{version_suffix(data[:version])}" if data[:framework].present?
+          parts << data[:mounting_strategy] if data[:mounting_strategy].present?
+          parts << data[:build_tool] if data[:build_tool].present?
 
           if data[:typescript].is_a?(Hash) && data[:typescript][:enabled]
             parts << "TypeScript"
           end
 
-          parts << data[:state_management] if data[:state_management]
+          if data[:state_management].is_a?(String) && data[:state_management].present?
+            parts << data[:state_management]
+          elsif data[:state_management].is_a?(Array) && data[:state_management].any?
+            parts << data[:state_management].join(", ")
+          end
 
           total = total_component_count(data)
           parts << "(#{total} components)" if total > 0
 
+          # If no JS framework data, try building a Hotwire summary from cached context
+          if parts.empty?
+            hotwire = build_hotwire_summary
+            return hotwire if hotwire
+          end
+
           parts.any? ? parts.join(" + ") : "No frontend framework detected."
+        end
+
+        def build_hotwire_summary
+          stimulus = cached_context[:stimulus]
+          gems = cached_context[:gems]
+
+          notable = gems.is_a?(Hash) && !gems[:error] ? (gems[:notable_gems] || []) : []
+          has_turbo = notable.any? { |g| g[:name] == "turbo-rails" }
+          has_stimulus = notable.any? { |g| g[:name] == "stimulus-rails" }
+          has_importmap = notable.any? { |g| g[:name] == "importmap-rails" }
+          has_tailwind = notable.any? { |g| g[:name] == "tailwindcss-rails" }
+
+          return nil unless has_turbo || has_stimulus
+
+          parts = []
+          parts << "Hotwire (Turbo + Stimulus)" if has_turbo && has_stimulus
+          parts << "Hotwire (Turbo)" if has_turbo && !has_stimulus
+          parts << "Hotwire (Stimulus)" if !has_turbo && has_stimulus
+
+          parts << "with importmap-rails" if has_importmap
+
+          if stimulus.is_a?(Hash) && !stimulus[:error]
+            count = stimulus[:total_controllers] || stimulus[:controllers]&.size || 0
+            parts << "#{count} Stimulus controllers" if count > 0
+          end
+
+          parts << "Tailwind CSS" if has_tailwind
+
+          parts.join(", ")
         end
 
         def build_standard(data)
@@ -90,12 +129,25 @@ module RailsAiContext
             lines << "- **Testing:** #{data[:testing_frameworks].join(', ')}"
           end
 
-          # Frontend roots with component counts
+          # Hotwire stack — enrich with Stimulus/Turbo data for importmap apps
+          enrich_with_hotwire(lines)
+
+          # Frontend roots with component counts — skip "0 components" for Hotwire apps
+          # where Stimulus controllers ARE the components
+          has_hotwire = lines.any? { |l| l.include?("Hotwire Stack") }
           if data[:frontend_roots].is_a?(Array) && data[:frontend_roots].any?
-            lines << "" << "## Frontend Roots" << ""
-            data[:frontend_roots].each do |root|
-              count = root[:component_count] || 0
-              lines << "- `#{root[:path]}` — #{count} components"
+            roots_with_components = data[:frontend_roots].select { |r| (r[:component_count] || 0) > 0 }
+            if roots_with_components.any?
+              lines << "" << "## Frontend Roots" << ""
+              roots_with_components.each do |root|
+                lines << "- `#{root[:path]}` — #{root[:component_count]} components"
+              end
+            elsif !has_hotwire
+              # Only show "0 components" for non-Hotwire apps where it's meaningful
+              lines << "" << "## Frontend Roots" << ""
+              data[:frontend_roots].each do |root|
+                lines << "- `#{root[:path]}` — 0 components"
+              end
             end
           end
 
@@ -152,6 +204,45 @@ module RailsAiContext
             data[:component_dirs].sum { |d| d[:count] || 0 }
           else
             0
+          end
+        end
+
+        # For Hotwire/importmap apps, pull Stimulus and Turbo data from context
+        def enrich_with_hotwire(lines)
+          stimulus = cached_context[:stimulus]
+          turbo = cached_context[:turbo]
+          gems = cached_context[:gems]
+
+          # Check if this is a Hotwire app (has turbo-rails or stimulus-rails)
+          notable = gems.is_a?(Hash) && !gems[:error] ? (gems[:notable_gems] || []) : []
+          has_turbo = notable.any? { |g| g[:name] == "turbo-rails" }
+          has_stimulus = notable.any? { |g| g[:name] == "stimulus-rails" }
+          has_importmap = notable.any? { |g| g[:name] == "importmap-rails" }
+
+          return unless has_turbo || has_stimulus
+
+          lines << ""
+          lines << "## Hotwire Stack"
+          lines << ""
+          lines << "- **Turbo:** turbo-rails (Drive, Frames, Streams)" if has_turbo
+          lines << "- **Stimulus:** stimulus-rails" if has_stimulus
+          lines << "- **Asset delivery:** importmap-rails (no JS bundler)" if has_importmap
+
+          if stimulus.is_a?(Hash) && !stimulus[:error]
+            count = stimulus[:total_controllers] || stimulus[:controllers]&.size || 0
+            if count > 0
+              names = (stimulus[:controllers] || []).map { |c| c[:name] || c[:file]&.gsub("_controller.js", "") }.compact.sort
+              lines << "- **Stimulus controllers:** #{count} (#{names.first(8).join(', ')}#{count > 8 ? ', ...' : ''})"
+            end
+          end
+
+          if turbo.is_a?(Hash) && !turbo[:error]
+            broadcasts = turbo[:broadcasts]&.size || turbo[:explicit_broadcasts]&.size || 0
+            frames = turbo[:frames]&.size || 0
+            parts = []
+            parts << "#{broadcasts} broadcasts" if broadcasts > 0
+            parts << "#{frames} frames" if frames > 0
+            lines << "- **Turbo wiring:** #{parts.join(', ')}" if parts.any?
           end
         end
       end

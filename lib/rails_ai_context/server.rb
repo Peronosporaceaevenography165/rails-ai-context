@@ -45,7 +45,9 @@ module RailsAiContext
       Tools::GenerateTest,
       Tools::Diagnose,
       Tools::ReviewChanges,
-      Tools::Onboard
+      Tools::Onboard,
+      Tools::RuntimeInfo,
+      Tools::SessionContext
     ].freeze
 
     def initialize(app, transport: :stdio)
@@ -117,6 +119,11 @@ module RailsAiContext
       # Build a minimal Rack app that delegates to the MCP transport
       rack_app = build_rack_app(transport, config.http_path)
 
+      unless config.http_bind == "127.0.0.1" || config.http_bind == "::1" || config.http_bind == "localhost"
+        $stderr.puts "[rails-ai-context] WARNING: MCP HTTP transport binding to #{config.http_bind} — " \
+                     "this exposes all tools to the network without authentication. " \
+                     "Use 127.0.0.1 (default) unless you have external auth in place."
+      end
       $stderr.puts "[rails-ai-context] MCP server starting on #{config.http_bind}:#{config.http_port}#{config.http_path}"
       $stderr.puts "[rails-ai-context] Tools: #{TOOLS.map { |t| t.tool_name }.join(', ')}"
       maybe_start_live_reload(server)

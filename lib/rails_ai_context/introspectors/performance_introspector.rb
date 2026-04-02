@@ -54,6 +54,10 @@ module RailsAiContext
             elsif (idx = line.match(/add_index\s+"#{Regexp.escape(current_table)}",\s+(?:"(\w+)"|\[([^\]]+)\])/))
               col_name = idx[1] || idx[2]&.gsub(/["'\s]/, "")
               tables[current_table][:indexes] << col_name
+            elsif (tidx = line.match(/t\.index\s+\[([^\]]+)\]/))
+              # t.index ["col_name"] inside create_table block
+              cols = tidx[1].gsub(/["'\s]/, "").split(",")
+              cols.each { |c| tables[current_table][:indexes] << c }
             end
           end
 
@@ -226,20 +230,23 @@ module RailsAiContext
 
         return findings if model_names.empty?
 
+        # Build a single regex matching any model's .all call to avoid O(n*m) scanning
+        escaped_names = model_names.map { |n| Regexp.escape(n) }
+        combined_pattern = /(#{escaped_names.join("|")})\.all\b/
+
         Dir.glob(File.join(controllers_dir, "**/*.rb")).each do |path|
           content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace)
           relative = path.sub("#{root}/", "")
 
-          model_names.each do |model_name|
-            content.scan(/#{Regexp.escape(model_name)}\.all\b/).each do
-              findings << {
-                controller: relative,
-                model: model_name,
-                suggestion: "#{model_name}.all loads all records into memory. Consider pagination or scoping."
-              }
-            end
+          content.scan(combined_pattern).each do |match|
+            model_name = match[0]
+            findings << {
+              controller: relative,
+              model: model_name,
+              suggestion: "#{model_name}.all loads all records into memory. Consider pagination or scoping."
+            }
           end
-        rescue
+        rescue StandardError
           next
         end
 
@@ -277,7 +284,8 @@ module RailsAiContext
         total_issues = result[:n_plus_one_risks].size +
                        result[:missing_counter_cache].size +
                        result[:missing_fk_indexes].size +
-                       result[:model_all_in_controllers].size
+                       result[:model_all_in_controllers].size +
+                       result[:eager_load_candidates].size
 
         {
           total_issues: total_issues,

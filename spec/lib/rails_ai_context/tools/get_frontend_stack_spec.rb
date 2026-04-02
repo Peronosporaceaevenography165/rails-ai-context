@@ -180,6 +180,66 @@ RSpec.describe RailsAiContext::Tools::GetFrontendStack do
       end
     end
 
+    context "with detail:summary for a Hotwire app" do
+      let(:hotwire_data) do
+        {
+          frontend_roots: [],
+          frameworks: {},
+          mounting_strategy: nil,
+          state_management: [],
+          testing: [],
+          package_manager: nil,
+          typescript: { enabled: false },
+          monorepo: { detected: false, tool: nil, workspaces: [] },
+          build_tool: nil
+        }
+      end
+
+      let(:gems_data) do
+        {
+          notable_gems: [
+            { name: "turbo-rails", version: "2.0.0" },
+            { name: "stimulus-rails", version: "1.3.0" },
+            { name: "importmap-rails", version: "2.0.0" },
+            { name: "tailwindcss-rails", version: "3.0.0" }
+          ]
+        }
+      end
+
+      let(:stimulus_data) do
+        {
+          total_controllers: 15,
+          controllers: Array.new(15) { |i| { name: "controller_#{i}" } }
+        }
+      end
+
+      before do
+        allow(described_class).to receive(:cached_context).and_return({
+          frontend_frameworks: hotwire_data,
+          gems: gems_data,
+          stimulus: stimulus_data
+        })
+      end
+
+      it "returns a Hotwire one-liner with framework, asset delivery, controllers, and CSS" do
+        result = described_class.call(detail: "summary")
+        text = result.content.first[:text]
+
+        expect(text).to include("Hotwire (Turbo + Stimulus)")
+        expect(text).to include("importmap-rails")
+        expect(text).to include("15 Stimulus controllers")
+        expect(text).to include("Tailwind CSS")
+      end
+
+      it "does not return blank output" do
+        result = described_class.call(detail: "summary")
+        text = result.content.first[:text]
+
+        expect(text).not_to be_empty
+        expect(text).not_to eq("No frontend framework detected.")
+      end
+    end
+
     context "when frontend_frameworks data is missing" do
       it "returns a helpful message about enabling the introspector" do
         allow(described_class).to receive(:cached_context).and_return({})

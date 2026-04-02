@@ -36,7 +36,6 @@ module RailsAiContext
         lines.concat(render_architecture)
         lines.concat(render_ui_patterns)
         lines.concat(render_commands)
-        lines.concat(render_conventions)
         lines.concat(render_mcp_guide_compact)
         lines.concat(render_footer)
 

@@ -38,7 +38,12 @@ module RailsAiContext
     end
 
     def run
-      results = CHECKS.filter_map { |check| send(check) rescue nil }
+      results = CHECKS.filter_map do |check|
+        send(check)
+      rescue StandardError => e
+        $stderr.puts "[rails-ai-context] Doctor check #{check} failed: #{e.class}: #{e.message}"
+        nil
+      end
       score = compute_score(results)
       { checks: results, score: score }
     end

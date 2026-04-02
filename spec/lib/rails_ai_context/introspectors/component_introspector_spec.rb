@@ -57,11 +57,41 @@ RSpec.describe RailsAiContext::Introspectors::ComponentIntrospector do
       expect(slot_names).to include("header", "footer", "badges")
     end
 
+    it "detects Phlex components inheriting from a custom base class" do
+      greeting = result[:components].find { |c| c[:name] == "GreetingComponent" }
+      expect(greeting).not_to be_nil
+      expect(greeting[:type]).to eq(:phlex)
+    end
+
     it "builds a summary" do
       expect(result[:summary]).to be_a(Hash)
       expect(result[:summary][:total]).to be >= 2
       expect(result[:summary][:view_component]).to be >= 2
       expect(result[:summary][:with_slots]).to be >= 2
+    end
+
+    it "extracts enum values from hash constants" do
+      badge = result[:components].find { |c| c[:name] == "BadgeComponent" }
+      variant_prop = badge[:props].find { |p| p[:name] == "variant" }
+      expect(variant_prop[:values]).to contain_exactly("primary", "secondary", "success")
+    end
+
+    it "extracts enum values from array constants" do
+      badge = result[:components].find { |c| c[:name] == "BadgeComponent" }
+      size_prop = badge[:props].find { |p| p[:name] == "size" }
+      expect(size_prop[:values]).to contain_exactly("sm", "md", "lg")
+    end
+
+    it "extracts enum values from case statements" do
+      alert = result[:components].find { |c| c[:name] == "AlertComponent" }
+      type_prop = alert[:props].find { |p| p[:name] == "type" }
+      expect(type_prop[:values]).to include("success", "error", "warning")
+    end
+
+    it "does not add values to props without enumerables" do
+      greeting = result[:components].find { |c| c[:name] == "GreetingComponent" }
+      name_prop = greeting[:props].find { |p| p[:name] == "name" }
+      expect(name_prop).not_to have_key(:values)
     end
   end
 end

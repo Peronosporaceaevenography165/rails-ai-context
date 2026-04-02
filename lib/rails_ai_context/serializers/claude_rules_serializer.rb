@@ -59,6 +59,7 @@ module RailsAiContext
           ""
         ]
 
+        # Compact counts — gems and architecture are already in the root file (CLAUDE.md/AGENTS.md)
         schema = context[:schema]
         if schema.is_a?(Hash) && !schema[:error]
           lines << "- Database: #{schema[:adapter]} — #{schema[:total_tables]} tables"
@@ -69,19 +70,6 @@ module RailsAiContext
 
         routes = context[:routes]
         lines << "- Routes: #{routes[:total_routes]}" if routes.is_a?(Hash) && !routes[:error]
-
-        gems = context[:gems]
-        if gems.is_a?(Hash) && !gems[:error]
-          notable = gems[:notable_gems] || []
-          notable.group_by { |g| g[:category]&.to_s || "other" }.first(6).each do |cat, gem_list|
-            lines << "- #{cat}: #{gem_list.map { |g| g[:name] }.join(', ')}"
-          end
-        end
-
-        conv = context[:conventions]
-        if conv.is_a?(Hash) && !conv[:error]
-          (conv[:architecture] || []).first(5).each { |p| lines << "- #{p}" }
-        end
 
         lines.concat(full_preset_stack_lines)
 
@@ -114,8 +102,7 @@ module RailsAiContext
         lines = [
           "# Database Tables (#{tables.size})",
           "",
-          "All columns with types are listed below — no need to read db/schema.rb.",
-          "For indexes, foreign keys, or constraints, use `rails_get_schema(table:\"name\")`.",
+          "_Snapshot — may be stale after migrations. Use `rails_get_schema(table:\"name\")` for live data._",
           ""
         ]
 
@@ -195,8 +182,7 @@ module RailsAiContext
         lines = [
           "# ActiveRecord Models (#{models.size})",
           "",
-          "Check this file first for associations, scopes, constants, and validations.",
-          "If you need more detail (callbacks, methods, business logic), use `rails_get_model_details(model:\"Name\")` or Read the file directly.",
+          "_Quick reference — use `rails_get_model_details(model:\"Name\")` for live data with resolved concerns and callbacks._",
           ""
         ]
 
@@ -223,8 +209,13 @@ module RailsAiContext
           scope_names = scopes.map { |s| s.is_a?(Hash) ? s[:name] : s }
           lines << "  scopes: #{scope_names.join(', ')}" if scopes.any?
 
-          # Instance methods — introspector already prioritizes source-defined and filters Devise
-          methods = (data[:instance_methods] || []).reject { |m| m.end_with?("=") }.first(20)
+          # Instance methods — filter Devise/framework internals that add noise
+          devise_noise = %w[after_remembered apply_to_attribute_or_variable clear_reset_password_token
+                            clear_reset_password_token? current_password devise_modules devise_modules?
+                            devise_respond_to_and_will_save_change_to_attribute?]
+          methods = (data[:instance_methods] || [])
+            .reject { |m| m.end_with?("=") || devise_noise.include?(m) }
+            .first(20)
           lines << "  methods: #{methods.join(', ')}" if methods.any?
 
           # Include constants (e.g. STATUSES, MODES) so agents know valid values

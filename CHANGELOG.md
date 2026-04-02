@@ -5,21 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.1] — 2026-04-02
+
+### Fixed
+- **performance_check false positives** — now parses `t.index` inside `create_table` blocks (was only parsing `add_index` outside blocks, missing inline indexes)
+- **review_changes overflow** — capped at 20 files with 30 diff lines each; remaining files listed without diff to prevent 200K+ char responses
+- **get_context ivar cross-check** — now follows `render :other_template` references (create rendering :new on failure no longer shows false positives)
+- **generate_test setup block** — always generates `setup do` with factory/fixture/inline fallback; minitest tests no longer reference undefined instance variables
+- **session_context auto-tracking** — `text_response()` now auto-records every tool call; `session_context(action:"status")` shows what was queried without manual `mark:` calls
+- **search_code AI file exclusion** — excludes CLAUDE.md, AGENTS.md, .claude/, .cursor/, .cursorrules, .github/copilot-instructions.md, .ai-context.json from results
+- **diagnose output truncation** — per-section size limits (3K chars each) + total output cap (20K) prevent overflow
+- **diagnose NameError classification** — `NameError: uninitialized constant` now correctly classified as `:name_error`, not `:nil_reference`
+- **diagnose specific inference** — identifies nil receivers, missing `authenticate_user!`, and `set_*` before_actions from code context
+- **onboard purpose inference** — quick mode now infers app purpose from models, jobs, services, gems (e.g., "news aggregation app with RSS, YouTube, Reddit ingestion")
+- **onboard adapter resolution** — resolves `static_parse` adapter name from config or gems instead of showing internal implementation detail
+- **security_scan transparency** — "no warnings" response now lists which check categories were run (e.g., "SQL injection, XSS, mass assignment")
+- **read_logs filename filter** — `available_log_files` now rejects filenames with non-standard characters
+- **Phlex view support** — get_view detects Phlex views (.rb), extracts component renders and helper calls
+- **Component introspector Phlex** — discovers Phlex components alongside ViewComponent
+- **Schema introspector array columns** — detects PostgreSQL `array: true` columns from schema.rb
+- **search_code regex injection** — `definition` and `class` match types now escape user input with `Regexp.escape` (previously raw interpolation could crash with metacharacters like `(`, `[`, `{`)
+- **sensitive file bypass on macOS** — all 3 `sensitive_file?` implementations now use `FNM_CASEFOLD` flag; `.ENV`, `Master.Key`, `.PEM` variants no longer bypass the block on case-insensitive filesystems
+- **doctor silent exception swallowing** — `rescue nil` replaced with `rescue StandardError` + stderr logging; broken health checks are now reported instead of silently skipped
+- **context file race condition** — `write_plain` and `write_with_markers` now use atomic write (temp file + rename) to prevent partial writes from concurrent generators
+- **performance_introspector O(n*m) scan** — `detect_model_all_in_controllers` now builds a single combined regex instead of scanning each controller once per model
+- **HTTP transport non-loopback warning** — MCP server now logs a warning when `http_bind` is set to a non-loopback address (no authentication on the HTTP transport)
+
+### Added
+- **`rails_runtime_info`** — live runtime state: DB connection pool, table sizes (PG/MySQL/SQLite), pending migrations, cache stats (Redis hit rate + memory), Sidekiq queue depth, job adapter detection
+- **`rails_session_context`** — session-aware context tracking with auto-recording; `action:"status"` shows what tools were called, `action:"summary"` for compressed recap, `action:"reset"` to clear
+- **`auto_compress` helper** — BaseTool method that auto-downgrades detail when response approaches 85% of max chars
+- **`not_found_response` dedup** — no longer suggests the exact same string the user typed
+- **get_frontend_stack Hotwire** — reports Stimulus controllers, Turbo config, importmap pins for Hotwire/importmap apps (not just React/Vue)
+- **get_component_catalog guidance** — returns actionable message for partial-based apps: "Use get_partial_interface or get_view"
+- **get_context feature enrichment** — `feature:` mode now also searches controllers and services by name when analyze_feature misses them
+- **Fingerprinter gem development** — includes gem lib/ directory mtime when using path gem (local dev cache invalidation)
+
+### Changed
+- Tool count: 37 → 39
+- Test count: 1052 → 1170
+- Standard preset now includes turbo, auth, accessibility, performance, i18n (was 14 introspectors, now 19)
+
 ## [4.3.0] — 2026-04-01
 
 ### Added
-- **`rails_onboard`** — narrative app walkthrough (quick/standard/full) for new developers and AI agents: stack, data model, authentication, key flows, jobs, frontend, testing, getting started
-- **`rails_generate_test`** — generates test scaffolding matching project patterns: detects framework (RSpec/Minitest), factories vs fixtures, assertion style, Devise helpers; covers validations, associations, scopes, enums, request specs with routes
-- **`rails_diagnose`** — one-call error diagnosis: parses error → classifies (nil_reference, record_not_found, validation_failure, routing, strong_params, schema_mismatch) → gathers controller/model/schema context → shows recent git changes → pulls error logs → suggests fix
-- **`rails_review_changes`** — PR/commit review context: classifies changed files, pulls per-file context (model → schema, controller → routes, migration → affected models), detects warnings (missing indexes, removed validations, no test changes)
-- **Improved AI instructions** — workflow sequencing (step-by-step tool call order), `detail` parameter guidance, anti-patterns section, `get_context` promoted as power tool, app-specific footer rules from conventions introspector
-- **Compact tool name list** — root files (CLAUDE.md, AGENTS.md) now include all 37 tool names in a dense format that fits within the 150-line compact mode limit
+- **`rails_onboard`** — narrative app walkthrough (quick/standard/full)
+- **`rails_generate_test`** — test scaffolding matching project patterns
+- **`rails_diagnose`** — one-call error diagnosis with classification + context + git + logs
+- **`rails_review_changes`** — PR/commit review with per-file context + warnings
+- **Improved AI instructions** — workflow sequencing, detail guidance, anti-patterns, get_context as power tool
 
 ### Changed
 - Tool count: 33 → 37
 - Test count: 1016 → 1052
-- Root file render order: commands and rules before tool guide to prevent truncation
-- Cursor rules description: fixed stale "25 tools" → "37 tools"
 
 ## [4.2.3] — 2026-04-01
 

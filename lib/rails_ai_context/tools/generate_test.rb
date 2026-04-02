@@ -264,12 +264,20 @@ module RailsAiContext
           lines << ""
           lines << "class #{name}Test < ActiveSupport::TestCase"
 
-          setup_var = factory ? "#{name.underscore}" : "#{name.underscore}"
+          setup_var = name.underscore
+          fixtures = tests_data[:fixtures]
+          fixture_names = tests_data[:fixture_names] || {}
+          # Determine data setup: factory > fixture > inline
+          lines << "  setup do"
           if factory
-            lines << "  setup do"
             lines << "    @#{setup_var} = create(:#{factory})"
-            lines << "  end"
+          elsif fixtures
+            fixture_key = fixture_names.keys.find { |k| k.to_s.downcase == name.underscore.pluralize } ? ":one" : ":one"
+            lines << "    @#{setup_var} = #{name.underscore.pluralize}(#{fixture_key})"
+          else
+            lines << "    @#{setup_var} = #{name}.new"
           end
+          lines << "  end"
 
           # Validations
           validations = data[:validations] || []
@@ -282,7 +290,29 @@ module RailsAiContext
                 next if seen.include?(key)
                 seen << key
                 lines << "  test \"validates #{v[:kind]} of #{attr}\" do"
-                lines << "    @#{setup_var}.#{attr} = nil" if v[:kind] == "presence"
+                case v[:kind]
+                when "presence"
+                  lines << "    @#{setup_var}.#{attr} = nil"
+                when "inclusion"
+                  lines << "    @#{setup_var}.#{attr} = \"__invalid_value__\""
+                when "uniqueness"
+                  lines << "    duplicate = @#{setup_var}.dup"
+                  lines << "    assert_not duplicate.valid?"
+                  lines << "  end"
+                  lines << ""
+                  next
+                when "numericality"
+                  lines << "    @#{setup_var}.#{attr} = \"not_a_number\""
+                when "length"
+                  max = v.dig(:options, :maximum)
+                  if max
+                    lines << "    @#{setup_var}.#{attr} = \"a\" * #{max + 1}"
+                  else
+                    lines << "    @#{setup_var}.#{attr} = \"\""
+                  end
+                when "format"
+                  lines << "    @#{setup_var}.#{attr} = \"invalid-format\""
+                end
                 lines << "    assert_not @#{setup_var}.valid?"
                 lines << "  end"
                 lines << ""
@@ -305,8 +335,18 @@ module RailsAiContext
           scopes = data[:scopes] || []
           scopes.each do |s|
             scope_name = s.is_a?(Hash) ? s[:name] : s
+            scope_body = s.is_a?(Hash) ? s[:body] : nil
             lines << "  test \"scope .#{scope_name} returns expected records\" do"
-            lines << "    # TODO: create test data and verify"
+            if scope_body&.include?("order")
+              lines << "    sql = #{name}.#{scope_name}.to_sql"
+              lines << "    assert_match(/ORDER BY/i, sql)"
+            elsif scope_body&.include?("where")
+              lines << "    results = #{name}.#{scope_name}"
+              lines << "    assert_kind_of ActiveRecord::Relation, results"
+            else
+              lines << "    results = #{name}.#{scope_name}"
+              lines << "    assert_kind_of ActiveRecord::Relation, results"
+            end
             lines << "  end"
             lines << ""
           end
@@ -444,9 +484,21 @@ module RailsAiContext
             path = r[:path] || "/#{snake}"
             verb = (r[:verb] || "GET").downcase
 
+            # Extract dynamic segments (e.g. :post_id, :id) from the path
+            param_names = path.scan(/:(\w+)/).flatten
+            quoted_path = path.gsub(/:(\w+)/, '#{\\1}')
+
             lines << ""
             lines << "  test \"#{r[:verb]} #{r[:path]} works\" do"
-            lines << "    #{verb} #{path.gsub(/:(\w+)/, '#{\\1}')}"
+            param_names.each do |param|
+              if param == "id"
+                lines << "    #{param} = #{snake.pluralize}(:one).id"
+              elsif param.end_with?("_id")
+                resource = param.delete_suffix("_id")
+                lines << "    #{param} = #{resource.pluralize}(:one).id"
+              end
+            end
+            lines << "    #{verb} \"#{quoted_path}\""
             lines << "    assert_response :success"
             lines << "  end"
           end

@@ -79,11 +79,13 @@ module RailsAiContext
         end
 
         text_response(output)
-      rescue ActiveRecord::ConnectionNotEstablished
-        text_response("Database connection unavailable. Ensure database is running and config/database.yml is correct.")
+      rescue ActiveRecord::ConnectionNotEstablished, ActiveRecord::NoDatabaseError => e
+        text_response("Database unavailable: #{clean_error_message(e.message)}\n\n**Troubleshooting:**\n- Check `config/database.yml` for correct host/port/credentials\n- Try `RAILS_ENV=test` if the development DB is remote\n- Run `bin/rails db:create` if the database doesn't exist yet")
       rescue ActiveRecord::StatementInvalid => e
         if e.message.match?(/timeout|statement_timeout|MAX_EXECUTION_TIME/i)
           text_response("Query exceeded #{config.query_timeout} second timeout. Simplify the query or add indexes.")
+        elsif e.message.match?(/could not find|does not exist|Unknown database/i)
+          text_response("Database not found: #{clean_error_message(e.message)}\n\n**Troubleshooting:**\n- Run `bin/rails db:create` to create the database\n- Check `config/database.yml` for the correct database name\n- Try `RAILS_ENV=test` if the development DB is remote")
         else
           text_response("SQL error: #{clean_error_message(e.message)}")
         end

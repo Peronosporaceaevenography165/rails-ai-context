@@ -27,7 +27,7 @@ module RailsAiContext
 
       annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: false, open_world_hint: true)
 
-      MAX_DIFF_LINES_PER_FILE = 60
+      MAX_DIFF_LINES_PER_FILE = 30
 
       def self.call(ref: "HEAD", files: nil, server_context: nil)
         root = Rails.root.to_s
@@ -35,7 +35,7 @@ module RailsAiContext
         # Verify git is available
         _, status = Open3.capture2("git", "rev-parse", "--git-dir", chdir: root)
         unless status.success?
-          return text_response("Not a git repository. `rails_review_changes` requires git.")
+          return text_response("Not a git repository. `rails_review_changes` requires a git repository.\n\n**To initialize:** `git init && git add -A && git commit -m 'Initial commit'`")
         end
 
         changed = get_changed_files(ref, root)
@@ -76,13 +76,22 @@ module RailsAiContext
           lines << ""
         end
 
-        # File-by-file context
-        lines << "## File-by-File Context"
+        # File-by-file context — cap at 20 files to prevent overflow
+        max_files = 20
+        show_files = classified.first(max_files)
+        lines << "## File-by-File Context (#{show_files.size} of #{classified.size})"
         lines << ""
 
-        classified.each do |entry|
+        show_files.each do |entry|
           file_lines = gather_file_context(entry[:file], entry[:type], root, ref)
           lines.concat(file_lines)
+        end
+
+        if classified.size > max_files
+          remaining = classified[max_files..].map { |e| e[:file] }
+          lines << "## Remaining #{remaining.size} files (not shown)"
+          remaining.each { |f| lines << "- #{f}" }
+          lines << ""
         end
 
         # Next steps

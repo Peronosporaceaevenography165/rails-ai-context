@@ -146,9 +146,10 @@ module RailsAiContext
       private_class_method def self.sensitive_file?(relative_path)
         patterns = RailsAiContext.configuration.sensitive_patterns
         basename = File.basename(relative_path)
+        flags = File::FNM_DOTMATCH | File::FNM_CASEFOLD
         patterns.any? do |pattern|
-          File.fnmatch(pattern, relative_path, File::FNM_DOTMATCH) ||
-            File.fnmatch(pattern, basename, File::FNM_DOTMATCH)
+          File.fnmatch(pattern, relative_path, flags) ||
+            File.fnmatch(pattern, basename, flags)
         end
       end
 

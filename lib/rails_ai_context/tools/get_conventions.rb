@@ -74,6 +74,13 @@ module RailsAiContext
           end
         end
 
+        # I18n / Locale info
+        locale_info = detect_locale_info
+        if locale_info.any?
+          lines << "" << "## I18n"
+          locale_info.each { |l| lines << "- #{l}" }
+        end
+
         # Convention Fingerprint — one-paragraph summary of the app's detected conventions
         fingerprint_parts = []
         fingerprint_parts << conventions[:architecture].map { |a| humanize_arch(a) }.join(", ") if conventions[:architecture]&.any?
@@ -317,6 +324,58 @@ module RailsAiContext
         sections
       rescue => e
         [] # Graceful degradation — never break the tool
+      end
+
+      private_class_method def self.detect_locale_info
+        info = []
+        locales_dir = Rails.root.join("config", "locales")
+        return info unless Dir.exist?(locales_dir)
+
+        locale_files = Dir.glob(File.join(locales_dir, "**", "*.{yml,yaml,rb}"))
+        locales = locale_files.map { |f| File.basename(f, ".*").split(".").first }.uniq.sort
+
+        return info if locales.empty?
+
+        info << "**Locales:** #{locales.join(', ')} (#{locales.size} total)"
+
+        # Detect default locale from config
+        app_config = Rails.root.join("config", "application.rb")
+        if File.exist?(app_config)
+          content = File.read(app_config, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue ""
+          if (match = content.match(/config\.i18n\.default_locale\s*=\s*[:"'](\w+)/))
+            info << "**Default locale:** #{match[1]}"
+          end
+        end
+
+        # Detect primary UI language by sampling flash messages from controllers
+        controllers_dir = Rails.root.join("app", "controllers")
+        if Dir.exist?(controllers_dir)
+          samples = []
+          Dir.glob(File.join(controllers_dir, "**", "*.rb")).first(10).each do |path|
+            content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
+            content.scan(/(?:notice|alert|flash\[:\w+\]):\s*"([^"]+)"/).each { |m| samples << m[0] }
+          end
+          if samples.any?
+            # Check if majority contains non-ASCII (CJK, Korean, etc.)
+            non_ascii = samples.count { |s| s.match?(/[^\x00-\x7F]/) }
+            ratio = non_ascii.to_f / samples.size
+            if ratio > 0.5
+              if samples.any? { |s| s.match?(/[\uAC00-\uD7AF]/) }
+                info << "**Primary UI language:** Korean (detected from flash messages)"
+              elsif samples.any? { |s| s.match?(/[\u4E00-\u9FFF]/) }
+                info << "**Primary UI language:** Chinese (detected from flash messages)"
+              elsif samples.any? { |s| s.match?(/[\u3040-\u309F\u30A0-\u30FF]/) }
+                info << "**Primary UI language:** Japanese (detected from flash messages)"
+              else
+                info << "**Primary UI language:** non-English (detected from flash messages)"
+              end
+            end
+          end
+        end
+
+        info
+      rescue
+        []
       end
 
       private_class_method def self.detect_test_pattern

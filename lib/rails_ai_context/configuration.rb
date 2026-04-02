@@ -3,7 +3,9 @@
 module RailsAiContext
   class Configuration
     PRESETS = {
-      standard: %i[schema models routes jobs gems conventions controllers tests migrations stimulus view_templates design_tokens config components],
+      standard: %i[schema models routes jobs gems conventions controllers tests migrations stimulus
+                   view_templates design_tokens config components
+                   turbo auth accessibility performance i18n],
       full: %i[schema models routes jobs gems conventions stimulus controllers views view_templates design_tokens turbo
                i18n config active_storage action_text auth api tests rake_tasks assets
                devops action_mailbox migrations seeds middleware engines multi_database
@@ -111,7 +113,7 @@ module RailsAiContext
       @server_name         = "rails-ai-context"
       @server_version      = RailsAiContext::VERSION
       @introspectors       = PRESETS[:full].dup
-      @excluded_paths      = %w[node_modules tmp log vendor .git]
+      @excluded_paths      = %w[node_modules tmp log vendor .git doc docs]
       @sensitive_patterns  = %w[
         .env .env.* config/master.key config/credentials.yml.enc
         config/credentials/*.yml.enc *.pem *.key

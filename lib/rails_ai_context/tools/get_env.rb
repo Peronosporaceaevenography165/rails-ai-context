@@ -141,16 +141,42 @@ module RailsAiContext
       private_class_method def self.format_full(env_vars, env_example, dockerfile_vars, external_services, credentials_keys, encrypted_columns, root)
         lines = [ "# Environment Configuration (Full Detail)", "" ]
 
-        # ENV vars with per-file locations
+        # ENV vars grouped by category with file annotations
         if env_vars.any?
-          lines << "## Environment Variables by File"
+          lines << "## Environment Variables by Category"
+
+          # Build a map: var_name -> { details from all files }
+          var_details = {}
           env_vars.sort_by { |file, _| file }.each do |file, vars|
             relative = file.sub("#{root}/", "")
-            lines << "" << "### `#{relative}`"
+            vars.each do |v|
+              var_details[v[:name]] ||= { files: [], default: nil }
+              var_details[v[:name]][:files] << { file: relative, line: v[:line] }
+              var_details[v[:name]][:default] ||= v[:default]
+            end
+          end
+
+          # Group by category
+          categorized = Hash.new { |h, k| h[k] = [] }
+          var_details.each do |name, details|
+            category = categorize_env_var(name)
+            categorized[category] << { name: name, **details }
+          end
+
+          category_order = [
+            "API Keys & Secrets", "Mail", "Database", "Infrastructure",
+            "Monitoring", "Push Notifications", "Other"
+          ]
+          sorted_categories = categorized.keys.sort_by { |k| category_order.index(k) || 99 }
+
+          sorted_categories.each do |category|
+            vars = categorized[category]
+            lines << "" << "### #{category}"
             vars.sort_by { |v| v[:name] }.each do |v|
+              file_locations = v[:files].map { |f| f[:line] ? "#{f[:file]}:#{f[:line]}" : f[:file] }.uniq
               entry = "- `#{v[:name]}`"
-              entry += " (fetch, default: `#{v[:default]}`)" if v[:default]
-              entry += " — line #{v[:line]}" if v[:line]
+              entry += " (default: `#{v[:default]}`)" if v[:default]
+              entry += " (#{file_locations.join(', ')})"
               lines << entry
             end
           end
@@ -539,30 +565,30 @@ module RailsAiContext
         encrypted
       end
 
+      private_class_method def self.categorize_env_var(name)
+        case name
+        when /API_KEY|SECRET|TOKEN/i then "API Keys & Secrets"
+        when /MAIL|IMAP|SMTP/i then "Mail"
+        when /DATABASE|DB_|REDIS/i then "Database"
+        when /OTEL|SENTRY|DATADOG|NEWRELIC|APPSIGNAL/i then "Monitoring"
+        when /PUSH|VAPID|FCM/i then "Push Notifications"
+        when /PORT|CONCURRENCY|THREADS|WORKERS|TIMEOUT|QUEUE|PIDFILE/i then "Infrastructure"
+        else "Other"
+        end
+      end
+
       private_class_method def self.group_env_vars(var_names)
         groups = Hash.new { |h, k| h[k] = [] }
 
         var_names.each do |name|
-          group = case name
-          when /\ADATABASE_|_DB_|_DATABASE/ then "Database"
-          when /\AREDIS_|_REDIS/ then "Redis"
-          when /\AAWS_|_S3_|_SES_/ then "AWS"
-          when /\ASTRIPE_/ then "Payments (Stripe)"
-          when /\ATWILIO_/ then "Twilio"
-          when /\ASENDGRID_|_SMTP_|_MAILER_|_MAIL_/ then "Email"
-          when /\ASENTRY_|_BUGSNAG_|_ROLLBAR_|_NEWRELIC_|_DD_/ then "Monitoring"
-          when /\AOAUTH_|_CLIENT_ID|_CLIENT_SECRET|_API_KEY/ then "API Keys & Auth"
-          when /\ARAILS_|_ENV\z|_HOST|_PORT|_URL\z/ then "App Configuration"
-          when /\ARECAPTCHA_/ then "Security"
-          when /\ASECRET_|_TOKEN|_KEY\z/ then "Secrets"
-          else "Other"
-          end
-
-          groups[group] << name
+          groups[categorize_env_var(name)] << name
         end
 
         # Sort groups: important ones first
-        priority = %w[App\ Configuration Database Redis AWS Payments\ (Stripe) Email API\ Keys\ &\ Auth Monitoring Security Secrets Other]
+        priority = [
+          "API Keys & Secrets", "Mail", "Database", "Infrastructure",
+          "Monitoring", "Push Notifications", "Other"
+        ]
         groups.sort_by { |k, _| priority.index(k) || 99 }
       end
 
@@ -603,10 +629,11 @@ module RailsAiContext
         relative = file.sub("#{root}/", "")
         basename = File.basename(relative)
         patterns = RailsAiContext.configuration.sensitive_patterns
+        flags = File::FNM_DOTMATCH | File::FNM_CASEFOLD
 
         patterns.any? do |pattern|
-          File.fnmatch(pattern, relative, File::FNM_DOTMATCH) ||
-            File.fnmatch(pattern, basename, File::FNM_DOTMATCH)
+          File.fnmatch(pattern, relative, flags) ||
+            File.fnmatch(pattern, basename, flags)
         end
       end
 

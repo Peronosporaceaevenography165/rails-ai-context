@@ -94,10 +94,18 @@ module RailsAiContext
           lines << view_text
         end
 
-        # Cross-reference: controller ivars vs the specific action's view ivars (not all views)
-        ctrl_ivars = extract_ivars_from_text(ctrl_result.content.first[:text])
+        # Cross-reference: controller ivars vs view ivars
+        # Also check templates rendered by the action (e.g., create renders :new on failure)
+        ctrl_text = ctrl_result.content.first[:text]
+        ctrl_ivars = extract_ivars_from_text(ctrl_text)
         view_ivars = extract_ivars_from_view_text(view_text, action: action_name)
-        ivar_check = cross_reference_ivars(ctrl_ivars, view_ivars)
+        # Detect "render :other_template" and include those templates' ivars too
+        rendered = ctrl_text.scan(/render\s+:(\w+)/).flatten.uniq
+        other_templates = rendered.reject { |t| t == action_name }
+        other_templates.each do |tmpl|
+          view_ivars.merge(extract_ivars_from_view_text(view_text, action: tmpl))
+        end
+        ivar_check = cross_reference_ivars(ctrl_ivars, view_ivars, rendered_templates: other_templates)
         lines << "" << ivar_check if ivar_check
 
         text_response(lines.join("\n"))
@@ -140,13 +148,13 @@ module RailsAiContext
         ivars
       end
 
-      private_class_method def self.cross_reference_ivars(ctrl_ivars, view_ivars)
+      private_class_method def self.cross_reference_ivars(ctrl_ivars, view_ivars, rendered_templates: [])
         return nil if ctrl_ivars.empty? && view_ivars.empty?
 
         lines = [ "## Instance Variable Cross-Check" ]
         all = (ctrl_ivars | view_ivars).sort
 
-        mismatches = false
+        missing_ivars = []
         all.each do |ivar|
           in_ctrl = ctrl_ivars.include?(ivar)
           in_view = view_ivars.include?(ivar)
@@ -154,13 +162,21 @@ module RailsAiContext
             lines << "- \u2713 @#{ivar} — set in controller, used in view"
           elsif in_view && !in_ctrl
             lines << "- \u2717 @#{ivar} — used in view but NOT set in controller"
-            mismatches = true
+            missing_ivars << ivar
           elsif in_ctrl && !in_view
             lines << "- \u26A0 @#{ivar} — set in controller but not used in view"
           end
         end
 
-        mismatches || all.any? ? lines.join("\n") : nil
+        # If there are missing ivars AND this action renders another template,
+        # add a note explaining why — the other action likely sets them
+        if missing_ivars.any? && rendered_templates.any?
+          templates = rendered_templates.map { |t| "`#{t}`" }.join(", ")
+          lines << ""
+          lines << "_Note: This action renders #{templates} on failure — those ivars are likely set in the corresponding action(s)._"
+        end
+
+        (missing_ivars.any? || all.any?) ? lines.join("\n") : nil
       end
 
       private_class_method def self.controller_context(controller_name)
@@ -215,7 +231,11 @@ module RailsAiContext
 
         if key && models[key][:table_name]
           schema_result = GetSchema.call(table: models[key][:table_name])
-          lines << "" << "---" << "" << schema_result.content.first[:text]
+          schema_text = schema_result.content.first[:text]
+          # Only append schema if it actually has useful data (not "not found")
+          unless schema_text.include?("not found") || schema_text.include?("Available:")
+            lines << "" << "---" << "" << schema_text
+          end
         end
 
         # Tests for this model
@@ -271,14 +291,56 @@ module RailsAiContext
         ctx = begin; cached_context; rescue; nil; end
         if ctx
           models = ctx[:models] || {}
+          matched_tables = Set.new
+
           models.each_key do |model_name|
             next unless model_name.downcase.include?(feature_name.downcase)
             table_name = models[model_name][:table_name]
             next unless table_name
+            matched_tables << table_name
             schema_result = GetSchema.call(table: table_name)
             schema_text = schema_result.content.first[:text]
             unless schema_text.include?("not found")
               lines << "" << "---" << "" << schema_text
+            end
+          end
+
+          # Also include schema for related models (associated tables) if the
+          # primary model was found but the feature analysis missed controllers/services
+          analyze_text = analyze_result.content.first[:text]
+          has_controllers = analyze_text.include?("## Controllers")
+          unless has_controllers
+            # Check if any controllers or services reference this feature by name
+            controllers = ctx[:controllers]
+            if controllers.is_a?(Hash) && !controllers[:error]
+              related_ctrls = (controllers[:controllers] || []).select do |c|
+                c_name = c[:name] || ""
+                c_name.downcase.include?(feature_name.downcase) ||
+                  c_name.downcase.include?(feature_name.singularize.downcase) ||
+                  c_name.downcase.include?(feature_name.pluralize.downcase)
+              end
+              if related_ctrls.any?
+                lines << "" << "## Related Controllers (by name)"
+                related_ctrls.each do |c|
+                  actions = (c[:actions] || []).map { |a| a.is_a?(Hash) ? a[:name] : a }.compact
+                  lines << "- **#{c[:name]}** — #{actions.join(', ')}"
+                end
+              end
+            end
+
+            # Check services
+            services = ctx[:services] || ctx[:service_objects]
+            if services.is_a?(Hash) && !services[:error]
+              service_list = services[:services] || []
+              related_svcs = service_list.select do |s|
+                s_name = (s[:name] || s[:file] || "").to_s
+                s_name.downcase.include?(feature_name.downcase) ||
+                  s_name.downcase.include?(feature_name.singularize.downcase)
+              end
+              if related_svcs.any?
+                lines << "" << "## Related Services (by name)"
+                related_svcs.each { |s| lines << "- `#{s[:file] || s[:name]}`" }
+              end
             end
           end
         end

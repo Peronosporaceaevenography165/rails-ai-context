@@ -118,8 +118,25 @@ module RailsAiContext
         concern_callbacks = find_concern_callbacks(name, data)
         if concern_callbacks.any?
           lines << "" << "## From Concerns"
-          concern_callbacks.each do |concern_name, cbs|
-            lines << "- **#{concern_name}:** #{cbs.join(', ')}"
+          if detail == "full"
+            concern_callbacks.each do |concern_name, info|
+              lines << "### #{concern_name}"
+              info[:callbacks].each do |cb|
+                source = extract_method_source(info[:path], cb[:method_name])
+                lines << "- #{cb[:declaration]}"
+                if source
+                  lines << "```ruby"
+                  lines << source[:code]
+                  lines << "```"
+                  lines << ""
+                end
+              end
+            end
+          else
+            concern_callbacks.each do |concern_name, info|
+              declarations = info[:callbacks].map { |cb| cb[:declaration] }
+              lines << "- **#{concern_name}:** #{declarations.join(', ')}"
+            end
           end
         end
 
@@ -210,6 +227,10 @@ module RailsAiContext
 
       private_class_method def self.extract_callback_source(model_name, method_name)
         path = Rails.root.join("app", "models", "#{model_name.underscore}.rb")
+        extract_method_source(path, method_name)
+      end
+
+      private_class_method def self.extract_method_source(path, method_name)
         return nil unless File.exist?(path)
         return nil if File.size(path) > RailsAiContext.configuration.max_file_size
 
@@ -263,11 +284,13 @@ module RailsAiContext
 
           source.each_line do |line|
             if (match = line.match(/\A\s*(before_\w+|after_\w+|around_\w+)\s+[: ]*(\w+)/))
-              callbacks << "#{match[1]} :#{match[2]}"
+              callbacks << { declaration: "#{match[1]} :#{match[2]}", method_name: match[2] }
             end
           end
 
-          concern_callbacks[concern_name] = callbacks if callbacks.any?
+          if callbacks.any?
+            concern_callbacks[concern_name] = { callbacks: callbacks, path: concern_path }
+          end
         end
 
         concern_callbacks

@@ -63,5 +63,57 @@ RSpec.describe RailsAiContext::Tools::GetView do
       text = result.content.first[:text]
       expect(text).to include("controller:")
     end
+
+    context "with Phlex views" do
+      it "lists Phlex views in summary with [phlex] tag" do
+        result = described_class.call(controller: "articles", detail: "summary")
+        text = result.content.first[:text]
+        expect(text).to include("show.rb")
+        expect(text).to include("[phlex]")
+      end
+
+      it "shows components in summary for Phlex views" do
+        result = described_class.call(controller: "articles", detail: "summary")
+        text = result.content.first[:text]
+        expect(text).to include("components:")
+      end
+
+      it "shows components in standard detail for Phlex views" do
+        result = described_class.call(controller: "articles", detail: "standard")
+        text = result.content.first[:text]
+        expect(text).to include("[phlex]")
+        expect(text).to include("components:")
+        expect(text).to include("Components::Articles::ArticleUser")
+      end
+
+      it "shows helpers in standard detail for Phlex views" do
+        result = described_class.call(controller: "articles", detail: "standard")
+        text = result.content.first[:text]
+        expect(text).to include("helpers:")
+        expect(text).to include("link_to")
+      end
+
+      it "shows stimulus controllers in standard detail for Phlex views" do
+        result = described_class.call(controller: "articles", detail: "standard")
+        text = result.content.first[:text]
+        expect(text).to include("stimulus:")
+        expect(text).to include("infinite_scroll")
+      end
+
+      it "shows ivars in standard detail for Phlex views" do
+        result = described_class.call(controller: "articles", detail: "standard")
+        text = result.content.first[:text]
+        expect(text).to include("ivars:")
+        expect(text).to include("article")
+        expect(text).to include("comments")
+      end
+
+      it "returns Phlex view content by path" do
+        result = described_class.call(path: "articles/show.rb")
+        text = result.content.first[:text]
+        expect(text).to include("articles/show.rb")
+        expect(text).to include("view_template")
+      end
+    end
   end
 end

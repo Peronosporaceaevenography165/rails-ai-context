@@ -43,22 +43,39 @@ module RailsAiContext
 
         def compose_quick(ctx)
           app = ctx[:app_name] || "This Rails app"
-          parts = [ "**#{app}** is a Rails #{ctx[:rails_version]} application running Ruby #{ctx[:ruby_version]}" ]
+          purpose = infer_app_purpose(ctx)
 
+          parts = [ "**#{app}** is a Rails #{ctx[:rails_version]} / Ruby #{ctx[:ruby_version]}" ]
+          parts << purpose if purpose
+
+          # Stats: tables, models, jobs
+          stats = []
           schema = ctx[:schema]
           if schema.is_a?(Hash) && !schema[:error]
-            parts << "on #{schema[:adapter]} with #{schema[:total_tables]} tables"
+            table_count = schema[:total_tables] || 0
+            stats << "#{table_count} tables" if table_count > 0
           end
 
           models = ctx[:models]
           if models.is_a?(Hash) && !models[:error] && models.any?
-            top = central_models(models, 3).join(", ")
-            parts << "— #{models.size} models (key: #{top})"
+            stats << "#{models.size} models"
           end
+
+          jobs = ctx[:jobs]
+          if jobs.is_a?(Hash) && !jobs[:error]
+            job_count = (jobs[:jobs] || []).size
+            stats << "#{job_count} jobs" if job_count > 0
+          end
+
+          parts << "— #{stats.join(', ')}" if stats.any?
+
+          # Frontend and testing
+          frontend_desc = quick_frontend_summary(ctx)
+          parts << "— #{frontend_desc}" if frontend_desc
 
           tests = ctx[:tests]
           if tests.is_a?(Hash) && !tests[:error]
-            parts << "— tested with #{tests[:framework] || 'unknown framework'}"
+            parts << "tested with #{tests[:framework] || 'unknown framework'}"
           end
 
           parts.join(" ") + "."
@@ -107,7 +124,13 @@ module RailsAiContext
         def section_stack(ctx)
           lines = [ "## Stack", "" ]
           schema = ctx[:schema]
-          db = schema.is_a?(Hash) && !schema[:error] ? "#{schema[:adapter]} (#{schema[:total_tables]} tables)" : "unknown"
+          if schema.is_a?(Hash) && !schema[:error]
+            # Prefer live adapter from config over static_parse from schema introspector
+            adapter = resolve_db_adapter(ctx, schema)
+            db = "#{adapter} (#{schema[:total_tables]} tables)"
+          else
+            db = "unknown"
+          end
           lines << "#{ctx[:app_name]} is a Rails #{ctx[:rails_version]} application running Ruby #{ctx[:ruby_version]} on #{db}."
 
           gems = ctx[:gems]
@@ -440,12 +463,291 @@ module RailsAiContext
 
         # ── Helpers ──────────────────────────────────────────────────────
 
+        # Resolve the DB adapter name, preferring live config over schema introspection
+        def resolve_db_adapter(ctx, schema)
+          adapter = schema[:adapter]
+
+          # If the schema introspector returned a non-informative adapter name, try config
+          if adapter.nil? || adapter == "static_parse" || adapter == "unknown"
+            config_data = ctx[:config]
+            if config_data.is_a?(Hash) && !config_data[:error]
+              live_adapter = config_data[:database_adapter] || config_data[:adapter]
+              adapter = live_adapter if live_adapter
+            end
+          end
+
+          # Try to resolve from gems as a fallback
+          if adapter.nil? || adapter == "static_parse" || adapter == "unknown"
+            gems_data = ctx[:gems]
+            if gems_data.is_a?(Hash) && !gems_data[:error]
+              notable = gems_data[:notable_gems] || []
+              adapter = "PostgreSQL" if notable.any? { |g| g[:name] == "pg" }
+              adapter = "MySQL" if notable.any? { |g| g[:name] == "mysql2" }
+              adapter = "SQLite" if notable.any? { |g| g[:name] == "sqlite3" }
+            end
+          end
+
+          adapter || "unknown"
+        end
+
         def central_models(models, limit = 5)
           models
             .select { |_, d| d.is_a?(Hash) && !d[:error] }
             .sort_by { |_, d| -(d[:associations]&.size || 0) }
             .first(limit)
             .map(&:first)
+        end
+
+        # ── Purpose inference ────────────────────────────────────────────
+
+        # Infer a short description of what the app does from its jobs,
+        # services, models, gems, and architecture patterns.
+        def infer_app_purpose(ctx)
+          signals = collect_purpose_signals(ctx)
+          return nil if signals.empty?
+
+          # Deduplicate and join into a natural phrase
+          capabilities = signals.uniq
+          return nil if capabilities.empty?
+
+          "#{capabilities.shift} app#{capabilities.any? ? ' with ' + join_capabilities(capabilities) : ''}"
+        end
+
+        # Collect domain signals from jobs, services, models, gems, and conventions
+        def collect_purpose_signals(ctx) # rubocop:disable Metrics
+          signals = []
+
+          # Gather raw names from all sources
+          job_names = extract_job_names(ctx)
+          service_names = extract_service_names
+          model_names = extract_model_names(ctx)
+          gem_names = extract_gem_names(ctx)
+          architecture = extract_architecture(ctx)
+
+          # Infer primary domain from model names
+          signals.concat(infer_domain(model_names, job_names, service_names))
+
+          # Infer capabilities from jobs and services
+          signals.concat(infer_ingestion_sources(job_names, service_names))
+          signals.concat(infer_federation(service_names, gem_names, model_names))
+          signals.concat(infer_ai_processing(service_names, job_names, gem_names))
+          signals.concat(infer_social_features(model_names, service_names))
+          signals.concat(infer_notifications(service_names, job_names))
+          signals.concat(infer_search(gem_names, architecture))
+          signals.concat(infer_ecommerce(model_names, service_names, gem_names))
+          signals.concat(infer_messaging(model_names, job_names))
+
+          signals
+        end
+
+        def extract_job_names(ctx)
+          jobs = ctx[:jobs]
+          return [] unless jobs.is_a?(Hash) && !jobs[:error]
+          (jobs[:jobs] || []).map { |j| j[:name].to_s }.reject(&:empty?)
+        end
+
+        def extract_service_names
+          services_dir = File.join(Rails.root, "app", "services")
+          return [] unless Dir.exist?(services_dir)
+
+          Dir.glob(File.join(services_dir, "**", "*.rb")).filter_map do |path|
+            name = File.basename(path, ".rb").camelize
+            name unless name == "ApplicationService" || name == "BaseService"
+          end
+        rescue
+          []
+        end
+
+        def extract_model_names(ctx)
+          models = ctx[:models]
+          return [] unless models.is_a?(Hash) && !models[:error]
+          models.keys.map(&:to_s)
+        end
+
+        def extract_gem_names(ctx)
+          gems = ctx[:gems]
+          return [] unless gems.is_a?(Hash) && !gems[:error]
+          (gems[:notable_gems] || []).map { |g| g[:name].to_s }
+        end
+
+        def extract_architecture(ctx)
+          conv = ctx[:conventions]
+          return [] unless conv.is_a?(Hash) && !conv[:error]
+          conv[:architecture] || []
+        end
+
+        # Infer the primary domain of the app (e.g., "news aggregation", "e-commerce")
+        def infer_domain(model_names, job_names, service_names)
+          all_names = (model_names + job_names + service_names).map(&:downcase).join(" ")
+
+          # Order matters: more specific patterns first
+          if all_names.match?(/article|news|rss|feed/) && all_names.match?(/site|source|feed/)
+            [ "news aggregation" ]
+          elsif all_names.match?(/article|blog|post/) && all_names.match?(/comment|author/)
+            [ "content publishing" ]
+          elsif all_names.match?(/product|cart|order|checkout/)
+            [ "e-commerce" ]
+          elsif all_names.match?(/patient|appointment|doctor|medical/)
+            [ "healthcare" ]
+          elsif all_names.match?(/course|lesson|student|enrollment/)
+            [ "education/LMS" ]
+          elsif all_names.match?(/listing|property|booking|reservation/)
+            [ "marketplace" ]
+          elsif all_names.match?(/ticket|issue|sprint|project/) && all_names.match?(/assign|board/)
+            [ "project management" ]
+          elsif all_names.match?(/message|conversation|chat|thread/)
+            [ "messaging" ]
+          elsif all_names.match?(/invoice|payment|subscription|billing/)
+            [ "billing/SaaS" ]
+          elsif all_names.match?(/post|comment|follow|like|feed/)
+            [ "social platform" ]
+          elsif all_names.match?(/article|post|page|content/)
+            [ "content management" ]
+          else
+            []
+          end
+        end
+
+        # Infer content ingestion sources from job/service names
+        def infer_ingestion_sources(job_names, service_names)
+          all_names = (job_names + service_names).map(&:downcase)
+          sources = []
+
+          sources << "RSS" if all_names.any? { |n| n.include?("rss") }
+          sources << "YouTube" if all_names.any? { |n| n.include?("youtube") }
+          sources << "HackerNews" if all_names.any? { |n| n.include?("hackernews") || n.include?("hacker_news") }
+          sources << "Reddit" if all_names.any? { |n| n.include?("reddit") }
+          sources << "Gmail" if all_names.any? { |n| n.include?("gmail") }
+          sources << "Twitter" if all_names.any? { |n| n.include?("twitter") }
+
+          return [] if sources.empty?
+          [ "#{sources.join(', ')} ingestion" ]
+        end
+
+        # Infer ActivityPub/federation features
+        def infer_federation(service_names, gem_names, model_names)
+          all = (service_names + gem_names + model_names).map(&:downcase)
+
+          if all.any? { |n| n.match?(/mastodon|activitypub|federails|federation/) }
+            [ "ActivityPub federation" ]
+          elsif all.any? { |n| n.match?(/fediverse/) }
+            [ "Fediverse integration" ]
+          else
+            []
+          end
+        end
+
+        # Infer AI/ML processing features
+        def infer_ai_processing(service_names, job_names, gem_names)
+          all = (service_names + job_names + gem_names).map(&:downcase)
+
+          if all.any? { |n| n.match?(/agent|openai|anthropic|llm|ai_|_ai/) }
+            [ "AI processing" ]
+          elsif all.any? { |n| n.match?(/ml_|machine_learn|predict/) }
+            [ "ML processing" ]
+          else
+            []
+          end
+        end
+
+        # Infer social features (follows, likes, etc.)
+        def infer_social_features(model_names, service_names)
+          all = (model_names + service_names).map(&:downcase)
+
+          if all.any? { |n| n.match?(/follow|like|mention|social/) } && all.any? { |n| n.match?(/federation|mastodon/) }
+            [] # Already covered by federation
+          elsif all.any? { |n| n.match?(/oauth|social_media/) }
+            [ "social media integration" ]
+          else
+            []
+          end
+        end
+
+        # Infer push/notification features
+        def infer_notifications(service_names, job_names)
+          all = (service_names + job_names).map(&:downcase)
+
+          if all.any? { |n| n.match?(/push_notif|web_push|notification/) }
+            [ "push notifications" ]
+          else
+            []
+          end
+        end
+
+        # Infer search capabilities
+        def infer_search(gem_names, architecture)
+          all = (gem_names + architecture).map(&:downcase)
+
+          if all.any? { |n| n.match?(/elasticsearch|searchkick|meilisearch/) }
+            [ "full-text search" ]
+          else
+            []
+          end
+        end
+
+        # Infer e-commerce features
+        def infer_ecommerce(model_names, service_names, gem_names)
+          all = (model_names + service_names + gem_names).map(&:downcase)
+
+          if all.any? { |n| n.match?(/stripe|pay\b|braintree/) }
+            [ "payment processing" ]
+          else
+            []
+          end
+        end
+
+        # Infer messaging/real-time features
+        def infer_messaging(model_names, job_names)
+          all = (model_names + job_names).map(&:downcase)
+
+          if all.any? { |n| n.match?(/conversation|chat|direct_message/) }
+            [ "real-time messaging" ]
+          else
+            []
+          end
+        end
+
+        # Quick one-line frontend summary from conventions
+        def quick_frontend_summary(ctx)
+          conv = ctx[:conventions]
+          return nil unless conv.is_a?(Hash) && !conv[:error]
+
+          arch = conv[:architecture] || []
+          parts = []
+
+          parts << "Hotwire" if arch.include?("hotwire")
+          parts << "Phlex" if arch.include?("phlex")
+          parts << "ViewComponent" if arch.include?("view_components") && !arch.include?("phlex")
+          parts << "Stimulus" if arch.include?("stimulus") && !arch.include?("hotwire")
+          parts << "React" if arch.include?("react")
+          parts << "Vue" if arch.include?("vue")
+
+          # Check frontend frameworks introspection too
+          frontend = ctx[:frontend_frameworks]
+          if frontend.is_a?(Hash) && !frontend[:error]
+            frameworks = frontend[:frameworks]
+            if frameworks.is_a?(Hash)
+              frameworks.each_key do |name|
+                n = name.to_s.downcase
+                parts << "React" if n.include?("react") && !parts.include?("React")
+                parts << "Vue" if n.include?("vue") && !parts.include?("Vue")
+                parts << "Angular" if n.include?("angular") && !parts.include?("Angular")
+                parts << "Svelte" if n.include?("svelte") && !parts.include?("Svelte")
+              end
+            end
+          end
+
+          parts.any? ? "#{parts.join(' + ')} frontend" : nil
+        end
+
+        # Join a list of capabilities with commas and "and" before the last
+        def join_capabilities(items)
+          case items.size
+          when 0 then ""
+          when 1 then items.first
+          when 2 then "#{items[0]} and #{items[1]}"
+          else "#{items[0..-2].join(', ')}, and #{items.last}"
+          end
         end
       end
     end

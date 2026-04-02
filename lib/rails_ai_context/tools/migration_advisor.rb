@@ -130,6 +130,8 @@ module RailsAiContext
           opts = options ? ", #{options}" : ""
           class_name = migration_class_name("add", table, column)
 
+          lines << "**Run:** `bin/rails generate migration #{class_name} #{column}:#{type}`"
+          lines << ""
           lines << "```ruby"
           lines << "# rails generate migration #{class_name} #{column}:#{type}"
           lines << "class #{class_name} < ActiveRecord::Migration[#{rails_version}]"
@@ -165,6 +167,8 @@ module RailsAiContext
           # Check if column is referenced
           col_type = find_column_type(table, column, schema) || type || "string"
 
+          lines << "**Run:** `bin/rails generate migration #{class_name} #{column}:#{col_type}`"
+          lines << ""
           lines << "**Warning:** `remove_column` is irreversible without specifying the column type."
           lines << ""
           lines << "```ruby"

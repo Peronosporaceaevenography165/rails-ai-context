@@ -71,5 +71,58 @@ RSpec.describe RailsAiContext::Tools::Diagnose do
       text = result.content.first[:text]
       expect(text).to include("Next Steps")
     end
+
+    it "classifies NameError: uninitialized constant as name_error, not nil_reference" do
+      result = described_class.call(error: "NameError: uninitialized constant MyService")
+      text = result.content.first[:text]
+      expect(text).to include("name_error")
+      expect(text).not_to include("nil_reference")
+      expect(text).to include("typo in class/module name")
+      expect(text).not_to include("safe navigation")
+    end
+
+    it "classifies generic NameError as name_error" do
+      result = described_class.call(error: "NameError: undefined local variable or method `foo'")
+      text = result.content.first[:text]
+      expect(text).to include("name_error")
+      expect(text).not_to include("nil_reference")
+    end
+
+    it "still classifies NoMethodError as nil_reference" do
+      result = described_class.call(error: "NoMethodError: undefined method `bar` for nil:NilClass")
+      text = result.content.first[:text]
+      expect(text).to include("nil_reference")
+      expect(text).not_to include("name_error")
+    end
+
+    it "truncates oversized output to within MAX_TOTAL_OUTPUT" do
+      # Stub gather_context to return a very large section
+      allow(described_class).to receive(:gather_context).and_return(
+        [ "## Controller Context", "x" * 50_000, "" ]
+      )
+      allow(described_class).to receive(:gather_git_context).and_return([])
+      allow(described_class).to receive(:gather_log_context).and_return([])
+
+      result = described_class.call(error: "NoMethodError: undefined method `foo` for nil:NilClass")
+      text = result.content.first[:text]
+      # The total output should not exceed MAX_TOTAL_OUTPUT + the truncation message
+      expect(text.length).to be <= 20_200
+      expect(text).to include("truncated")
+    end
+
+    it "truncates individual sections exceeding their max" do
+      large_content = "y" * 5_000
+      allow(described_class).to receive(:gather_context).and_return(
+        [ "## Controller Context", large_content, "" ]
+      )
+      allow(described_class).to receive(:gather_git_context).and_return([])
+      allow(described_class).to receive(:gather_log_context).and_return([])
+
+      result = described_class.call(error: "NoMethodError: undefined method `foo` for nil:NilClass")
+      text = result.content.first[:text]
+      # The controller context section should be truncated to ~3000 chars
+      expect(text).to include("section truncated")
+      expect(text).not_to include(large_content)
+    end
   end
 end

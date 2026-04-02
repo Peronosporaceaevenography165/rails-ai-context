@@ -87,10 +87,10 @@ module RailsAiContext
         search_pattern = case match_type
         when "definition"
           cleaned = pattern.sub(/\A\s*def\s+/, "")
-          "^\\s*def\\s+(self\\.)?#{cleaned}"
+          "^\\s*def\\s+(self\\.)?#{Regexp.escape(cleaned)}"
         when "class"
           cleaned = pattern.sub(/\A\s*(class|module)\s+/, "")
-          "^\\s*(class|module)\\s+\\w*#{cleaned}"
+          "^\\s*(class|module)\\s+\\w*#{Regexp.escape(cleaned)}"
         when "call"
           pattern
         else
@@ -202,6 +202,22 @@ module RailsAiContext
           cmd << "--glob=!#{p}"
         end
 
+        # Exclude generated AI context files (not source code)
+        # Claude
+        cmd << "--glob=!CLAUDE.md"
+        cmd << "--glob=!.claude/"
+        # Cursor
+        cmd << "--glob=!.cursor/"
+        cmd << "--glob=!.cursorrules"
+        # GitHub Copilot
+        cmd << "--glob=!.github/copilot-instructions.md"
+        cmd << "--glob=!.github/instructions/"
+        # OpenCode
+        cmd << "--glob=!AGENTS.md"
+        cmd << "--glob=!**/AGENTS.md"
+        # JSON export
+        cmd << "--glob=!.ai-context.json"
+
         # Exclude test/spec directories if requested
         if exclude_tests
           cmd << "--glob=!test/"
@@ -238,11 +254,13 @@ module RailsAiContext
         excluded = RailsAiContext.configuration.excluded_paths
         sensitive = RailsAiContext.configuration.sensitive_patterns
         test_dirs = %w[test/ spec/ features/]
+        ai_context_files = %w[CLAUDE.md AGENTS.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ .ai-context.json]
 
         Dir.glob(File.join(search_path, glob)).each do |file|
           relative = file.sub("#{root}/", "")
           next if excluded.any? { |ex| relative.start_with?(ex) }
           next if sensitive_file?(relative, sensitive)
+          next if ai_context_files.any? { |p| relative.start_with?(p) || relative == p }
           next if exclude_tests && test_dirs.any? { |td| relative.start_with?(td) }
 
           File.readlines(file).each_with_index do |line, idx|
@@ -260,9 +278,10 @@ module RailsAiContext
 
       private_class_method def self.sensitive_file?(relative_path, patterns)
         basename = File.basename(relative_path)
+        flags = File::FNM_DOTMATCH | File::FNM_CASEFOLD
         patterns.any? do |pattern|
-          File.fnmatch(pattern, relative_path, File::FNM_DOTMATCH) ||
-            File.fnmatch(pattern, basename, File::FNM_DOTMATCH)
+          File.fnmatch(pattern, relative_path, flags) ||
+            File.fnmatch(pattern, basename, flags)
         end
       end
 

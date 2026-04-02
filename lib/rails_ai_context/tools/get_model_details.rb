@@ -123,6 +123,25 @@ module RailsAiContext
           lines << "**Structure:** #{map}"
         end
 
+        # Schema columns — inline from schema introspection
+        if data[:table_name]
+          schema = cached_context[:schema]
+          if schema.is_a?(Hash) && !schema[:error] && schema[:tables]&.key?(data[:table_name])
+            table_data = schema[:tables][data[:table_name]]
+            cols = table_data[:columns] || []
+            if cols.any?
+              lines << "" << "## Columns"
+              cols.each do |c|
+                parts = [ "**#{c[:name]}**", c[:type] ]
+                parts << "NOT NULL" if c[:null] == false
+                parts << "default: #{c[:default]}" if c[:default] && !c[:default].to_s.empty?
+                parts << "array" if c[:array]
+                lines << "- #{parts.join(' | ')}"
+              end
+            end
+          end
+        end
+
         # Associations
         if data[:associations]&.any?
           lines << "" << "## Associations"

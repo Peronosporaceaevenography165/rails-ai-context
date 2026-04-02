@@ -156,21 +156,33 @@ module RailsAiContext
         File.join(app.root, "db", "structure.sql")
       end
 
+      def migrations_dir
+        File.join(app.root, "db", "migrate")
+      end
+
       def max_schema_file_size
         RailsAiContext.configuration.max_schema_file_size
       end
 
       # Fallback: parse schema file as text when DB isn't connected.
-      # Tries db/schema.rb first, then db/structure.sql.
+      # Tries db/schema.rb first, then db/structure.sql, then migrations.
       # This enables introspection in CI, Claude Code, etc.
       def static_schema_parse
         if File.exist?(schema_file_path)
-          parse_schema_rb(schema_file_path)
-        elsif File.exist?(structure_file_path)
-          parse_structure_sql(structure_file_path)
-        else
-          { error: "No db/schema.rb or db/structure.sql found" }
+          result = parse_schema_rb(schema_file_path)
+          return result if result[:total_tables].to_i > 0
         end
+
+        if File.exist?(structure_file_path)
+          result = parse_structure_sql(structure_file_path)
+          return result if result[:total_tables].to_i > 0
+        end
+
+        if Dir.exist?(migrations_dir) && Dir.glob(File.join(migrations_dir, "*.rb")).any?
+          return parse_migrations
+        end
+
+        { error: "No db/schema.rb, db/structure.sql, or migrations found" }
       end
 
       def parse_schema_rb(path)
@@ -372,6 +384,171 @@ module RailsAiContext
         columns
       rescue
         []
+      end
+
+      # Reconstruct schema by replaying migrations in order.
+      # Handles: create_table, add_column, remove_column, rename_column,
+      # rename_table, drop_table, change_column, add_index, add_reference,
+      # add_foreign_key, add_timestamps.
+      def parse_migrations
+        tables = {}
+        migration_files = Dir.glob(File.join(migrations_dir, "*.rb")).sort
+
+        migration_files.each do |path|
+          content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace)
+          replay_migration(content, tables)
+        rescue => e
+          next # Skip unparseable migrations
+        end
+
+        # Remove internal Rails tables
+        tables.delete("ar_internal_metadata")
+        tables.delete("schema_migrations")
+
+        {
+          adapter: "static_parse",
+          tables: tables,
+          total_tables: tables.size,
+          note: "Reconstructed from #{migration_files.size} migration files (no DB connection, no schema.rb)"
+        }
+      end
+
+      def replay_migration(content, tables) # rubocop:disable Metrics
+        current_table = nil
+
+        content.each_line do |line|
+          stripped = line.strip
+
+          # create_table :name / create_table "name"
+          if (match = stripped.match(/create_table\s+[:"'](\w+)/))
+            table_name = match[1]
+            current_table = table_name
+            tables[table_name] ||= { columns: [], indexes: [], foreign_keys: [] }
+            # create_table implicitly adds id and timestamps in some cases
+          elsif stripped.match?(/\A\s*end\b/) && current_table
+            current_table = nil
+
+          # t.references / t.belongs_to inside create_table (must be before general column match)
+          elsif current_table && (match = stripped.match(/t\.(?:references|belongs_to)\s+[:"'](\w+)/))
+            ref_name = match[1]
+            col = { name: "#{ref_name}_id", type: "bigint" }
+            col[:null] = false if stripped.include?("null: false")
+            tables[current_table][:columns] << col
+
+          # t.timestamps inside create_table
+          elsif current_table && stripped.match?(/t\.timestamps/)
+            tables[current_table][:columns] << { name: "created_at", type: "datetime", null: false }
+            tables[current_table][:columns] << { name: "updated_at", type: "datetime", null: false }
+
+          # t.index inside create_table
+          elsif current_table && (match = stripped.match(/t\.index\s+\[([^\]]*)\]/))
+            cols = match[1].scan(/[:"'](\w+)/).flatten
+            unique = stripped.include?("unique: true")
+            idx_name = stripped.match(/name:\s*[:"']([^"'\s,]+)/)&.send(:[], 1)
+            tables[current_table][:indexes] << { name: idx_name, columns: cols, unique: unique }.compact if cols.any?
+
+          # t.type :name / t.type "name" (general column match inside create_table block)
+          elsif current_table && (match = stripped.match(/t\.(\w+)\s+[:"'](\w+)/))
+            col_type = match[1]
+            col_name = match[2]
+            next if %w[index check_constraint].include?(col_type)
+            col = { name: col_name, type: col_type }
+            col[:null] = false if stripped.include?("null: false")
+            if (def_match = stripped.match(/default:\s*("[^"]*"|\d+(?:\.\d+)?|true|false)/))
+              raw = def_match[1]
+              col[:default] = raw.start_with?('"') ? raw[1..-2] : raw
+            end
+            col[:array] = true if stripped.include?("array: true")
+            tables[current_table][:columns] << col
+
+          # add_column :table, :column, :type
+          elsif (match = stripped.match(/add_column\s+[:"'](\w+)['"']?,\s*[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            table_name, col_name, col_type = match[1], match[2], match[3]
+            if tables[table_name]
+              tables[table_name][:columns].reject! { |c| c[:name] == col_name }
+              col = { name: col_name, type: col_type }
+              col[:null] = false if stripped.include?("null: false")
+              if (def_match = stripped.match(/default:\s*("[^"]*"|\d+(?:\.\d+)?|true|false)/))
+                raw = def_match[1]
+                col[:default] = raw.start_with?('"') ? raw[1..-2] : raw
+              end
+              tables[table_name][:columns] << col
+            end
+
+          # remove_column :table, :column
+          elsif (match = stripped.match(/remove_column\s+[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            table_name, col_name = match[1], match[2]
+            tables[table_name][:columns]&.reject! { |c| c[:name] == col_name } if tables[table_name]
+
+          # rename_column :table, :old, :new
+          elsif (match = stripped.match(/rename_column\s+[:"'](\w+)['"']?,\s*[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            table_name, old_name, new_name = match[1], match[2], match[3]
+            if tables[table_name]
+              col = tables[table_name][:columns].find { |c| c[:name] == old_name }
+              col[:name] = new_name if col
+            end
+
+          # change_column :table, :column, :new_type
+          elsif (match = stripped.match(/change_column\s+[:"'](\w+)['"']?,\s*[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            table_name, col_name, new_type = match[1], match[2], match[3]
+            if tables[table_name]
+              col = tables[table_name][:columns].find { |c| c[:name] == col_name }
+              col[:type] = new_type if col
+            end
+
+          # rename_table :old, :new
+          elsif (match = stripped.match(/rename_table\s+[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            old_name, new_name = match[1], match[2]
+            tables[new_name] = tables.delete(old_name) if tables[old_name]
+
+          # drop_table :name
+          elsif (match = stripped.match(/drop_table\s+[:"'](\w+)/))
+            tables.delete(match[1])
+
+          # add_reference / add_belongs_to :table, :ref
+          elsif (match = stripped.match(/add_(?:reference|belongs_to)\s+[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            table_name, ref_name = match[1], match[2]
+            if tables[table_name]
+              col_name = "#{ref_name}_id"
+              tables[table_name][:columns].reject! { |c| c[:name] == col_name }
+              col = { name: col_name, type: "bigint" }
+              col[:null] = false if stripped.include?("null: false")
+              tables[table_name][:columns] << col
+            end
+
+          # add_index :table, [:cols]
+          elsif (match = stripped.match(/add_index\s+[:"'](\w+)['"']?,\s*\[([^\]]*)\]/))
+            table_name = match[1]
+            cols = match[2].scan(/[:"'](\w+)/).flatten
+            unique = stripped.include?("unique: true")
+            idx_name = stripped.match(/name:\s*[:"']([^"'\s,]+)/)&.send(:[], 1)
+            tables[table_name][:indexes]&.push({ name: idx_name, columns: cols, unique: unique }.compact) if tables[table_name] && cols.any?
+
+          # add_index :table, :single_col
+          elsif (match = stripped.match(/add_index\s+[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            table_name, col_name = match[1], match[2]
+            unique = stripped.include?("unique: true")
+            idx_name = stripped.match(/name:\s*[:"']([^"'\s,]+)/)&.send(:[], 1)
+            tables[table_name][:indexes]&.push({ name: idx_name, columns: [ col_name ], unique: unique }.compact) if tables[table_name]
+
+          # add_foreign_key :from, :to
+          elsif (match = stripped.match(/add_foreign_key\s+[:"'](\w+)['"']?,\s*[:"'](\w+)/))
+            from_table, to_table = match[1], match[2]
+            col_match = stripped.match(/column:\s*[:"'](\w+)/)
+            column = col_match ? col_match[1] : "#{to_table.chomp('s')}_id"
+            if tables[from_table]
+              tables[from_table][:foreign_keys] << { from_table: from_table, to_table: to_table, column: column, primary_key: "id" }
+            end
+
+          # add_timestamps :table
+          elsif (match = stripped.match(/add_timestamps\s+[:"'](\w+)/))
+            table_name = match[1]
+            if tables[table_name]
+              tables[table_name][:columns] << { name: "created_at", type: "datetime", null: false }
+              tables[table_name][:columns] << { name: "updated_at", type: "datetime", null: false }
+            end
+          end
+        end
       end
 
       def normalize_sql_type(type)

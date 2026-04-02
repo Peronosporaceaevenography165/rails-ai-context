@@ -105,7 +105,11 @@ module RailsAiContext
 
       private_class_method def self.format_summary(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: nil)
         total_broadcasts = model_broadcasts.size + rb_broadcasts.size
+        turbo_data = cached_context[:turbo]
+        turbo_stream_response_count = turbo_data.is_a?(Hash) && !turbo_data[:error] ? turbo_data[:turbo_stream_responses]&.size.to_i : 0
+
         lines = [ "# Turbo Map", "" ]
+        lines << "- **Turbo Stream responses:** #{turbo_stream_response_count} (controller `.turbo_stream.erb` templates)" if turbo_stream_response_count > 0
         lines << "- **Model broadcasts:** #{model_broadcasts.size} (via `broadcasts`, `broadcasts_to`, etc.)"
         lines << "- **Explicit broadcasts:** #{rb_broadcasts.size} (via `broadcast_*_to` calls in .rb files)"
         lines << "- **Stream subscriptions:** #{view_subscriptions.size} (`turbo_stream_from` in views)"
@@ -195,7 +199,9 @@ module RailsAiContext
           lines << ""
         end
 
-        if model_broadcasts.empty? && rb_broadcasts.empty? && view_subscriptions.empty? && view_frames.empty?
+        has_turbo_stream_responses = turbo_data.is_a?(Hash) && turbo_data[:turbo_stream_responses]&.any?
+
+        if model_broadcasts.empty? && rb_broadcasts.empty? && view_subscriptions.empty? && view_frames.empty? && !has_turbo_stream_responses
           if filter_label
             lines << "_No Turbo usage matching #{filter_label}. Try without filter to see all Turbo Streams and Frames._"
           else
@@ -210,6 +216,31 @@ module RailsAiContext
 
       private_class_method def self.format_full(model_broadcasts, rb_broadcasts, view_subscriptions, view_frames, warnings, filter_label: nil)
         lines = [ "# Turbo Map (Full Detail)", "" ]
+
+        # Turbo Drive Configuration & Stream Responses
+        turbo_data = cached_context[:turbo]
+        if turbo_data.is_a?(Hash) && !turbo_data[:error]
+          drive_parts = []
+          drive_parts << "morph: #{turbo_data[:morph_meta] ? 'yes' : 'no'}" unless turbo_data[:morph_meta].nil?
+          drive_parts << "permanent elements: #{turbo_data[:permanent_elements].size}" if turbo_data[:permanent_elements]&.any?
+          if turbo_data[:turbo_drive_settings].is_a?(Hash) && turbo_data[:turbo_drive_settings].any?
+            turbo_data[:turbo_drive_settings].each { |k, v| drive_parts << "#{k}: #{v}" }
+          end
+          if drive_parts.any?
+            lines << "## Turbo Drive Configuration"
+            drive_parts.each { |p| lines << "- #{p}" }
+            lines << ""
+          end
+
+          # Turbo Stream responses
+          if turbo_data[:turbo_stream_responses]&.any?
+            lines << "## Turbo Stream Responses (#{turbo_data[:turbo_stream_responses].size})"
+            turbo_data[:turbo_stream_responses].each do |resp|
+              lines << "- `#{resp}`"
+            end
+            lines << ""
+          end
+        end
 
         # Model broadcasts with full context
         if model_broadcasts.any?
@@ -289,7 +320,9 @@ module RailsAiContext
           lines << ""
         end
 
-        if model_broadcasts.empty? && rb_broadcasts.empty? && view_subscriptions.empty? && view_frames.empty?
+        has_turbo_stream_responses = turbo_data.is_a?(Hash) && turbo_data[:turbo_stream_responses]&.any?
+
+        if model_broadcasts.empty? && rb_broadcasts.empty? && view_subscriptions.empty? && view_frames.empty? && !has_turbo_stream_responses
           if filter_label
             lines << "_No Turbo usage matching #{filter_label}. Try without filter to see all Turbo Streams and Frames._"
           else

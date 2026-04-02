@@ -40,11 +40,23 @@ module RailsAiContext
 
           relative = path.sub("#{views_dir}/", "")
           content = File.read(path, encoding: "UTF-8", invalid: :replace, undef: :replace) rescue next
-          templates[relative] = {
-            lines: content.lines.count,
-            partials: extract_partial_refs(content),
-            stimulus: extract_stimulus_refs(content)
-          }
+
+          if phlex_view?(path, content)
+            templates[relative] = {
+              lines: content.lines.count,
+              partials: extract_partial_refs(content),
+              stimulus: extract_stimulus_refs(content),
+              components: extract_phlex_component_renders(content),
+              helpers: extract_phlex_helper_calls(content),
+              phlex: true
+            }
+          else
+            templates[relative] = {
+              lines: content.lines.count,
+              partials: extract_partial_refs(content),
+              stimulus: extract_stimulus_refs(content)
+            }
+          end
         end
         templates
       end
@@ -68,7 +80,7 @@ module RailsAiContext
         max_total = RailsAiContext.configuration.max_view_total_size
         max_single = RailsAiContext.configuration.max_view_file_size
         content = +""
-        Dir.glob(File.join(views_dir, "**", "*.{erb,haml,slim}")).each do |path|
+        Dir.glob(File.join(views_dir, "**", "*.{erb,haml,slim,rb}")).each do |path|
           next if File.directory?(path)
           next if File.size(path) > max_single
           break if content.bytesize >= max_total
@@ -704,6 +716,41 @@ module RailsAiContext
         "Shared partial (#{content.lines.size} lines)"
       end
 
+      # Detect whether a view file is a Phlex view (Ruby DSL, not ERB)
+      def phlex_view?(path, content)
+        return false unless path.end_with?(".rb")
+        # Check for Phlex class patterns: inherits from a View/Base class and defines view_template
+        content.match?(/class\s+\S+\s*<\s*\S+/) && content.match?(/def\s+view_template\b/)
+      end
+
+      # Extract component render calls from Phlex Ruby DSL
+      # Matches: render ComponentName.new(...), render(ComponentName.new(...))
+      # Also matches: render Components::Nested::Name.new(...)
+      def extract_phlex_component_renders(content)
+        components = Set.new
+        content.scan(/render[\s(]+([A-Z]\w+(?:::\w+)*)\.new/).each do |match|
+          components << match[0]
+        end
+        components.to_a.sort
+      end
+
+      # Extract helper method calls from Phlex views
+      # Phlex views use include to pull in helpers, and call them directly
+      PHLEX_HELPER_METHODS = %w[
+        link_to image_tag content_for button_to form_with form_for
+        content_tag tag number_to_currency number_to_human
+        time_ago_in_words distance_of_time_in_words
+        truncate pluralize raw sanitize dom_id
+      ].freeze
+
+      def extract_phlex_helper_calls(content)
+        helpers = []
+        PHLEX_HELPER_METHODS.each do |method|
+          helpers << method if content.match?(/\b#{method}\b/)
+        end
+        helpers
+      end
+
       EXCLUDED_METHODS = %w[
         each map select reject first last size count any? empty? present? blank?
         new build create find where order limit nil? join class html_safe
@@ -750,17 +797,23 @@ module RailsAiContext
         content.scan(/render\s+(?:partial:\s*)?["']([^"']+)["']/).each { |m| refs << m[0] }
         # render @collection
         content.scan(/render\s+@(\w+)/).each { |m| refs << m[0] }
+        # Phlex: render ComponentName.new(...) or render(ComponentName.new(...))
+        content.scan(/render[\s(]+([A-Z]\w+(?:::\w+)*)\.new/).each { |m| refs << m[0] }
         refs.uniq
       end
 
       def extract_stimulus_refs(content)
         refs = []
-        # data-controller="name" or data-controller="name1 name2"
+        # data-controller="name" or data-controller="name1 name2" (ERB/HTML)
         content.scan(/data-controller=["']([^"']+)["']/).each do |m|
           m[0].split.each { |c| refs << c }
         end
-        # data: { controller: "name" }
+        # data: { controller: "name" } (ERB helpers / Phlex hash syntax)
         content.scan(/controller:\s*["']([^"']+)["']/).each do |m|
+          m[0].split.each { |c| refs << c }
+        end
+        # Phlex keyword: data_controller: "name" (Phlex HTML attributes)
+        content.scan(/data_controller:\s*["']([^"']+)["']/).each do |m|
           m[0].split.each { |c| refs << c }
         end
         refs.uniq
