@@ -90,18 +90,19 @@ Definition + source code + every caller grouped by type + what it calls internal
 
 ## Measured token savings
 
-Real numbers from a production Rails app:
+Real numbers from a production Rails app (not cherry-picked — these are the files AI actually reads):
 
-| Scenario | Without (raw files) | With (tool call) | Saved |
-|----------|--------------------:|------------------:|------:|
-| Schema (one table) | 1,492 tokens | 335 tokens | **77%** |
-| Trace a method (5 files) | 10,818 tokens | 256 tokens | **97.6%** |
-| All controllers | 5,574 tokens | 242 tokens | **95.7%** |
-| All views | 38,289 tokens | 124 tokens | **99.7%** |
-| Stimulus controllers | 9,886 tokens | 620 tokens | **93.7%** |
-| **Total** | **66,059 tokens** | **1,577 tokens** | **97.6%** |
+| Task | Without (files AI reads) | With (one tool call) | Saved |
+|------|-------------------------:|---------------------:|------:|
+| Get one table's columns | 1,492 tokens (full schema.rb) | 335 tokens | **77%** |
+| Trace `can_cook?` across codebase | 10,556 tokens (4 files) | 256 tokens | **97%** |
+| Understand User model | 1,754 tokens (model + schema.rb) | 588 tokens | **66%** |
+| Map Stimulus controllers | 9,886 tokens (all JS files) | 620 tokens | **94%** |
+| Routes for one controller | 373 tokens (routes.rb) | 121 tokens | **68%** |
 
-> Without this gem, AI reads entire files to find what it needs. With it, one tool call returns exactly the right context — structured, cross-referenced, and ready to use.
+The trace is the standout — AI normally greps, then opens 4-5 files one by one. The tool returns definition + every caller + tests in a single call.
+
+> Model details actually returns **more** context than the raw file (resolved associations, column types from schema, scopes, callbacks) in fewer tokens.
 
 ---
 
